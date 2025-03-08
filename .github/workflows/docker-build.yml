@@ -1,35 +1,34 @@
-name: Build and Push Ubuntu Server Image
+name: Docker Image CI/CD
 
 on:
   push:
     branches: [ "main" ]
-    paths: 
+    paths:
       - 'Dockerfile'
-      - '.github/workflows/*.yml'  # 新增工作流文件变更触发[6](@ref)
+      - '.github/workflows/*.yml'
   workflow_dispatch:
 
-permissions:
-  contents: read
-  packages: write
-  id-token: write  # 新增安全身份验证权限[6](@ref)
-  actions: read    # 新增工作流间通信权限[2](@ref)
-
 env:
+  REGISTRY: docker.io
   IMAGE_NAME: ubuntu-22.04-server
-  REGISTRY: docker.io  # 明确指定注册中心[4](@ref)
-  CACHE_DIR: /tmp/.buildx-cache  # 新增缓存配置[6](@ref)
+  CACHE_DIR: /tmp/.buildx-cache
   BUILD_DATE: ${{ github.event.head_commit.timestamp || github.run_started_at }}
 
 jobs:
   build-and-push:
     runs-on: ubuntu-latest
+    permissions:
+      contents: read
+      packages: write
+      id-token: write
+
     steps:
       # ================= 代码检出 =================
       - name: Checkout code
         uses: actions/checkout@v4
         with:
-          fetch-depth: 0  # 获取完整提交历史[6](@ref)
-          ref: ${{ github.event.pull_request.head.sha || github.sha }}  # 兼容PR场景[2](@ref)
+          fetch-depth: 0
+          ref: ${{ github.event.pull_request.head.sha || github.sha }}
 
       # ================= 构建环境初始化 =================
       - name: Setup Buildx
@@ -38,9 +37,9 @@ jobs:
           driver-opts: |
             image=moby/buildkit:master
             network=host
-          buildkitd-config: |  # 新增镜像加速配置[5](@ref)
+          buildkitd-config: |
             [registry."docker.io"]
-              mirrors = ["mirror.gcr.io", "registry-1.docker.io"]
+              mirrors = ["mirror.gcr.io"]
 
       # ================= 缓存管理 =================
       - name: Cache Docker layers
@@ -52,37 +51,31 @@ jobs:
             ${{ runner.os }}-buildx-
 
       # ================= 认证阶段 =================
-      - name: Validate Secrets  # 新增凭证预验证[1](@ref)
-        run: |
-          echo "DOCKERHUB_USERNAME状态: ${{ secrets.DOCKERHUB_USERNAME != '' }}"
-          echo "DOCKER_ACCESS_TOKEN状态: ${{ secrets.DOCKER_ACCESS_TOKEN != '' }}"
-
       - name: Login to Docker Hub
         uses: docker/login-action@v3
         with:
           registry: ${{ env.REGISTRY }}
           username: ${{ secrets.DOCKERHUB_USERNAME }}
-          password: ${{ secrets.DOCKER_ACCESS_TOKEN }}  # 改用访问令牌[4,6](@ref)
-          ecr: auto  # 移除该参数[4](@ref)
+          password: ${{ secrets.DOCKER_ACCESS_TOKEN }}
 
       # ================= 构建推送阶段 =================
       - name: Build and Push
         uses: docker/build-push-action@v5
         with:
           context: .
-          file: ./Dockerfile  # 显式指定Dockerfile路径[4](@ref)
+          file: ./Dockerfile
           platforms: linux/amd64,linux/arm64
           push: true
           tags: |
             ${{ env.REGISTRY }}/${{ secrets.DOCKERHUB_USERNAME }}/${{ env.IMAGE_NAME }}:latest
             ${{ env.REGISTRY }}/${{ secrets.DOCKERHUB_USERNAME }}/${{ env.IMAGE_NAME }}:${{ github.run_number }}
-            ${{ env.REGISTRY }}/${{ secrets.DOCKERHUB_USERNAME }}/${{ env.IMAGE_NAME }}:${{ github.sha }}  # Git SHA标签[6](@ref)
+            ${{ env.REGISTRY }}/${{ secrets.DOCKERHUB_USERNAME }}/${{ env.IMAGE_NAME }}:${{ github.sha }}
             ${{ env.REGISTRY }}/${{ secrets.DOCKERHUB_USERNAME }}/${{ env.IMAGE_NAME }}:${{
-              format('{0:%Y%m%d}', env.BUILD_DATE)  # 新增日期标签[6](@ref)
+              format('{0:%Y%m%d}', env.BUILD_DATE)
             }}
           cache-from: type=local,src=${{ env.CACHE_DIR }}
           cache-to: type=local,dest=${{ env.CACHE_DIR }},mode=max
-          labels: |  # 新增镜像元数据[6](@ref)
+          labels: |
             org.opencontainers.image.created=${{ env.BUILD_DATE }}
             org.opencontainers.image.revision=${{ github.sha }}
 
@@ -90,12 +83,11 @@ jobs:
       - name: Post Success
         if: success()
         run: |
-          echo "镜像构建成功！"
-          echo "最新版: ${{ env.REGISTRY }}/${{ secrets.DOCKERHUB_USERNAME }}/${{ env.IMAGE_NAME }}:latest"
-          echo "构建编号: ${{ github.run_number }}"
-          echo "提交SHA: ${{ github.sha }}"
-          echo "镜像尺寸: $(docker images -q ${{ env.REGISTRY }}/${{ secrets.DOCKERHUB_USERNAME }}/${{ env.IMAGE_NAME }}:latest | xargs docker inspect --format='{{ .Size }}')"
+          echo "✅ 镜像构建成功！"
+          echo "🆕 最新版: ${{ env.REGISTRY }}/${{ secrets.DOCKERHUB_USERNAME }}/${{ env.IMAGE_NAME }}:latest"
+          echo "🔢 构建编号: ${{ github.run_number }}"
+          echo "🔖 提交SHA: ${{ github.sha }}"
 
-      - name: Logout from Docker Hub  # 新增安全登出[4](@ref)
+      - name: Security Logout
         if: always()
         run: docker logout ${{ env.REGISTRY }}
