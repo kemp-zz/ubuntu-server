@@ -18,7 +18,7 @@ env:
   IMAGE_NAME: ubuntu-22.04-server
   REGISTRY: docker.io  # 明确指定注册中心[4](@ref)
   CACHE_DIR: /tmp/.buildx-cache  # 新增缓存配置[6](@ref)
-  BUILD_DATE: ${{ github.event.head_commit.timestamp || now() }}  # 新增构建时间戳[6](@ref)
+  BUILD_DATE: ${{ github.event.head_commit.timestamp || github.run_started_at }}
 
 jobs:
   build-and-push:
