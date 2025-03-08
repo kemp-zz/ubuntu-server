@@ -8,12 +8,13 @@ on:
 
 env:
   REGISTRY: your_docker_registry # 替换为你的 Docker Registry 地址
-  IMAGE_REPO: your_image_repo  # 替换为你的镜像仓库名称
-  IMAGE_FULL_NAME: ${{ env.REGISTRY }}/${{ env.IMAGE_REPO }}/your_image_name  #替换为你的镜像名称
+  IMAGE_REPO: your_image_repo # 替换为你的镜像仓库名称
 
 jobs:
   build:
     runs-on: ubuntu-latest
+    env:
+      IMAGE_FULL_NAME: ${{ env.REGISTRY }}/${{ env.IMAGE_REPO }}/your_image_name  # 替换为你的镜像名称
     steps:
       - uses: actions/checkout@v3
 
