@@ -1,17 +1,22 @@
-name: Build Ubuntu Server Image
+name: Build and Push Ubuntu Server Image
 
 on:
   push:
     branches: [ "main" ]
-    paths: [ 'Dockerfile' ]
-  workflow_dispatch:  
+    paths: 
+      - 'Dockerfile'
+      - '.github/workflows/*.yml'  # 新增工作流文件变更触发[6](@ref)
+  workflow_dispatch:
 
-permissions:         
-  contents: write
+permissions:
+  contents: read
   packages: write
+  id-token: write  # 新增安全身份验证权限[6](@ref)
+
 env:
   IMAGE_NAME: ubuntu-22.04-server
-  DOCKERHUB_USERNAME: ${{ secrets.DOCKER_USERNAME }}
+  REGISTRY: docker.io  # 明确指定注册中心[4](@ref)
+  CACHE_DIR: /tmp/.buildx-cache  # 新增缓存配置[6](@ref)
 
 jobs:
   build-and-push:
@@ -19,25 +24,48 @@ jobs:
     steps:
       - name: Checkout code
         uses: actions/checkout@v4
+        with:
+          fetch-depth: 0  # 获取完整提交历史[6](@ref)
 
-      - name: Set up QEMU
-        uses: docker/setup-qemu-action@v3
-
-      - name: Set up Docker Buildx
+      - name: Setup Buildx
         uses: docker/setup-buildx-action@v3
+        with:
+          driver-opts: |
+            image=moby/buildkit:master
+            network=host
+
+      - name: Cache Docker layers
+        uses: actions/cache@v3
+        with:
+          path: ${{ env.CACHE_DIR }}
+          key: ${{ runner.os }}-buildx-${{ hashFiles('**/Dockerfile') }}
+          restore-keys: |
+            ${{ runner.os }}-buildx-
 
       - name: Login to Docker Hub
         uses: docker/login-action@v3
         with:
-          username: ${{ secrets.DOCKER_USERNAME }}
-          password: ${{ secrets.DOCKER_PASSWORD }}
+          registry: ${{ env.REGISTRY }}
+          username: ${{ secrets.DOCKERHUB_USERNAME }}
+          password: ${{ secrets.DOCKER_ACCESS_TOKEN }}  # 建议改用Access Token[4,8](@ref)
 
-      - name: Build and push
+      - name: Build and Push
         uses: docker/build-push-action@v5
         with:
           context: .
           platforms: linux/amd64,linux/arm64
           push: true
           tags: |
-            ${{ env.DOCKERHUB_USERNAME }}/${{ env.IMAGE_NAME }}:latest
-            ${{ env.DOCKERHUB_USERNAME }}/${{ env.IMAGE_NAME }}:${{ github.run_number }}
+            ${{ env.REGISTRY }}/${{ secrets.DOCKERHUB_USERNAME }}/${{ env.IMAGE_NAME }}:latest
+            ${{ env.REGISTRY }}/${{ secrets.DOCKERHUB_USERNAME }}/${{ env.IMAGE_NAME }}:${{ github.run_number }}
+            ${{ env.REGISTRY }}/${{ secrets.DOCKERHUB_USERNAME }}/${{ env.IMAGE_NAME }}:${{ github.sha }}  # 新增Git SHA标签[6](@ref)
+          cache-from: type=local,src=${{ env.CACHE_DIR }}
+          cache-to: type=local,dest=${{ env.CACHE_DIR }},mode=max
+
+      - name: Post Success
+        if: success()
+        run: |
+          echo "镜像构建成功！"
+          echo "最新版: ${{ env.REGISTRY }}/${{ secrets.DOCKERHUB_USERNAME }}/${{ env.IMAGE_NAME }}:latest"
+          echo "构建编号: ${{ github.run_number }}"
+          echo "提交SHA: ${{ github.sha }}"
