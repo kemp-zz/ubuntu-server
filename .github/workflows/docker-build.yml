@@ -35,7 +35,7 @@ jobs:
             ${{ env.REGISTRY }}/${{ env.IMAGE_REPO }}:latest
             ${{ env.REGISTRY }}/${{ env.IMAGE_REPO }}:${{ github.run_number }}
             ${{ env.REGISTRY }}/${{ env.IMAGE_REPO }}:${{ github.sha }}
-            ${{ env.REGISTRY }}/${{ env.IMAGE_REPO }}:${{ format('{0:%Y%m%d}', github.event.push.timestamp) }}
+            ${{ env.REGISTRY }}/${{ env.IMAGE_REPO }}:${{ github.run_id }}
 
       - name: Output Docker Image Information
         run: |
