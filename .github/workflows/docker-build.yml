@@ -1,4 +1,4 @@
-name: Docker Build
+name: Docker Build and Push
 
 on:
   push:
@@ -7,42 +7,39 @@ on:
     branches: [ "main" ]
 
 env:
-  REGISTRY: your_docker_registry  # 替换为你的 Docker Registry 地址
-  IMAGE_REPO: your_image_repo  # 替换为你的镜像仓库名称
+  REGISTRY: docker.io
+  IMAGE_REPO: your_dockerhub_username/ubuntu-server
 
 jobs:
   build:
     runs-on: ubuntu-latest
+
     steps:
       - uses: actions/checkout@v3
 
       - name: Set up Docker Buildx
         uses: docker/setup-buildx-action@v2
 
-      - name: Login to Docker Registry
+      - name: Login to DockerHub
         uses: docker/login-action@v2
         with:
-          registry: ${{ env.REGISTRY }}
-          username: ${{ secrets.DOCKERHUB_USERNAME }} # 使用 secrets 存储用户名
-          password: ${{ secrets.DOCKERHUB_TOKEN }} # 使用 secrets 存储密码
+          username: ${{ secrets.DOCKERHUB_USERNAME }}
+          password: ${{ secrets.DOCKERHUB_TOKEN }}
 
       - name: Build and push Docker image
-        id: docker_build
-        env:
-          IMAGE_FULL_NAME: ${{ env.REGISTRY }}/${{ env.IMAGE_REPO }}/your_image_name  # 替换为你的镜像名称
         uses: docker/build-push-action@v3
         with:
           context: .
           push: true
           tags: |
-            ${{ env.IMAGE_FULL_NAME }}:latest
-            ${{ env.IMAGE_FULL_NAME }}:${{ github.run_number }}
-            ${{ env.IMAGE_FULL_NAME }}:${{ github.sha }}
-            ${{ env.IMAGE_FULL_NAME }}:${{ format('{0:%Y%m%d}', github.event.push.timestamp) }}
+            ${{ env.REGISTRY }}/${{ env.IMAGE_REPO }}:latest
+            ${{ env.REGISTRY }}/${{ env.IMAGE_REPO }}:${{ github.run_number }}
+            ${{ env.REGISTRY }}/${{ env.IMAGE_REPO }}:${{ github.sha }}
+            ${{ env.REGISTRY }}/${{ env.IMAGE_REPO }}:${{ format('{0:%Y%m%d}', github.event.push.timestamp) }}
 
       - name: Output Docker Image Information
         run: |
           echo "✅ 镜像构建成功！"
-          echo "🆕 最新版: ${{ env.IMAGE_FULL_NAME }}:latest"
+          echo "🆕 最新版: ${{ env.REGISTRY }}/${{ env.IMAGE_REPO }}:latest"
           echo "🔢 构建编号: ${{ github.run_number }}"
           echo "🔖 提交SHA: ${{ github.sha }}"
