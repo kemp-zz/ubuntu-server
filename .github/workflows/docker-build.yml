@@ -4,7 +4,11 @@ on:
   push:
     branches: [ "main" ]
     paths: [ 'Dockerfile' ]
+  workflow_dispatch:  
 
+permissions:         
+  contents: write
+  packages: write
 env:
   IMAGE_NAME: ubuntu-22.04-server
   DOCKERHUB_USERNAME: ${{ secrets.DOCKER_USERNAME }}
