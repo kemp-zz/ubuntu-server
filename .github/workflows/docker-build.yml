@@ -54,17 +54,11 @@ jobs:
       - name: Build and Push
         uses: docker/build-push-action@v5
         with:
-          context: .
-          file: ./Dockerfile
-          platforms: linux/amd64,linux/arm64
-          push: true
           tags: |
-            ${{ env.REGISTRY }}/${{ secrets.DOCKERHUB_USERNAME }}/${{ env.IMAGE_NAME }}:latest
-            ${{ env.REGISTRY }}/${{ secrets.DOCKERHUB_USERNAME }}/${{ env.IMAGE_NAME }}:${{ github.run_number }}
-            ${{ env.REGISTRY }}/${{ secrets.DOCKERHUB_USERNAME }}/${{ env.IMAGE_NAME }}:${{ github.sha }}
-            ${{ env.REGISTRY }}/${{ secrets.DOCKERHUB_USERNAME }}/${{ env.IMAGE_NAME }}:${{ format('{0:%Y%m%d}', env.BUILD_DATE) }}  # 移除行内注释[2](@ref)
-          cache-from: type=local,src=${{ env.CACHE_DIR }}
-          cache-to: type=local,dest=${{ env.CACHE_DIR }},mode=max
+            ${{ env.IMAGE_FULL_NAME }}:latest
+            ${{ env.IMAGE_FULL_NAME }}:${{ github.run_number }}
+            ${{ env.IMAGE_FULL_NAME }}:${{ github.sha }}
+            ${{ env.IMAGE_FULL_NAME }}:${{ format('{0:%Y%m%d}', env.BUILD_DATE) }}
 
       - name: Post Success
         if: success()
