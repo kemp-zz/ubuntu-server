@@ -13,8 +13,6 @@ env:
 jobs:
   build:
     runs-on: ubuntu-latest
-    env:
-      IMAGE_FULL_NAME: ${{ env.REGISTRY }}/${{ env.IMAGE_REPO }}/your_image_name  # 替换为你的镜像名称
     steps:
       - uses: actions/checkout@v3
 
@@ -30,6 +28,8 @@ jobs:
 
       - name: Build and push Docker image
         id: docker_build
+        env:
+          IMAGE_FULL_NAME: ${{ env.REGISTRY }}/${{ env.IMAGE_REPO }}/your_image_name  # 替换为你的镜像名称
         uses: docker/build-push-action@v3
         with:
           context: .
