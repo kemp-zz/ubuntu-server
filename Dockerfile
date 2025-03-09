@@ -15,6 +15,9 @@ RUN apt-get update && apt-get install -y \
     unzip \
     gnupg \
     lsb-release \
+    git \
+    python3-pip \
+    python3-colcon-common-extensions \
     && apt-get clean
 
 # 创建一个新的用户并设置密码
@@ -47,13 +50,7 @@ RUN apt-get update && apt-get install -y software-properties-common && \
 # 设置ROS 2环境变量
 RUN echo "source /opt/ros/humble/setup.bash" >> /home/serveruser/.bashrc
 
-# 安装 NVIDIA Isaac ROS 依赖项
-RUN apt-get update && apt-get install -y \
-    python3-pip \
-    python3-colcon-common-extensions \
-    && apt-get clean
-
-# 克隆 NVIDIA Isaac ROS 源码并构建
+# 克隆 NVIDIA Isaac ROS Common 并构建
 WORKDIR /home/serveruser
 RUN git clone https://github.com/NVIDIA-ISAAC-ROS/isaac_ros_common.git src/isaac_ros_common && \
     cd src/isaac_ros_common && \
