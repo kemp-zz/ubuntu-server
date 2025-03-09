@@ -4,7 +4,7 @@ FROM ubuntu:22.04
 # 设置环境变量以防止交互提示
 ENV DEBIAN_FRONTEND=noninteractive
 
-# 更新软件包列表并安装基本的服务器软件包
+# 第一阶段：基础环境配置
 RUN apt-get update && \
     apt-get install -y \
     sudo \
@@ -17,14 +17,15 @@ RUN apt-get update && \
     gnupg \
     lsb-release \
     git \
-    python3-pip && \
+    python3-pip \
+    python3-apt && \
     apt-get clean
 
-# 添加ROS 2软件源并安装ROS 2 Humble和colcon工具
+# 安装ROS 2 Humble
 RUN apt-get update && apt-get install -y software-properties-common && \
     add-apt-repository universe && \
-    curl -s https://raw.githubusercontent.com/ros/rosdistro/master/ros.asc | apt-key add - && \
-    sh -c 'echo "deb http://packages.ros.org/ros2/ubuntu $(lsb_release -cs) main" > /etc/apt/sources.list.d/ros2-latest.list' && \
+    curl -sSL https://raw.githubusercontent.com/ros/rosdistro/master/ros.asc | apt-key add - && \
+    sh -c 'echo "deb [arch=$(dpkg --print-architecture)] http://packages.ros.org/ros2/ubuntu $(lsb_release -cs) main" > /etc/apt/sources.list.d/ros2.list' && \
     apt-get update && apt-get install -y \
     ros-humble-desktop \
     ros-humble-ament-cmake-auto \
@@ -34,54 +35,62 @@ RUN apt-get update && apt-get install -y software-properties-common && \
     python3-rosdep && \
     apt-get clean
 
-# 初始化rosdep
-RUN rosdep init && rosdep update
+# 修复rosdep初始化问题
+RUN rosdep init || true && \
+    rosdep update && \
+    apt-get install -y \
+    ros-humble-std-msgs \
+    ros-humble-cv-bridge \
+    ros-humble-geometry-msgs
 
-# 创建一个新的用户并设置密码
-RUN useradd -ms /bin/bash serveruser && echo 'serveruser:password' | chpasswd
+# NVIDIA容器工具链安装（网页3][5）
+RUN curl -fsSL https://nvidia.github.io/libnvidia-container/gpgkey | gpg --dearmor -o /usr/share/keyrings/nvidia-container-toolkit-keyring.gpg && \
+    curl -s -L https://nvidia.github.io/libnvidia-container/stable/deb/nvidia-container-toolkit.list | \
+    sed 's#deb https://#deb [signed-by=/usr/share/keyrings/nvidia-container-toolkit-keyring.gpg] https://#g' | \
+    tee /etc/apt/sources.list.d/nvidia-container-toolkit.list && \
+    apt-get update && \
+    apt-get install -y nvidia-container-toolkit
 
-# 允许新的用户使用 sudo
-RUN usermod -aG sudo serveruser
+# 创建用户
+RUN useradd -ms /bin/bash serveruser && echo 'serveruser:password' | chpasswd && \
+    usermod -aG sudo serveruser && \
+    echo "source /opt/ros/humble/setup.bash" >> /home/serveruser/.bashrc
 
-# 设置 SSH 服务
-RUN mkdir /var/run/sshd
+# SSH配置
+RUN mkdir /var/run/sshd && \
+    sed -i 's/PermitRootLogin prohibit-password/PermitRootLogin yes/' /etc/ssh/sshd_config && \
+    sed -i 's/#PasswordAuthentication yes/PasswordAuthentication yes/' /etc/ssh/sshd_config
 
-# 允许 root 登录
-RUN sed -i 's/PermitRootLogin prohibit-password/PermitRootLogin yes/' /etc/ssh/sshd_config
-RUN sed -i 's/#PasswordAuthentication yes/PasswordAuthentication yes/' /etc/ssh/sshd_config
-
-# 安装NVIDIA驱动和CUDA 12.8
-RUN curl -s -L https://nvidia.github.io/nvidia-docker/gpgkey | apt-key add - && \
-    curl -s -L https://nvidia.github.io/nvidia-docker/ubuntu22.04/nvidia-docker.list | tee /etc/apt/sources.list.d/nvidia-docker.list && \
-    apt-get update && apt-get install -y nvidia-driver-515 nvidia-cuda-toolkit
-
-# 设置ROS 2环境变量
-RUN echo "source /opt/ros/humble/setup.bash" >> /home/serveruser/.bashrc
-
-# 克隆 NVIDIA Isaac ROS Common 并构建
+# 第二阶段：构建Isaac ROS组件
+USER serveruser
 WORKDIR /home/serveruser
+
+# 克隆并构建isaac_ros_common
 RUN git clone https://github.com/NVIDIA-ISAAC-ROS/isaac_ros_common.git && \
     cd isaac_ros_common && \
+    . /opt/ros/humble/setup.sh && \
     rosdep install --from-paths . --ignore-src -r -y && \
-    colcon build
+    colcon build --symlink-install
 
-# 安装 nvblox 插件
+# 构建nvblox插件
 RUN git clone https://github.com/NVIDIA-ISAAC-ROS/isaac_ros_nvblox.git && \
     cd isaac_ros_nvblox && \
+    . ../isaac_ros_common/install/setup.sh && \
     rosdep install --from-paths . --ignore-src -r -y && \
-    colcon build
+    colcon build --symlink-install
 
-# 安装 isaac_ros_visual_slam 插件
+# 构建visual_slam插件
 RUN git clone https://github.com/NVIDIA-ISAAC-ROS/isaac_ros_visual_slam.git && \
     cd isaac_ros_visual_slam && \
+    . ../isaac_ros_common/install/setup.sh && \
     rosdep install --from-paths . --ignore-src -r -y && \
-    colcon build
+    colcon build --symlink-install
 
-# 设置 NVIDIA Isaac ROS 环境变量
-RUN echo "source /home/serveruser/install/setup.bash" >> /home/serveruser/.bashrc
+# 最终环境配置
+USER root
+RUN echo "source /home/serveruser/isaac_ros_common/install/setup.bash" >> /home/serveruser/.bashrc && \
+    echo "source /home/serveruser/isaac_ros_nvblox/install/setup.bash" >> /home/serveruser/.bashrc && \
+    echo "source /home/serveruser/isaac_ros_visual_slam/install/setup.bash" >> /home/serveruser/.bashrc
 
-# 暴露 SSH 端口
 EXPOSE 22
-
-# 启动 SSH 服务
 CMD ["/usr/sbin/sshd", "-D"]
