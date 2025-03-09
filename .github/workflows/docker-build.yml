@@ -32,7 +32,7 @@ jobs:
         with:
           context: .
           file: ./Dockerfile
-          push: true
+          push: false
           tags: |
             ${{ env.REGISTRY }}/${{ env.IMAGE_REPO }}:latest
           build-args: |
@@ -48,4 +48,4 @@ jobs:
         if: failure()
         run: |
           echo "🔍 打印构建日志以进行调试"
-          cat /tmp/docker_build.log
+          cat /var/log/apt/term.log
