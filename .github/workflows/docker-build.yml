@@ -35,8 +35,17 @@ jobs:
           push: true
           tags: |
             ${{ env.REGISTRY }}/${{ env.IMAGE_REPO }}:latest
+          build-args: |
+            --progress=plain
 
       - name: Output Docker Image Information
         run: |
           echo "✅ 镜像构建成功！"
           echo "🆕 最新版: ${{ env.REGISTRY }}/${{ env.IMAGE_REPO }}:latest"
+          docker images ${{ env.REGISTRY }}/${{ env.IMAGE_REPO }}:latest
+
+      - name: Print Docker build logs
+        if: failure()
+        run: |
+          echo "🔍 打印构建日志以进行调试"
+          cat /tmp/docker_build.log
