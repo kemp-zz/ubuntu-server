@@ -60,21 +60,21 @@ RUN echo "source /opt/ros/humble/setup.bash" >> /home/serveruser/.bashrc
 
 # 克隆 NVIDIA Isaac ROS Common 并构建
 WORKDIR /home/serveruser
-RUN git clone https://github.com/NVIDIA-ISAAC-ROS/isaac_ros_common.git src/isaac_ros_common && \
-    cd src/isaac_ros_common && \
-    rosdep install --from-paths src --ignore-src -r -y && \
+RUN git clone https://github.com/NVIDIA-ISAAC-ROS/isaac_ros_common.git && \
+    cd isaac_ros_common && \
+    rosdep install --from-paths . --ignore-src -r -y && \
     colcon build
 
 # 安装 nvblox 插件
-RUN git clone https://github.com/NVIDIA-ISAAC-ROS/isaac_ros_nvblox.git src/isaac_ros_nvblox && \
-    cd /home/serveruser && \
-    rosdep install --from-paths src --ignore-src -r -y && \
+RUN git clone https://github.com/NVIDIA-ISAAC-ROS/isaac_ros_nvblox.git && \
+    cd isaac_ros_nvblox && \
+    rosdep install --from-paths . --ignore-src -r -y && \
     colcon build
 
 # 安装 isaac_ros_visual_slam 插件
-RUN git clone https://github.com/NVIDIA-ISAAC-ROS/isaac_ros_visual_slam.git src/isaac_ros_visual_slam && \
-    cd /home/serveruser && \
-    rosdep install --from-paths src --ignore-src -r -y && \
+RUN git clone https://github.com/NVIDIA-ISAAC-ROS/isaac_ros_visual_slam.git && \
+    cd isaac_ros_visual_slam && \
+    rosdep install --from-paths . --ignore-src -r -y && \
     colcon build
 
 # 设置 NVIDIA Isaac ROS 环境变量
