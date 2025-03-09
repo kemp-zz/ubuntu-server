@@ -17,7 +17,8 @@ RUN apt-get update && \
     gnupg \
     lsb-release \
     git \
-    python3-pip
+    python3-pip && \
+    apt-get clean
 
 # 添加ROS 2软件源并安装ROS 2 Humble和colcon工具
 RUN apt-get update && apt-get install -y software-properties-common && \
