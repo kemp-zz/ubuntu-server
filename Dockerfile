@@ -30,8 +30,12 @@ RUN apt-get update && apt-get install -y software-properties-common && \
     ros-humble-ament-cmake-auto \
     python3-argcomplete \
     python3-colcon-common-extensions \
-    python3-vcstool && \
+    python3-vcstool \
+    python3-rosdep && \
     apt-get clean
+
+# 初始化rosdep
+RUN rosdep init && rosdep update
 
 # 创建一个新的用户并设置密码
 RUN useradd -ms /bin/bash serveruser && echo 'serveruser:password' | chpasswd
@@ -58,16 +62,19 @@ RUN echo "source /opt/ros/humble/setup.bash" >> /home/serveruser/.bashrc
 WORKDIR /home/serveruser
 RUN git clone https://github.com/NVIDIA-ISAAC-ROS/isaac_ros_common.git src/isaac_ros_common && \
     cd src/isaac_ros_common && \
+    rosdep install --from-paths src --ignore-src -r -y && \
     colcon build
 
 # 安装 nvblox 插件
 RUN git clone https://github.com/NVIDIA-ISAAC-ROS/isaac_ros_nvblox.git src/isaac_ros_nvblox && \
     cd /home/serveruser && \
+    rosdep install --from-paths src --ignore-src -r -y && \
     colcon build
 
 # 安装 isaac_ros_visual_slam 插件
 RUN git clone https://github.com/NVIDIA-ISAAC-ROS/isaac_ros_visual_slam.git src/isaac_ros_visual_slam && \
     cd /home/serveruser && \
+    rosdep install --from-paths src --ignore-src -r -y && \
     colcon build
 
 # 设置 NVIDIA Isaac ROS 环境变量
