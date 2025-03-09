@@ -5,7 +5,8 @@ FROM ubuntu:22.04
 ENV DEBIAN_FRONTEND=noninteractive
 
 # 更新软件包列表并安装基本的服务器软件包
-RUN apt-get update && apt-get install -y \
+RUN apt-get update && \
+    apt-get install -y \
     sudo \
     openssh-server \
     vim \
@@ -17,8 +18,8 @@ RUN apt-get update && apt-get install -y \
     lsb-release \
     git \
     python3-pip \
-    python3-colcon-common-extensions \
-    && apt-get clean
+    python3-colcon-common-extensions && \
+    apt-get clean
 
 # 创建一个新的用户并设置密码
 RUN useradd -ms /bin/bash serveruser && echo 'serveruser:password' | chpasswd
