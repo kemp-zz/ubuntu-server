@@ -8,14 +8,15 @@ on:
 
 env:
   REGISTRY: docker.io
-  IMAGE_REPO: your_dockerhub_username/ubuntu-server
+  IMAGE_REPO: fskemp/ubuntu
 
 jobs:
   build:
     runs-on: ubuntu-latest
 
     steps:
-      - uses: actions/checkout@v3
+      - name: Checkout repository
+        uses: actions/checkout@v3
 
       - name: Set up Docker Buildx
         uses: docker/setup-buildx-action@v2
@@ -30,16 +31,12 @@ jobs:
         uses: docker/build-push-action@v3
         with:
           context: .
+          file: ./Dockerfile
           push: true
           tags: |
             ${{ env.REGISTRY }}/${{ env.IMAGE_REPO }}:latest
-            ${{ env.REGISTRY }}/${{ env.IMAGE_REPO }}:${{ github.run_number }}
-            ${{ env.REGISTRY }}/${{ env.IMAGE_REPO }}:${{ github.sha }}
-            ${{ env.REGISTRY }}/${{ env.IMAGE_REPO }}:${{ github.run_id }}
 
       - name: Output Docker Image Information
         run: |
           echo "✅ 镜像构建成功！"
           echo "🆕 最新版: ${{ env.REGISTRY }}/${{ env.IMAGE_REPO }}:latest"
-          echo "🔢 构建编号: ${{ github.run_number }}"
-          echo "🔖 提交SHA: ${{ github.sha }}"
