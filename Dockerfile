@@ -47,6 +47,33 @@ RUN apt-get update && apt-get install -y software-properties-common && \
 # 设置ROS 2环境变量
 RUN echo "source /opt/ros/humble/setup.bash" >> /home/serveruser/.bashrc
 
+# 安装 NVIDIA Isaac ROS 依赖项
+RUN apt-get update && apt-get install -y \
+    python3-pip \
+    python3-colcon-common-extensions \
+    && apt-get clean
+
+# 克隆 NVIDIA Isaac ROS 源码并构建
+WORKDIR /home/serveruser
+RUN git clone https://github.com/NVIDIA-ISAAC-ROS/isaac_ros_common.git src/isaac_ros_common && \
+    cd src/isaac_ros_common && \
+    git checkout tags/v0.9.5 && \
+    cd /home/serveruser && \
+    colcon build
+
+# 安装 nvblox 插件
+RUN git clone https://github.com/NVIDIA-ISAAC-ROS/isaac_ros_nvblox.git src/isaac_ros_nvblox && \
+    cd /home/serveruser && \
+    colcon build
+
+# 安装 isaac_ros_visual_slam 插件
+RUN git clone https://github.com/NVIDIA-ISAAC-ROS/isaac_ros_visual_slam.git src/isaac_ros_visual_slam && \
+    cd /home/serveruser && \
+    colcon build
+
+# 设置 NVIDIA Isaac ROS 环境变量
+RUN echo "source /home/serveruser/install/setup.bash" >> /home/serveruser/.bashrc
+
 # 暴露 SSH 端口
 EXPOSE 22
 
