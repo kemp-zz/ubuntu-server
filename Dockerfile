@@ -30,22 +30,18 @@ RUN apt-get update && apt-get install -y software-properties-common && \
 # 初始化rosdep
 RUN rosdep init && rosdep update
 
-# 创建一个新的用户并设置密码
-RUN useradd -ms /bin/bash serveruser && echo 'serveruser:password' | chpasswd
-
-# 允许新的用户使用 sudo
-RUN usermod -aG sudo serveruser
-
-# 在创建用户后添加
 RUN mkdir -p /home/serveruser/.ros && \
-    chown -R serveruser:serveruser /home/serveruser && \
-    echo "serveruser ALL=(ALL) NOPASSWD:ALL" >> /etc/sudoers.d/serveruser
+    chown -R serveruser:serveruser /home/serveruser
 
 # 设置 SSH 服务
 RUN mkdir /var/run/sshd && \
     sed -i 's/PermitRootLogin prohibit-password/PermitRootLogin yes/' /etc/ssh/sshd_config && \
     sed -i 's/#PasswordAuthentication yes/PasswordAuthentication yes/' /etc/ssh/sshd_config
-
+    
+RUN apt-get install -y \
+    nvidia-driver-535 nvidia-cuda-toolkit-12-8 \
+    # 补充CUDA兼容性验证
+    && nvidia-smi --query-gpu=driver_version --format=csv
 # 替换原NVIDIA安装段
 RUN curl -fsSL https://nvidia.github.io/nvidia-docker/gpgkey | gpg --dearmor -o /usr/share/keyrings/nvidia-docker.gpg && \
     echo "deb [signed-by=/usr/share/keyrings/nvidia-docker.gpg] https://nvidia.github.io/nvidia-docker/ubuntu22.04/nvidia-docker.list" > /etc/apt/sources.list.d/nvidia-docker.list && \
