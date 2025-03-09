@@ -17,6 +17,8 @@ RUN apt-get update && \
     gnupg \
     lsb-release \
     git \
+    usbutils \
+    
     python3-pip && \
     apt-get clean
 
@@ -57,8 +59,6 @@ RUN echo "source /opt/ros/humble/setup.bash" >> /home/serveruser/.bashrc
 WORKDIR /home/serveruser
 RUN git clone https://github.com/NVIDIA-ISAAC-ROS/isaac_ros_common.git src/isaac_ros_common && \
     cd src/isaac_ros_common && \
-    git checkout tags/v0.9.5 && \
-    cd /home/serveruser && \
     colcon build
 
 # 安装 nvblox 插件
