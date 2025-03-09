@@ -17,8 +17,18 @@ RUN apt-get update && \
     gnupg \
     lsb-release \
     git \
-    python3-pip \
-    python3-colcon-common-extensions && \
+    python3-pip
+
+# 添加ROS 2软件源并安装ROS 2 Humble和colcon工具
+RUN apt-get update && apt-get install -y software-properties-common && \
+    add-apt-repository universe && \
+    curl -s https://raw.githubusercontent.com/ros/rosdistro/master/ros.asc | apt-key add - && \
+    sh -c 'echo "deb http://packages.ros.org/ros2/ubuntu $(lsb_release -cs) main" > /etc/apt/sources.list.d/ros2-latest.list' && \
+    apt-get update && apt-get install -y \
+    ros-humble-desktop \
+    python3-argcomplete \
+    python3-colcon-common-extensions \
+    python3-vcstool && \
     apt-get clean
 
 # 创建一个新的用户并设置密码
@@ -38,15 +48,6 @@ RUN sed -i 's/#PasswordAuthentication yes/PasswordAuthentication yes/' /etc/ssh/
 RUN curl -s -L https://nvidia.github.io/nvidia-docker/gpgkey | apt-key add - && \
     curl -s -L https://nvidia.github.io/nvidia-docker/ubuntu22.04/nvidia-docker.list | tee /etc/apt/sources.list.d/nvidia-docker.list && \
     apt-get update && apt-get install -y nvidia-driver-515 nvidia-cuda-toolkit
-
-# 安装 ROS 2 Humble 并进行基本配置
-RUN apt-get update && apt-get install -y software-properties-common && \
-    add-apt-repository universe && \
-    curl -s https://raw.githubusercontent.com/ros/rosdistro/master/ros.asc | apt-key add - && \
-    sh -c 'echo "deb http://packages.ros.org/ros2/ubuntu $(lsb_release -cs) main" > /etc/apt/sources.list.d/ros2-latest.list' && \
-    apt-get update && apt-get install -y ros-humble-desktop && \
-    apt-get install -y python3-argcomplete python3-colcon-common-extensions python3-vcstool && \
-    apt-get clean
 
 # 设置ROS 2环境变量
 RUN echo "source /opt/ros/humble/setup.bash" >> /home/serveruser/.bashrc
