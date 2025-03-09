@@ -46,9 +46,15 @@ RUN apt-get update && \
     python3-rosdep && \
     apt-get clean
 
-# 单独安装 python3-catkin-pkg-modules 以便更好地识别错误
+# 单独安装 python3-catkin-pkg-modules 并添加调试信息
 RUN apt-get update && \
-    apt-get install -y python3-catkin-pkg-modules && \
+    apt-get install -y python3-catkin-pkg-modules || { \
+        echo "Error installing python3-catkin-pkg-modules"; \
+        apt-get install -f -y; \
+        dpkg --configure -a; \
+        tail -n 100 /var/log/apt/term.log; \
+        exit 1; \
+    } && \
     apt-get clean
 
 # ----------------- 用户权限配置 -----------------
