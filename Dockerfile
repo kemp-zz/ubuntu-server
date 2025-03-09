@@ -21,6 +21,12 @@ RUN apt-get update && \
     python3-apt && \
     apt-get clean
 
+# 创建用户（必须在任何USER指令前完成）
+RUN useradd -m -s /bin/bash serveruser && \
+    echo 'serveruser:password' | chpasswd && \
+    usermod -aG sudo serveruser && \
+    echo "source /opt/ros/humble/setup.bash" >> /home/serveruser/.bashrc
+
 # 安装ROS 2 Humble
 RUN apt-get update && apt-get install -y software-properties-common && \
     add-apt-repository universe && \
@@ -35,26 +41,14 @@ RUN apt-get update && apt-get install -y software-properties-common && \
     python3-rosdep && \
     apt-get clean
 
-# 安装ROS后执行
-RUN apt-get install -y \
-    ros-humble-ros-base \
-    python3-rosdep && \
-    # 强制初始化rosdep
-    (rosdep init || true) && \
-    (rosdep update || (sleep 10 && rosdep update))
+# 修复rosdep初始化
+RUN rosdep init || true && \
+    rosdep update && \
+    apt-get install -y \
+    ros-humble-std-msgs \
+    ros-humble-cv-bridge
 
-# 创建用户前加载环境变量
-RUN echo "source /opt/ros/humble/setup.bash" >> /etc/bash.bashrc
-
-# 构建Isaac组件时使用完整环境
-USER serveruser
-WORKDIR /home/serveruser
-RUN git clone https://github.com/NVIDIA-ISAAC-ROS/isaac_ros_common.git && \
-    cd isaac_ros_common && \
-    bash -c "source /opt/ros/humble/setup.bash && \
-             rosdep install --from-paths . --ignore-src -r -y && \
-             colcon build --symlink-install"
-# NVIDIA容器工具链安装（网页3][5）
+# NVIDIA容器工具链安装
 RUN curl -fsSL https://nvidia.github.io/libnvidia-container/gpgkey | gpg --dearmor -o /usr/share/keyrings/nvidia-container-toolkit-keyring.gpg && \
     curl -s -L https://nvidia.github.io/libnvidia-container/stable/deb/nvidia-container-toolkit.list | \
     sed 's#deb https://#deb [signed-by=/usr/share/keyrings/nvidia-container-toolkit-keyring.gpg] https://#g' | \
@@ -62,42 +56,37 @@ RUN curl -fsSL https://nvidia.github.io/libnvidia-container/gpgkey | gpg --dearm
     apt-get update && \
     apt-get install -y nvidia-container-toolkit
 
-# 创建用户
-RUN useradd -ms /bin/bash serveruser && echo 'serveruser:password' | chpasswd && \
-    usermod -aG sudo serveruser && \
-    echo "source /opt/ros/humble/setup.bash" >> /home/serveruser/.bashrc
-
 # SSH配置
 RUN mkdir /var/run/sshd && \
     sed -i 's/PermitRootLogin prohibit-password/PermitRootLogin yes/' /etc/ssh/sshd_config && \
     sed -i 's/#PasswordAuthentication yes/PasswordAuthentication yes/' /etc/ssh/sshd_config
 
-# 第二阶段：构建Isaac ROS组件
+# 第二阶段：以普通用户构建
 USER serveruser
 WORKDIR /home/serveruser
 
 # 克隆并构建isaac_ros_common
 RUN git clone https://github.com/NVIDIA-ISAAC-ROS/isaac_ros_common.git && \
     cd isaac_ros_common && \
-    . /opt/ros/humble/setup.sh && \
-    rosdep install --from-paths . --ignore-src -r -y && \
-    colcon build --symlink-install
+    bash -c "source /opt/ros/humble/setup.bash && \
+             rosdep install --from-paths . --ignore-src -r -y && \
+             colcon build --symlink-install"
 
 # 构建nvblox插件
 RUN git clone https://github.com/NVIDIA-ISAAC-ROS/isaac_ros_nvblox.git && \
     cd isaac_ros_nvblox && \
-    . ../isaac_ros_common/install/setup.sh && \
-    rosdep install --from-paths . --ignore-src -r -y && \
-    colcon build --symlink-install
+    bash -c "source ../isaac_ros_common/install/setup.bash && \
+             rosdep install --from-paths . --ignore-src -r -y && \
+             colcon build --symlink-install"
 
 # 构建visual_slam插件
 RUN git clone https://github.com/NVIDIA-ISAAC-ROS/isaac_ros_visual_slam.git && \
     cd isaac_ros_visual_slam && \
-    . ../isaac_ros_common/install/setup.sh && \
-    rosdep install --from-paths . --ignore-src -r -y && \
-    colcon build --symlink-install
+    bash -c "source ../isaac_ros_common/install/setup.bash && \
+             rosdep install --from-paths . --ignore-src -r -y && \
+             colcon build --symlink-install"
 
-# 最终环境配置
+# 最终配置
 USER root
 RUN echo "source /home/serveruser/isaac_ros_common/install/setup.bash" >> /home/serveruser/.bashrc && \
     echo "source /home/serveruser/isaac_ros_nvblox/install/setup.bash" >> /home/serveruser/.bashrc && \
