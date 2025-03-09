@@ -35,14 +35,25 @@ RUN apt-get update && apt-get install -y software-properties-common && \
     python3-rosdep && \
     apt-get clean
 
-# 修复rosdep初始化问题
-RUN rosdep init || true && \
-    rosdep update && \
-    apt-get install -y \
-    ros-humble-std-msgs \
-    ros-humble-cv-bridge \
-    ros-humble-geometry-msgs
+# 安装ROS后执行
+RUN apt-get install -y \
+    ros-humble-ros-base \
+    python3-rosdep && \
+    # 强制初始化rosdep
+    (rosdep init || true) && \
+    (rosdep update || (sleep 10 && rosdep update))
 
+# 创建用户前加载环境变量
+RUN echo "source /opt/ros/humble/setup.bash" >> /etc/bash.bashrc
+
+# 构建Isaac组件时使用完整环境
+USER serveruser
+WORKDIR /home/serveruser
+RUN git clone https://github.com/NVIDIA-ISAAC-ROS/isaac_ros_common.git && \
+    cd isaac_ros_common && \
+    bash -c "source /opt/ros/humble/setup.bash && \
+             rosdep install --from-paths . --ignore-src -r -y && \
+             colcon build --symlink-install"
 # NVIDIA容器工具链安装（网页3][5）
 RUN curl -fsSL https://nvidia.github.io/libnvidia-container/gpgkey | gpg --dearmor -o /usr/share/keyrings/nvidia-container-toolkit-keyring.gpg && \
     curl -s -L https://nvidia.github.io/libnvidia-container/stable/deb/nvidia-container-toolkit.list | \
