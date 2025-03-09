@@ -46,6 +46,11 @@ RUN apt-get update && \
     python3-rosdep && \
     apt-get clean
 
+# 单独安装 python3-catkin-pkg-modules 以便更好地识别错误
+RUN apt-get update && \
+    apt-get install -y python3-catkin-pkg-modules && \
+    apt-get clean
+
 # ----------------- 用户权限配置 -----------------
 RUN useradd -ms /bin/bash serveruser && \
     echo 'serveruser:password' | chpasswd && \
