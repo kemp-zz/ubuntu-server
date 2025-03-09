@@ -17,8 +17,6 @@ RUN apt-get update && \
     gnupg \
     lsb-release \
     git \
-    usbutils \
-    
     python3-pip && \
     apt-get clean
 
@@ -29,6 +27,7 @@ RUN apt-get update && apt-get install -y software-properties-common && \
     sh -c 'echo "deb http://packages.ros.org/ros2/ubuntu $(lsb_release -cs) main" > /etc/apt/sources.list.d/ros2-latest.list' && \
     apt-get update && apt-get install -y \
     ros-humble-desktop \
+    ros-humble-ament-cmake-auto \
     python3-argcomplete \
     python3-colcon-common-extensions \
     python3-vcstool && \
