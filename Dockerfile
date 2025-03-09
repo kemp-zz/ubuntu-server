@@ -28,6 +28,12 @@ RUN mkdir /var/run/sshd
 RUN sed -i 's/PermitRootLogin prohibit-password/PermitRootLogin yes/' /etc/ssh/sshd_config
 RUN sed -i 's/#PasswordAuthentication yes/PasswordAuthentication yes/' /etc/ssh/sshd_config
 
+# 安装NVIDIA驱动和CUDA 12.8
+RUN apt-get update && apt-get install -y gnupg && \
+    curl -s -L https://nvidia.github.io/nvidia-docker/gpgkey | apt-key add - && \
+    curl -s -L https://nvidia.github.io/nvidia-docker/ubuntu22.04/nvidia-docker.list | tee /etc/apt/sources.list.d/nvidia-docker.list && \
+    apt-get update && apt-get install -y nvidia-driver-515 nvidia-cuda-toolkit
+
 # 暴露 SSH 端口
 EXPOSE 22
 
