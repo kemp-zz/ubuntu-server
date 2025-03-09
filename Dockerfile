@@ -37,7 +37,6 @@ RUN apt-get update && apt-get install -y curl gnupg && \
 
 # 安装ROS组件
 RUN apt-get update && \
-RUN apt-get update && \
     apt-get install -y \
     ros-humble-desktop \
     ros-humble-ament-cmake-auto \
