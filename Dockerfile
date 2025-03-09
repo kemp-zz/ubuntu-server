@@ -31,9 +31,12 @@ RUN apt-get update && \
 
 # ----------------- ROS 2 Humble 安装 -----------------
 # 先配置ROS软件源
-RUN curl -sSL https://raw.githubusercontent.com/ros/rosdistro/master/ros.asc -o /usr/share/keyrings/ros-archive-keyring.gpg && \
+RUN apt-get update && apt-get install -y curl gnupg && \
+    curl -fsSL https://raw.githubusercontent.com/ros/rosdistro/master/ros.asc | gpg --dearmor -o /usr/share/keyrings/ros-archive-keyring.gpg && \
     echo "deb [arch=$(dpkg --print-architecture) signed-by=/usr/share/keyrings/ros-archive-keyring.gpg] http://packages.ros.org/ros2/ubuntu $(lsb_release -cs) main" > /etc/apt/sources.list.d/ros2.list
 
+# 安装ROS组件
+RUN apt-get update && \
 RUN apt-get update && \
     apt-get install -y \
     ros-humble-desktop \
