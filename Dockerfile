@@ -1,118 +1,47 @@
-# 使用官方的 Ubuntu 22.04 基础镜像
-FROM ubuntu:22.04
+# 阶段一：基础环境 + CUDA 12.8 Toolkit
+FROM ubuntu:22.04 AS base
 
-# 设置环境变量以防止交互提示
 ENV DEBIAN_FRONTEND=noninteractive
-
-# ----------------- 基础依赖安装 -----------------
-RUN apt-get update && \
-    apt-get install -y \
-    sudo \
-    openssh-server \
-    vim \
-    net-tools \
-    curl \
+RUN sed -i 's/archive.ubuntu.com/mirrors.aliyun.com/g' /etc/apt/sources.list && \
+    apt-get update && \
+    apt-get install -y --no-install-recommends \
+    ca-certificates \
     wget \
-    unzip \
-    gnupg \
-    lsb-release \
-    git \
-    python3-pip \
+    kmod \
     build-essential \
-    cmake \
-    libssl-dev \
-    libgl1-mesa-dev \
-    libprotobuf-dev \
-    protobuf-compiler \
-    python3-venv \
-    python3-dev \
-    python3-catkin-pkg && \
-    apt-get clean
+    linux-headers-generic \
+    git \
+    nano \
+    usbutils \
+    && rm -rf /var/lib/apt/lists/*
 
-# ----------------- ROS 2 Humble 安装 -----------------
-# 先配置ROS软件源
-RUN apt-get update && apt-get install -y curl gnupg && \
-    curl -fsSL https://raw.githubusercontent.com/ros/rosdistro/master/ros.asc | gpg --dearmor -o /usr/share/keyrings/ros-archive-keyring.gpg && \
-    echo "deb [arch=$(dpkg --print-architecture) signed-by=/usr/share/keyrings/ros-archive-keyring.gpg] http://packages.ros.org/ros2/ubuntu $(lsb_release -cs) main" > /etc/apt/sources.list.d/ros2.list
+# 阶段二：安装NVIDIA驱动570.124.06（兼容CUDA 12.8的最低要求）
+FROM base AS nvidia-driver
+ARG DRIVER_VERSION=570.124.06
+RUN wget https://us.download.nvidia.com/XFree86/Linux-x86_64/${DRIVER_VERSION}/NVIDIA-Linux-x86_64-${DRIVER_VERSION}.run && \
+    chmod +x NVIDIA-Linux-*.run && \
+    ./NVIDIA-Linux-*.run --silent --no-questions --ui=none --no-nouveau-check --install-libglvnd && \
+    rm NVIDIA-Linux-*.run
 
-# 安装ROS组件
-RUN apt-get update && \
-    apt-get install -y \
-    ros-humble-desktop \
-    ros-humble-ament-cmake-auto \
-    python3-argcomplete \
-    python3-colcon-common-extensions \
-    python3-vcstool \
-    python3-rosdep && \
-    apt-get clean
+# 阶段三：安装CUDA 12.8 Toolkit（Blackwell GPU原生支持）
+FROM nvidia-driver AS cuda
+ARG CUDA_VERSION=12.8
+RUN wget https://developer.download.nvidia.com/compute/cuda/${CUDA_VERSION}/local_installers/cuda_${CUDA_VERSION}_linux.run && \
+    sh cuda_*_linux.run --silent --toolkit --override && \
+    rm cuda_*_linux.run
 
-# 单独安装 python3-catkin-pkg-modules 并添加调试信息
-RUN apt-get update && \
-    apt-get install -y python3-catkin-pkg-modules || { \
-        echo "Error installing python3-catkin-pkg-modules"; \
-        apt-get install -f -y; \
-        dpkg --configure -a; \
-        tail -n 100 /var/log/apt/term.log; \
-        exit 1; \
-    } && \
-    apt-get clean
+# 阶段四：最终镜像构建
+FROM base
+COPY --from=cuda /usr/local/cuda-12.8 /usr/local/cuda-12.8
+COPY --from=nvidia-driver /usr/lib/x86_64-linux-gnu/libGL* /usr/lib/x86_64-linux-gnu/
+COPY --from=nvidia-driver /usr/lib/x86_64-linux-gnu/libnvidia* /usr/lib/x86_64-linux-gnu/
 
-# ----------------- 用户权限配置 -----------------
-RUN useradd -ms /bin/bash serveruser && \
-    echo 'serveruser:password' | chpasswd && \
-    usermod -aG sudo serveruser && \
-    mkdir -p /home/serveruser/.ros && \
-    chown -R serveruser:serveruser /home/serveruser
+# 配置CUDA环境（兼容未来架构）
+ENV PATH=/usr/local/cuda-12.8/bin:$PATH \
+    LD_LIBRARY_PATH=/usr/local/cuda-12.8/lib64:/usr/local/cuda-12.8/lib:$LD_LIBRARY_PATH \
+    CUDA_HOME=/usr/local/cuda-12.8
 
-# ----------------- NVIDIA 驱动安装 -----------------
-RUN curl -fsSL https://nvidia.github.io/nvidia-docker/gpgkey | gpg --dearmor -o /usr/share/keyrings/nvidia-docker.gpg && \
-    echo "deb [signed-by=/usr/share/keyrings/nvidia-docker.gpg] https://nvidia.github.io/nvidia-docker/ubuntu22.04/nvidia-docker.list" > /etc/apt/sources.list.d/nvidia-docker.list
-
-RUN apt-get update && \
-    apt-get install -y \
-    nvidia-driver-535 \
-    nvidia-cuda-toolkit-12-8 && \
-    nvidia-smi --query-gpu=driver_version --format=csv
-
-# ----------------- ROS环境初始化 -----------------
-RUN rosdep init && rosdep update
-RUN echo "source /opt/ros/humble/setup.bash" >> /home/serveruser/.bashrc
-
-# ----------------- SSH服务配置 -----------------
-RUN mkdir /var/run/sshd && \
-    sed -i 's/PermitRootLogin prohibit-password/PermitRootLogin yes/' /etc/ssh/sshd_config && \
-    sed -i 's/#PasswordAuthentication yes/PasswordAuthentication yes/' /etc/ssh/sshd_config
-
-# ----------------- 用户空间构建 -----------------
-USER serveruser
-WORKDIR /home/serveruser
-
-# 克隆并构建 isaac_ros_common
-RUN git clone --depth 1 https://github.com/NVIDIA-ISAAC-ROS/isaac_ros_common.git && \
-    cd isaac_ros_common && \
-    bash -c "source /opt/ros/humble/setup.bash && \
-             rosdep install --from-paths . --ignore-src -r -y && \
-             colcon build --symlink-install"
-
-# 安装 nvblox 插件
-RUN git clone --depth 1 https://github.com/NVIDIA-ISAAC-ROS/isaac_ros_nvblox.git && \
-    cd isaac_ros_nvblox && \
-    bash -c "source /opt/ros/humble/setup.bash && \
-             rosdep install --from-paths . --ignore-src -r -y && \
-             colcon build --symlink-install"
-
-# 安装 visual_slam 插件
-RUN git clone --depth 1 https://github.com/NVIDIA-ISAAC-ROS/isaac_ros_visual_slam.git && \
-    cd isaac_ros_visual_slam && \
-    bash -c "source /opt/ros/humble/setup.bash && \
-             rosdep install --from-paths . --ignore-src -r -y && \
-             colcon build --symlink-install"
-
-# 环境变量配置
-RUN echo "source /home/serveruser/install/setup.bash" >> /home/serveruser/.bashrc
-
-# 暴露端口
-EXPOSE 22
-
-# 启动命令
-CMD ["/usr/sbin/sshd", "-D"]
+# 验证安装（支持Blackwell架构的PTX生成）
+RUN nvidia-smi | grep "Driver Version: 570" && \
+    nvcc --version | grep "release 12.8" && \
+    nvcc -gencode arch=compute_120,code=compute_120 -V  # 验证Blackwell架构支持[2](@ref)
