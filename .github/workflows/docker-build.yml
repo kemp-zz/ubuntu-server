@@ -6,7 +6,7 @@ on:
 
 env:
   DOCKERHUB_REPO: kemp-zz/ubuntu-server
-  BUILDKIT_VERSION: v0.12.4  # 固定Buildkit版本[3](@ref)
+  BUILDKIT_DEBUG: true  # 启用Buildkit详细日志[3](@ref)
 
 jobs:
   build-and-push:
@@ -14,24 +14,18 @@ jobs:
     permissions:
       contents: read
       packages: write
-      id-token: write
 
     steps:
       - name: Checkout code
         uses: actions/checkout@v4
 
-      - name: Set static date tag
-        id: date
-        run: |
-          echo "formattedDate=$(date +%Y%m%d)" >> $GITHUB_OUTPUT
-          echo "DATE_TAG=${{ steps.date.outputs.formattedDate }}" >> $GITHUB_ENV
-
       - name: Set up Docker Buildx
         uses: docker/setup-buildx-action@v3
         with:
-          driver-opts: |
-            image=moby/buildkit:${{ env.BUILDKIT_VERSION }}  # 锁定版本[3](@ref)
-            network=host
+          install: true
+          buildkitd-config: |
+            [registry."docker.io"]
+              mirrors = ["docker.m.daocloud.io"]  # 镜像加速[2](@ref)
 
       - name: Login to Docker Hub
         uses: docker/login-action@v3
@@ -41,18 +35,30 @@ jobs:
 
       - name: Build and push
         uses: docker/build-push-action@v5
+        id: build-push
         with:
-          platforms: linux/amd64,linux/arm64
           context: .
           push: true
           tags: |
-            ${{ env.DOCKERHUB_REPO }}:stable  # 替换latest为stable
+            ${{ env.DOCKERHUB_REPO }}:latest
             ${{ env.DOCKERHUB_REPO }}:${{ github.sha }}
-            ${{ env.DOCKERHUB_REPO }}:${{ env.DATE_TAG }}
-          no-cache: true  # 完全禁用缓存[1](@ref)
-          provenance: false  # 禁用供应链证明
+          cache-from: type=gha
+          cache-to: type=gha,mode=max
+          # 生成详细构建日志
+          outputs: |
+            type=local,dest=./build-logs
 
-      - name: Cleanup
+      - name: Debug Log Analysis
+        if: ${{ always() }}  # 始终执行
         run: |
-          docker buildx prune -af
-          docker image prune -af --filter "until=24h"
+          # 分析镜像下载情况
+          echo "=== 下载完成统计 ==="
+          grep 'DOWNLOAD COMPLETE' ./build-logs/*.log | wc -l | xargs echo "成功下载层数:"
+
+          # 检查失败下载
+          echo "=== 潜在问题点 ==="
+          grep -E 'failed to download|error pulling' ./build-logs/*.log || true
+
+          # 生成SHA256校验报告
+          echo "=== 镜像校验结果 ==="
+          docker inspect $DOCKERHUB_REPO:latest --format '{{ .RepoDigests }}'
