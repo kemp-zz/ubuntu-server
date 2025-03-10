@@ -4,9 +4,9 @@ on:
   push:
     branches: [ main ]
 
-
 env:
   DOCKERHUB_REPO: kemp-zz/ubuntu-server
+  BUILDKIT_VERSION: v0.12.4  # 固定Buildkit版本[3](@ref)
 
 jobs:
   build-and-push:
@@ -20,15 +20,18 @@ jobs:
       - name: Checkout code
         uses: actions/checkout@v4
 
-      - name: Set up QEMU
-        uses: docker/setup-qemu-action@v3
+      - name: Set static date tag
+        id: date
+        run: |
+          echo "formattedDate=$(date +%Y%m%d)" >> $GITHUB_OUTPUT
+          echo "DATE_TAG=${{ steps.date.outputs.formattedDate }}" >> $GITHUB_ENV
 
       - name: Set up Docker Buildx
         uses: docker/setup-buildx-action@v3
         with:
           driver-opts: |
+            image=moby/buildkit:${{ env.BUILDKIT_VERSION }}  # 锁定版本[3](@ref)
             network=host
-            image=moby/buildkit:master
 
       - name: Login to Docker Hub
         uses: docker/login-action@v3
@@ -43,19 +46,13 @@ jobs:
           context: .
           push: true
           tags: |
-            ${{ env.DOCKERHUB_REPO }}:latest
+            ${{ env.DOCKERHUB_REPO }}:stable  # 替换latest为stable
             ${{ env.DOCKERHUB_REPO }}:${{ github.sha }}
-            ${{ env.DOCKERHUB_REPO }}:$(date +%Y%m%d)
-          build-args: ${{ env.BUILD_ARGS }}
-          cache-from: |
-            type=gha
-            type=registry,ref=${{ env.DOCKERHUB_REPO }}:buildcache
-          cache-to: |
-            type=gha,mode=max
-            type=registry,ref=${{ env.DOCKERHUB_REPO }}:buildcache,mode=max
-          provenance: true # 启用供应链证明[1](@ref)
+            ${{ env.DOCKERHUB_REPO }}:${{ env.DATE_TAG }}
+          no-cache: true  # 完全禁用缓存[1](@ref)
+          provenance: false  # 禁用供应链证明
 
       - name: Cleanup
         run: |
           docker buildx prune -af
-          docker image prune -af
+          docker image prune -af --filter "until=24h"
