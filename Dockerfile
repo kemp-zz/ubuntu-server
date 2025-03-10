@@ -17,12 +17,12 @@ RUN sed -i 's/archive.ubuntu.com/mirrors.aliyun.com/g' /etc/apt/sources.list && 
 
 # 阶段二：安装NVIDIA驱动570.124.06（兼容CUDA 12.8的最低要求）
 FROM base AS nvidia-driver
-ARG DRIVER_VERSION=570.124.06
-RUN wget https://us.download.nvidia.com/XFree86/Linux-x86_64/${DRIVER_VERSION}/NVIDIA-Linux-x86_64-${DRIVER_VERSION}.run && \
-    chmod +x NVIDIA-Linux-*.run && \
-    ./NVIDIA-Linux-*.run --silent --no-questions --ui=none --no-nouveau-check --install-libglvnd && \
-    rm NVIDIA-Linux-*.run
 
+    ARG DRIVER_VERSION=570.124.06
+    RUN wget https://us.download.nvidia.com/XFree86/Linux-x86_64/${DRIVER_VERSION}/NVIDIA-Linux-x86_64-${DRIVER_VERSION}.run && \
+        chmod +x NVIDIA-Linux-*.run && \
+        ./NVIDIA-Linux-*.run --silent --no-questions --ui=none --no-nouveau-check --install-libglvnd && \
+        rm NVIDIA-Linux-*.run
 # 阶段三：安装CUDA 12.8 Toolkit（Blackwell GPU原生支持）
 FROM nvidia-driver AS cuda
 ARG CUDA_VERSION=12.8
