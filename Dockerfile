@@ -8,9 +8,9 @@ RUN sed -i 's/archive.ubuntu.com/mirrors.aliyun.com/g' /etc/apt/sources.list && 
     git-core \
     build-essential \
     ca-certificates \
-    build-essential \
     kmod \
     wget \
+    usbutils \
     linux-headers-$(uname -r) \
     libglvnd-dev \
     ocl-icd-opencl-dev \
@@ -23,8 +23,9 @@ ARG CUDA_PATCH=1
 # 添加 NVIDIA CUDA 仓库
 RUN wget https://developer.download.nvidia.cn/compute/cuda/repos/ubuntu2204/x86_64/cuda-ubuntu2204.pin && \
     mv cuda-ubuntu2204.pin /etc/apt/preferences.d/cuda-repository-pin-600 && \
-    apt-key adv --fetch-keys https://developer.download.nvidia.cn/compute/cuda/repos/ubuntu2204/x86_64/3bf863cc.pub && \
-    add-apt-repository "deb https://developer.download.nvidia.cn/compute/cuda/repos/ubuntu2204/x86_64/ /" && \
+    wget https://developer.download.nvidia.cn/compute/cuda/repos/ubuntu2204/x86_64/3bf863cc.pub && \
+    gpg --dearmor -o /usr/share/keyrings/cuda-archive-keyring.gpg 3bf863cc.pub && \
+    echo "deb [signed-by=/usr/share/keyrings/cuda-archive-keyring.gpg] https://developer.download.nvidia.cn/compute/cuda/repos/ubuntu2204/x86_64/ /" | tee /etc/apt/sources.list.d/cuda.list && \
     apt-get update
 
 # 阶段三：驱动及 CUDA 安装
@@ -50,4 +51,4 @@ ENV PATH=/usr/local/cuda-12.8/bin${PATH:+:${PATH}} \
 
 # 验证安装
 RUN nvcc --version | grep "release 12.8" && \
-    nvidia-smi | grep "Driver Version: 550"p/*
+    nvidia-smi | grep "Driver Version: 550"
