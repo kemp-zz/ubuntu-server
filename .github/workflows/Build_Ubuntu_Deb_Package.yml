@@ -1,0 +1,39 @@
+name: Build Ubuntu Deb Package
+
+on:
+  push:
+    branches:
+      - main
+  pull_request:
+    branches:
+      - main
+
+jobs:
+  build-deb:
+    runs-on: ubuntu-latest
+
+    env:
+      ROS_DISTRO: humble
+
+    steps:
+    - name: Checkout repository
+      uses: actions/checkout@v2
+
+    - name: Set up ROS
+      uses: ros-tooling/setup-ros@v0.2.0
+      with:
+        version: ${{ matrix.ros-distro }}
+
+    - name: Install dependencies
+      run: sudo apt-get update && sudo apt-get install -y python3-bloom fakeroot
+
+    - name: Run make_deb script
+      run: |
+        chmod +x .make_deb.sh
+        ./make_deb.sh
+
+    - name: Upload Deb Package
+      uses: actions/upload-artifact@v2
+      with:
+        name: deb-package
+        path: ./obj-x86_64-linux-gnu/*.deb
