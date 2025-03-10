@@ -2,9 +2,13 @@ name: docker build
 
 on:
   push:
-    branches: [ "main" ]  # 仅在main分支推送时触发
-    paths: 
-      - 'Dockerfile'      # Dockerfile变更时触发[1](@ref)
+    branches: [ main ]
+jobs:
+  build:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v3
 
 env:
   DOCKERHUB_REPO: kemp-zz/ubuntu-server  # Docker Hub仓库名
