@@ -23,21 +23,17 @@ FROM builder AS repo-config
 # 或者，使用重试机制尝试下载公钥
 RUN apt-get update && apt-get install -y wget  # 安装 wget
 
-RUN retry() { \
-    local i=1; \
-    while true; do \
-        echo "Attempt $i: Running command $*"; \
-        $* && break || { \
-            if [[ $i -eq 5 ]]; then \
-                echo "Command failed after 5 attempts."; \
-                return 1; \
-            fi; \
-            i=$((i + 1)); \
-            echo "Command failed. Waiting 5 seconds before retrying..."; \
-            sleep 5; \
-        }; \
-    done
-}
+# 阶段二：CUDA仓库配置
+FROM builder AS repo-config
+
+# 将脚本复制到镜像中
+COPY retry.sh /tmp/retry.sh
+
+# 使脚本可执行
+RUN chmod +x /tmp/retry.sh
+
+# 运行脚本
+RUN /tmp/retry.sh
 
 # 使用 wget 下载公钥并配置仓库
 RUN retry wget -qO - https://developer.download.nvidia.com/compute/cuda/repos/ubuntu2204/x86_64/3bf863cc.pub | gpg --dearmor -o /usr/share/keyrings/cuda-archive-keyring.gpg
