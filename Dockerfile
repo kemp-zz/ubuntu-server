@@ -7,7 +7,10 @@ RUN sed -i 's/archive.ubuntu.com/mirrors.aliyun.com/g' /etc/apt/sources.list && 
     apt-get install -y --no-install-recommends \
     git-core \
     build-essential \
+    ca-certificates \
+    build-essential \
     kmod \
+    wget \
     linux-headers-$(uname -r) \
     libglvnd-dev \
     ocl-icd-opencl-dev \
