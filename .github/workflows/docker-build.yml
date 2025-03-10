@@ -1,46 +1,44 @@
-# 阶段一：基础环境 + CUDA 12.8 Toolkit
-FROM ubuntu:22.04 AS base
+name: docker build
 
-ENV DEBIAN_FRONTEND=noninteractive
-RUN sed -i 's/archive.ubuntu.com/mirrors.aliyun.com/g' /etc/apt/sources.list && \
-    apt-get update && \
-    apt-get install -y --no-install-recommends \
-    ca-certificates \
-    wget \
-    kmod \
-    build-essential \
-    linux-headers-generic \
-    git \
-    nano \
-    usbutils \
-    && rm -rf /var/lib/apt/lists/*
+on:
+  push:
+    branches: [ "main" ]  # 仅在main分支推送时触发
+    paths: 
+      - 'Dockerfile'      # Dockerfile变更时触发[1](@ref)
 
-# 阶段二：安装NVIDIA驱动460.32.03（兼容CUDA 12.8的最低要求）
-FROM base AS nvidia-driver
+env:
+  DOCKERHUB_REPO: kemp-zz/ubuntu-server  # Docker Hub仓库名
 
-ARG DRIVER_VERSION=460.32.03
-RUN wget https://us.download.nvidia.com/XFree86/Linux-x86_64/${DRIVER_VERSION}/NVIDIA-Linux-x86_64-${DRIVER_VERSION}.run && \
-    chmod +x NVIDIA-Linux-*.run && \
-    ./NVIDIA-Linux-*.run --silent --no-questions --ui=none --no-nouveau-check --install-libglvnd && \
-    rm NVIDIA-Linux-*.run
+jobs:
+  build-and-push:
+    runs-on: ubuntu-latest
+    permissions:
+      contents: read
+      packages: write
 
-# 阶段三：安装CUDA 12.8 Toolkit（Blackwell GPU原生支持）
-FROM nvidia-driver AS cuda
-ARG CUDA_VERSION=12.8
-RUN wget https://developer.download.nvidia.com/compute/cuda/${CUDA_VERSION}/local_installers/cuda_${CUDA_VERSION}_linux.run && \
-    sh cuda_*_linux.run --silent --toolkit --override && \
-    rm cuda_*_linux.run
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v3  # 检出代码[1,5](@ref)
 
-# 阶段四：最终镜像构建
-FROM base
-COPY --from=cuda /usr/local/cuda-12.8 /usr/local/cuda-12.8
-COPY --from=nvidia-driver /usr/lib/x86_64-linux-gnu/libGL* /usr/lib/x86_64-linux-gnu/
-COPY --from=nvidia-driver /usr/lib/x86_64-linux-gnu/libnvidia* /usr/lib/x86_64-linux-gnu/
+      - name: Set up Docker Buildx
+        uses: docker/setup-buildx-action@v2  # 配置多平台构建[1,5](@ref)
+        with:
+          driver-opts: |
+            image=moby/buildkit:v0.11.6
 
-ENV PATH=/usr/local/cuda-12.8/bin:$PATH \
-    LD_LIBRARY_PATH=/usr/local/cuda-12.8/lib64:/usr/local/cuda-12.8/lib:$LD_LIBRARY_PATH \
-    CUDA_HOME=/usr/local/cuda-12.8
+      - name: Login to Docker Hub
+        uses: docker/login-action@v2  # Docker Hub认证[1,5](@ref)
+        with:
+          username: ${{ secrets.DOCKERHUB_USERNAME }}
+          password: ${{ secrets.DOCKERHUB_TOKEN }}
 
-RUN nvidia-smi | grep "Driver Version: 460" && \
-    nvcc --version | grep "release 12.8" && \
-    nvcc -gencode arch=compute_120,code=compute_120 -V
+      - name: Build and push
+        uses: docker/build-push-action@v4  # 构建推送一体化[4,5](@ref)
+        with:
+          context: .
+          push: true
+          tags: |
+            ${{ env.DOCKERHUB_REPO }}:latest
+            ${{ env.DOCKERHUB_REPO }}:${{ github.sha }}
+          cache-from: type=gha
+          cache-to: type=gha,mode=max
