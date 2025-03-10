@@ -16,7 +16,19 @@ retry() {
     done
 }
 
+# 删除已存在的文件
+rm -f /usr/share/keyrings/cuda-archive-keyring.gpg
+
+# 使用 wget 下载公钥并使用 gpg 解密
 retry wget -qO - https://developer.download.nvidia.com/compute/cuda/repos/ubuntu2204/x86_64/3bf863cc.pub | gpg --batch --dearmor -o /usr/share/keyrings/cuda-archive-keyring.gpg
+
+# 检查 gpg 解密是否成功
+if [ -f /usr/share/keyrings/cuda-archive-keyring.gpg ]; then
+  echo "gpg: 公钥已成功解密"
+else
+  echo "gpg: 公钥解密失败"
+  exit 1
+fi
 
 chmod 600 /usr/share/keyrings/cuda-archive-keyring.gpg
 
