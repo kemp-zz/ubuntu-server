@@ -1,12 +1,14 @@
 name: Build CUDA Docker Image
 
 on:
-  push:
-    branches:
-      - main
+  workflow_dispatch:
+    inputs:
+      build-type:
+        description: 'Build type (e.g., debug, release)'
+        required: true
 
 jobs:
-  build:
+  build-and-push:
     runs-on: ubuntu-latest
     steps:
       - name: Checkout code
@@ -32,7 +34,7 @@ jobs:
           docker build -t my-cuda-image .
           docker tag my-cuda-image kemp-zz/my-cuda-image:latest
 
-      - name: Push Docker image
+      - name: Login to Docker Hub
         uses: docker/login-action@v2
         with:
           username: ${{ secrets.DOCKER_USERNAME }}
@@ -43,4 +45,4 @@ jobs:
         with:
           context: .
           push: true
-          tags: kemp-zz/my-cuda-image:latest
+          tags: fskemp/ubuntu:latest
