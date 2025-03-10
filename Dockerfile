@@ -26,10 +26,6 @@ RUN chmod +x /tmp/retry.sh
 # 运行脚本
 RUN /tmp/retry.sh
 
-RUN wget -qO - https://developer.download.nvidia.com/compute/cuda/repos/ubuntu2204/x86_64/3bf863cc.pub | gpg --batch --dearmor -o /usr/share/keyrings/cuda-archive-keyring.gpg
-
-RUN chmod 600 /usr/share/keyrings/cuda-archive-keyring.gpg && \
-    echo "deb [signed-by=/usr/share/keyrings/cuda-archive-keyring.gpg arch=amd64] https://developer.download.nvidia.com/compute/cuda/repos/ubuntu2204/x86_64/ /" > /etc/apt/sources.list.d/cuda.list
 
 # 阶段三：安装组件
 FROM repo-config AS installer
