@@ -1,17 +1,12 @@
 name: docker build
 
+
 on:
   push:
     branches: [ main ]
-jobs:
-  build:
-    runs-on: ubuntu-latest
-    steps:
-      - name: Checkout code
-        uses: actions/checkout@v3
 
 env:
-  DOCKERHUB_REPO: kemp-zz/ubuntu-server  # Docker Hub仓库名
+  DOCKERHUB_REPO: kemp-zz/ubuntu-server
 
 jobs:
   build-and-push:
@@ -22,22 +17,21 @@ jobs:
 
     steps:
       - name: Checkout code
-        uses: actions/checkout@v3  # 检出代码[1,5](@ref)
+        uses: actions/checkout@v4
 
       - name: Set up Docker Buildx
-        uses: docker/setup-buildx-action@v2  # 配置多平台构建[1,5](@ref)
+        uses: docker/setup-buildx-action@v3
         with:
-          driver-opts: |
-            image=moby/buildkit:v0.11.6
+          install: true
 
       - name: Login to Docker Hub
-        uses: docker/login-action@v2  # Docker Hub认证[1,5](@ref)
+        uses: docker/login-action@v3
         with:
           username: ${{ secrets.DOCKERHUB_USERNAME }}
           password: ${{ secrets.DOCKERHUB_TOKEN }}
 
       - name: Build and push
-        uses: docker/build-push-action@v4  # 构建推送一体化[4,5](@ref)
+        uses: docker/build-push-action@v5
         with:
           context: .
           push: true
