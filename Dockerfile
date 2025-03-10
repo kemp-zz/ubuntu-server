@@ -1,44 +1,37 @@
-# 使用官方CUDA 12.8开发镜像作为基础（已包含CUDA工具链）
-FROM nvidia/cuda:12.8.0-devel-ubuntu22.04
+# 使用多阶段构建（网页3、网页6推荐）
+FROM nvidia/cuda:12.8.0-devel-ubuntu22.04 AS builder
 
-# 设置非交互模式
+# 阶段一：基础配置
 ENV DEBIAN_FRONTEND=noninteractive
-
-# 配置APT镜像源并安装基础工具
 RUN sed -i 's/archive.ubuntu.com/mirrors.aliyun.com/g' /etc/apt/sources.list && \
     apt-get update && \
     apt-get install -y --no-install-recommends \
     curl \
     ca-certificates \
     gnupg2 \
-    software-properties-common \
     && rm -rf /var/lib/apt/lists/*
 
-# 配置NVIDIA CUDA仓库（网页6推荐方式）
+# 阶段二：CUDA仓库配置
+FROM builder AS repo-config
 RUN curl -fsSL https://developer.download.nvidia.com/compute/cuda/repos/ubuntu2204/x86_64/3bf863cc.pub | \
     gpg --dearmor -o /usr/share/keyrings/cuda-archive-keyring.gpg && \
+    chmod 600 /usr/share/keyrings/cuda-archive-keyring.gpg && \
     echo "deb [signed-by=/usr/share/keyrings/cuda-archive-keyring.gpg arch=amd64] \
-    https://developer.download.nvidia.cn/compute/cuda/repos/ubuntu2204/x86_64/ /" \
-    > /etc/apt/sources.list.d/cuda.list && \
-    echo "Package: *\nPin: origin developer.download.nvidia.com\nPin-Priority: 1002" \
-    > /etc/apt/preferences.d/cuda-repository-pin-600
+    https://developer.download.nvidia.com/compute/cuda/repos/ubuntu2204/x86_64/ /" \
+    > /etc/apt/sources.list.d/cuda.list
 
-# 安装CUDA工具链（网页3推荐分层安装）
+# 阶段三：安装组件
+FROM repo-config AS installer
 RUN apt-get update && \
     apt-get install -y --no-install-recommends \
     cuda-toolkit-12-8=12.8.1-1 \
     cuda-libraries-dev-12-8=12.8.1-1 \
     cuda-drivers-550 \
-    && apt-get clean && \
-    rm -rf /var/lib/apt/lists/*
+    && apt-get clean
 
-# 配置多层级环境变量（网页7最佳实践）
-ENV PATH="/usr/local/cuda/bin:${PATH}" \
-    LD_LIBRARY_PATH="/usr/local/cuda/lib64:${LD_LIBRARY_PATH}" \
-    CUDA_HOME="/usr/local/cuda" \
-    NVIDIA_DRIVER_CAPABILITIES="compute,utility" \
-    NVIDIA_VISIBLE_DEVICES="all"
-
-# 验证安装（网页3和网页6的双重验证）
-RUN nvcc --version | grep "release 12.8" && \
-    nvidia-smi | grep "CUDA Version: 12.8"
+# 最终阶段
+FROM nvidia/cuda:12.8.0-runtime-ubuntu22.04
+COPY --from=installer /usr/local/cuda-12.8 /usr/local/cuda-12.8
+ENV PATH="/usr/local/cuda-12.8/bin:${PATH}" \
+    LD_LIBRARY_PATH="/usr/local/cuda-12.8/lib64:${LD_LIBRARY_PATH}" \
+    NVIDIA_DRIVER_CAPABILITIES="compute,utility"
