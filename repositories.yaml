@@ -1,0 +1,25 @@
+repositories:
+  isaac_ros_common:
+    type: git
+    url: https://github.com/NVIDIA-ISAAC-ROS/isaac_ros_common.git
+    version: main
+  isaac_ros_nvblox:
+    type: git
+    url: https://github.com/NVIDIA-ISAAC-ROS/isaac_ros_nvblox.git
+    version: main
+  isaac_ros_visual_slam:
+    type: git
+    url: https://github.com/NVIDIA-ISAAC-ROS/isaac_ros_visual_slam.git
+    version: main
+  isaac_ros_nitros:
+    type: git
+    url: https://github.com/NVIDIA-ISAAC-ROS/isaac_ros_nitros.git
+    version: main
+  isaac_ros_nitros_interfaces:
+    type: git
+    url: https://github.com/NVIDIA-ISAAC-ROS/isaac_ros_nitros_interfaces.git
+    version: main
+  isaac_ros_nitros_image_type:
+    type: git
+    url: https://github.com/NVIDIA-ISAAC-ROS/isaac_ros_nitros_image_type.git
+    version: main
