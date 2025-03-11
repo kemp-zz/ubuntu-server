@@ -29,15 +29,12 @@ jobs:
           sudo apt update
           sudo apt install -y cuda-toolkit-12-8=12.8.1-1
 
-      - name: Build Docker image
-        run: |
-          docker build -t my-cuda-image .
-          docker tag my-cuda-image fskemp/ubuntu:latest
-
-      - name: Configure Docker Mirror (Optional)
-        run: |
-         echo '{"registry-mirrors": ["https://docker.rainbond.cc"]}' | sudo tee /etc/docker/daemon.json
-         sudo systemctl restart docker
+      - name: Login to Docker Hub
+        uses: docker/login-action@v3
+        with:
+          username: ${{ secrets.DOCKERHUB_USERNAME }}
+          password: ${{ secrets.DOCKERHUB_TOKEN }}
+          registry: docker.io
 
       - name: Login to Docker Hub
         run: |
