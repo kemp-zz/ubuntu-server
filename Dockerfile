@@ -19,7 +19,12 @@ RUN apt-get update && \
     echo "deb [arch=$(dpkg --print-architecture) signed-by=/usr/share/keyrings/ros-archive-keyring.gpg] http://packages.ros.org/ros2/ubuntu $(lsb_release -cs) main" > /etc/apt/sources.list.d/ros2.list
 
 RUN apt-get update && \
-    apt-get install -y ros-humble-desktop ros-humble-ros-base python3-rosdep && \
+    apt-get install -y \
+    ros-humble-desktop \
+    ros-humble-ros-base \
+    python3-rosdep \
+    python3-pytest \
+    python3-ament-python && \
     rosdep init && \
     rosdep update --include-eol-distros
 
@@ -29,38 +34,44 @@ COPY --from=ros-installer /opt/ros/humble /opt/ros/humble
 COPY --from=ros-installer /usr/share/keyrings/ros-archive-keyring.gpg /usr/share/keyrings/
 COPY --from=ros-installer /etc/apt/sources.list.d/ros2.list /etc/apt/sources.list.d/
 
-# 安装核心依赖（移除非必要的GXF库）
+# 安装核心依赖
 RUN apt-get update && \
     apt-get install -y --no-install-recommends \
-    git cmake build-essential python3-rosdep python3-venv \
-    libopencv-dev libeigen3-dev && \
+    git \
+    cmake \
+    build-essential \
+    libopencv-dev \
+    libeigen3-dev \
+    python3-venv \
+    python3-colcon-common-extensions && \
     apt-get clean && \
     rm -rf /var/lib/apt/lists/*
 
-# 仅保留官方ROS源（移除NVIDIA私有源）
+# 配置官方ROS源
 RUN mkdir -p /etc/ros/rosdep/sources.list.d && \
+    rosdep init && \
     echo "yaml https://raw.githubusercontent.com/ros/rosdistro/master/rosdep/base.yaml" > /etc/ros/rosdep/sources.list.d/20-default.list && \
     rosdep update
 
-# 克隆仓库（移除非必要仓库）
+# 克隆官方兼容仓库
 WORKDIR /isaac_ws/src
 RUN for repo in isaac_ros_common isaac_ros_nvblox isaac_ros_visual_slam; do \
-        retries=0; max_retries=5; \
-        until [ $retries -ge $max_retries ]; do \
-            git clone --depth 1 --branch main https://github.com/NVIDIA-ISAAC-ROS/${repo}.git && break; \
-            retries=$((retries+1)); \
-            echo "Retrying $repo ($retries/$max_retries)..."; \
-            sleep 10; \
-        done; \
-        [ $retries -lt $max_retries ] || { echo "Clone failed for $repo"; exit 1; }; \
+        git clone --depth 1 --branch humble \
+        https://github.com/NVIDIA-ISAAC-ROS/${repo}.git; \
     done
+
+# 手动处理依赖
+RUN mkdir -p /isaac_ws/src/isaac_ros_deps && \
+    cd /isaac_ws/src/isaac_ros_deps && \
+    git clone --depth 1 --branch humble https://github.com/NVIDIA-ISAAC-ROS/isaac_ros_nitros.git
 
 # 构建
 RUN . /opt/ros/humble/setup.sh && \
     cd /isaac_ws && \
-    rosdep install --from-paths src --ignore-src -y && \
+    rosdep install --from-paths src --ignore-src -y --rosdistro humble && \
     colcon build --symlink-install --parallel-workers $(nproc) \
-    --cmake-args -DCMAKE_BUILD_TYPE=Release
+    --cmake-args -DCMAKE_BUILD_TYPE=Release \
+    --event-handlers console_direct+
 
 # Stage 4: 最终镜像
 FROM base
