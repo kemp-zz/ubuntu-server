@@ -25,15 +25,16 @@ RUN apt-get update && \
 
 # Stage 3: Isaac ROS 构建
 FROM base AS isaac-builder
+COPY --from=ros-installer /opt/ros/humble /opt/ros/humble
 COPY --from=ros-installer /usr/share/keyrings/ros-archive-keyring.gpg /usr/share/keyrings/
 COPY --from=ros-installer /etc/apt/sources.list.d/ros2.list /etc/apt/sources.list.d/
 
 RUN apt-get update && \
     apt-get install -y --no-install-recommends \
     git cmake build-essential python3-rosdep python3-venv \
-    libopencv-dev libeigen3-dev \
-    && apt-get clean \
-    && rm -rf /var/lib/apt/lists/*
+    libopencv-dev libeigen3-dev gosu && \
+    apt-get clean && \
+    rm -rf /var/lib/apt/lists/*
 
 RUN mkdir -p /etc/ros/rosdep/sources.list.d && \
     echo "yaml https://raw.githubusercontent.com/ros/rosdistro/master/rosdep/base.yaml" > /etc/ros/rosdep/sources.list.d/20-default.list && \
@@ -41,6 +42,8 @@ RUN mkdir -p /etc/ros/rosdep/sources.list.d && \
     rosdep update
 
 WORKDIR /isaac_ws/src
+RUN chown -R appuser:appuser /isaac_ws
+
 RUN for repo in isaac_ros_common isaac_ros_nvblox isaac_ros_visual_slam; do \
         retries=0; max_retries=5; \
         until [ $retries -ge $max_retries ]; do \
@@ -64,9 +67,10 @@ COPY --from=ros-installer /opt/ros/humble /opt/ros/humble
 COPY --from=isaac-builder /isaac_ws/install /isaac_ws/install
 
 RUN useradd -m appuser && \
-    chown -R appuser:appuser /isaac_ws /opt/ros/humble
+    chown -R appuser:appuser /isaac_ws /opt/ros/humble /var/log
 
+ENV HOME=/home/appuser
 USER appuser
-WORKDIR /home/appuser
+WORKDIR $HOME
 
 CMD ["bash"]
