@@ -41,7 +41,7 @@ RUN apt-get update && \
 
 RUN apt-get update && \
     apt-get install -y --no-install-recommends \
-    cuda-toolkit-12-8 python3-pytest
+    cuda-toolkit-12-8 python3-pytest python3-colcon-common-extensions
 
 RUN apt-get clean && \
     rm -rf /var/lib/apt/lists/*
@@ -65,11 +65,14 @@ RUN apt-get update && \
     apt-get install -y --no-install-recommends \
     libopencv-dev libeigen3-dev python3-pytest
 
+# 安装 colcon
+RUN pip3 install colcon-common-extensions
+
 # 构建
 RUN . /opt/ros/humble/setup.sh && \
     cd /isaac_ws && \
     rosdep install --from-paths src --ignore-src -y || true && \
-    colcon build --symlink-install --parallel-workers $(nproc) \
+    colcon build --symlink-install --parallel-workers 4 \
     --cmake-args -DCMAKE_BUILD_TYPE=Release
 
 # Stage 4: 最终镜像
