@@ -7,7 +7,7 @@ ENV DEBIAN_FRONTEND=noninteractive \
     TZ=Asia/Shanghai
 
 RUN apt-get update && \
-    apt-get install -y locales tzdata && \
+    apt-get install -y locales tzdata ca-certificates && \
     ln -fs /usr/share/zoneinfo/$TZ /etc/localtime && \
     dpkg-reconfigure -f noninteractive tzdata && \
     locale-gen en_US.UTF-8
@@ -22,21 +22,23 @@ RUN apt-get update && \
 RUN apt-get update && \
     apt-get install -y ros-humble-desktop ros-humble-ros-base python3-rosdep && \
     rosdep init && \
-    rosdep update
+    rosdep update --include-eol-distros
 
 # Stage 3: Isaac ROS 构建
 FROM base AS isaac-builder
-COPY --from=ros-installer /opt/ros/humble /opt/ros/humble
+# 继承 ROS 软件源配置
+COPY --from=ros-installer /usr/share/keyrings/ros-archive-keyring.gpg /usr/share/keyrings/
+COPY --from=ros-installer /etc/apt/sources.list.d/ros2.list /etc/apt/sources.list.d/
 
 RUN apt-get update && \
     apt-get install -y --no-install-recommends \
-    git cmake build-essential \
-    python3-pip python3-venv && \
+    git cmake build-essential python3-rosdep && \
     rm -rf /var/lib/apt/lists/*
 
-# 配置rosdep源
+# 配置官方 rosdep 源
 RUN mkdir -p /etc/ros/rosdep/sources.list.d && \
     echo "yaml https://raw.githubusercontent.com/ros/rosdistro/master/rosdep/base.yaml" > /etc/ros/rosdep/sources.list.d/20-default.list && \
+    echo "yaml https://raw.githubusercontent.com/ros/rosdistro/master/rosdep/python.yaml" >> /etc/ros/rosdep/sources.list.d/20-default.list && \
     rosdep update
 
 # 克隆仓库
@@ -49,7 +51,7 @@ RUN for repo in isaac_ros_common isaac_ros_nvblox isaac_ros_visual_slam; do \
 RUN . /opt/ros/humble/setup.sh && \
     cd /isaac_ws && \
     rosdep install --from-paths src --ignore-src -y && \
-    colcon build --symlink-install
+    colcon build --symlink-install --cmake-args -DCMAKE_BUILD_TYPE=Release
 
 # Stage 4: 最终镜像
 FROM base
