@@ -34,10 +34,16 @@ jobs:
           docker build -t my-cuda-image .
           docker tag my-cuda-image fskemp/ubuntu:latest
 
-      # 使用 docker login 命令替代 Action 登录 Docker Hub
-      - name: Login to Docker Hub
-        run: echo "${{ secrets.DOCKER_PASSWORD }}" | docker login -u ${{ secrets.DOCKER_USERNAME }} --password-stdin
+      - name: Configure Docker Mirror (Optional)
+        run: |
+         echo '{"registry-mirrors": ["https://docker.rainbond.cc"]}' | sudo tee /etc/docker/daemon.json
+         sudo systemctl restart docker
 
+      - name: Login to Docker Hub
+        run: |
+         echo "${{ secrets.DOCKER_PASSWORD }}" | \
+         docker login -u "${{ secrets.DOCKER_USERNAME }}" --password-stdin
+         docker info | grep "Username"  # 验证登录状态
       # 推送镜像到 Docker Hub
       - name: Push Docker image to Docker Hub
         run: |
