@@ -1,5 +1,4 @@
-# Stage 0: 基础环境（整合网页3 CUDA支持 + 网页4时区配置）
-FROM fskemp/ubuntu:latest AS base
+FROM nvidia/cuda:12.8.0-base-ubuntu22.04 AS base
 
 
 ENV DEBIAN_FRONTEND=noninteractive \
