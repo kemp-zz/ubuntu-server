@@ -34,6 +34,9 @@ RUN apt-get update && \
     git cmake build-essential python3-rosdep python3-venv \
     libopencv-dev libeigen3-dev libgxf-core libgxf-std \
     ros-humble-ament-cmake && \
+    cuda-toolkit-12-8 \
+    libgxf-core-12-8 \
+    libgxf-std-12-8 \
     apt-get clean && \
     rm -rf /var/lib/apt/lists/*
 
