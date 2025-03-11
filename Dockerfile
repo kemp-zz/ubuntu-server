@@ -28,47 +28,35 @@ COPY --from=ros-installer /opt/ros/humble /opt/ros/humble
 COPY --from=ros-installer /usr/share/keyrings/ros-archive-keyring.gpg /usr/share/keyrings/
 COPY --from=ros-installer /etc/apt/sources.list.d/ros2.list /etc/apt/sources.list.d/
 
-# 安装核心依赖（补充 pytest 和 ament-cmake）
+# 安装核心依赖（补充 NVIDIA GXF 和 ament-cmake）
 RUN apt-get update && \
     apt-get install -y --no-install-recommends \
     git cmake build-essential python3-rosdep python3-venv \
-    libopencv-dev libeigen3-dev python3-pytest ros-humble-ament-cmake && \
+    libopencv-dev libeigen3-dev libgxf-core libgxf-std \
+    ros-humble-ament-cmake && \
     apt-get clean && \
     rm -rf /var/lib/apt/lists/*
 
-# 配置 rosdep 源（包含 NVIDIA 私有源）
+# 配置仅官方 ROS 源（移除 NVIDIA 无效源）
 RUN mkdir -p /etc/ros/rosdep/sources.list.d && \
     echo "yaml https://raw.githubusercontent.com/ros/rosdistro/master/rosdep/base.yaml" > /etc/ros/rosdep/sources.list.d/20-default.list && \
-    echo "yaml https://raw.githubusercontent.com/NVIDIA-ISAAC-ROS/rosdistro/main/rosdep/isaac_ros.yaml" >> /etc/ros/rosdep/sources.list.d/20-default.list && \
     rosdep update
 
-# 国内网络优化（可选）
-ENV GIT_SSL_NO_VERIFY=1
+# 国内 Git 镜像加速
 RUN git config --global url."https://ghproxy.com/https://github.com/".insteadOf "https://github.com/"
 
-# 克隆所有必要的仓库（增加 isaac_ros_nitros）
+# 克隆所有必要仓库
 WORKDIR /isaac_ws/src
 RUN for repo in isaac_ros_common isaac_ros_nvblox isaac_ros_visual_slam isaac_ros_nitros; do \
-        retries=0; max_retries=5; \
-        until [ $retries -ge $max_retries ]; do \
-            git clone --depth 1 --branch main https://github.com/NVIDIA-ISAAC-ROS/${repo}.git && break; \
-            retries=$((retries+1)); \
-            echo "Retrying $repo ($retries/$max_retries)..."; \
-            sleep 10; \
-        done; \
-        [ $retries -lt $max_retries ] || { echo "Clone failed for $repo"; exit 1; }; \
+        git clone --depth 1 --branch main https://github.com/NVIDIA-ISAAC-ROS/${repo}.git; \
     done
 
-# 构建（补充清理缓存步骤）
+# 构建
 RUN . /opt/ros/humble/setup.sh && \
     cd /isaac_ws && \
     rosdep install --from-paths src --ignore-src -y && \
     colcon build --symlink-install --parallel-workers $(nproc) \
-    --cmake-args -DCMAKE_BUILD_TYPE=Release && \
-    rm -rf /var/lib/apt/lists/* \
-    /root/.cache \
-    /isaac_ws/build \
-    /isaac_ws/log
+    --cmake-args -DCMAKE_BUILD_TYPE=Release
 
 # Stage 4: 最终镜像
 FROM base
