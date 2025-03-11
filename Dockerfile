@@ -41,7 +41,7 @@ RUN apt-get update && \
 
 RUN apt-get update && \
     apt-get install -y --no-install-recommends \
-    cuda-toolkit-12-8
+    cuda-toolkit-12-8 python3-pytest ament-python
 
 RUN apt-get clean && \
     rm -rf /var/lib/apt/lists/*
@@ -56,6 +56,9 @@ WORKDIR /isaac_ws/src
 RUN for repo in isaac_ros_common isaac_ros_nvblox isaac_ros_visual_slam; do \
         git clone --depth 1 --branch main https://github.com/NVIDIA-ISAAC-ROS/${repo}.git; \
     done
+
+# 删除不需要的包
+RUN rm -rf isaac_ros_nitros
 
 # 构建
 RUN . /opt/ros/humble/setup.sh && \
