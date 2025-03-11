@@ -1,4 +1,3 @@
-# Stage 1: 基础镜像
 FROM nvidia/cuda:12.8.0-base-ubuntu22.04 AS base
 
 ENV DEBIAN_FRONTEND=noninteractive \
@@ -19,9 +18,10 @@ RUN apt-get update && \
     echo "deb [arch=$(dpkg --print-architecture) signed-by=/usr/share/keyrings/ros-archive-keyring.gpg] http://packages.ros.org/ros2/ubuntu $(lsb_release -cs) main" > /etc/apt/sources.list.d/ros2.list
 
 RUN apt-get update && \
-    apt-get install -y ros-humble-desktop ros-humble-ros-base python3-rosdep && \
+    apt-get install -y ros-humble-desktop ros-humble-ros-base python3-rosdep python3-vcstool  && \ # Added vcstool
     rosdep init && \
     rosdep update --include-eol-distros
+
 
 # Stage 3: Isaac ROS 构建
 FROM base AS isaac-builder
@@ -29,38 +29,37 @@ COPY --from=ros-installer /opt/ros/humble /opt/ros/humble
 COPY --from=ros-installer /usr/share/keyrings/ros-archive-keyring.gpg /usr/share/keyrings/
 COPY --from=ros-installer /etc/apt/sources.list.d/ros2.list /etc/apt/sources.list.d/
 
-# 安装核心依赖（移除非必要的GXF库）
+# 安装核心依赖
 RUN apt-get update && \
     apt-get install -y --no-install-recommends \
     git cmake build-essential python3-rosdep python3-venv \
-    libopencv-dev libeigen3-dev && \
-    apt-get clean && \
+    libopencv-dev libeigen3-dev python3-colcon-common-extensions wget \
+    && apt-get clean && \
     rm -rf /var/lib/apt/lists/*
 
-# 仅保留官方ROS源（移除NVIDIA私有源）
+
+# Use the official ROS sources and add Isaac ROS sources
 RUN mkdir -p /etc/ros/rosdep/sources.list.d && \
     echo "yaml https://raw.githubusercontent.com/ros/rosdistro/master/rosdep/base.yaml" > /etc/ros/rosdep/sources.list.d/20-default.list && \
-    rosdep update
+    wget https://raw.githubusercontent.com/NVIDIA-ISAAC-ROS/isaac_ros-humble/main/rosdep/isaac-ros.repos -O /etc/ros/rosdep/sources.list.d/30-isaac-ros.list && \
+    rosdep update  # Update rosdep after adding Isaac ROS sources
 
-# 克隆仓库（移除非必要仓库）
+
+# Clone repositories using vcstool
 WORKDIR /isaac_ws/src
-RUN for repo in isaac_ros_common isaac_ros_nvblox isaac_ros_visual_slam; do \
-        retries=0; max_retries=5; \
-        until [ $retries -ge $max_retries ]; do \
-            git clone --depth 1 --branch main https://github.com/NVIDIA-ISAAC-ROS/${repo}.git && break; \
-            retries=$((retries+1)); \
-            echo "Retrying $repo ($retries/$max_retries)..."; \
-            sleep 10; \
-        done; \
-        [ $retries -lt $max_retries ] || { echo "Clone failed for $repo"; exit 1; }; \
-    done
+COPY isaac_ros.repos .  # Assumes you have an isaac_ros.repos file in your build context
+RUN vcs import < isaac_ros.repos # Use vcstool for consistent versioning
 
-# 构建
+# Install specific dependencies for the packages you're building (adjust as needed)
+RUN apt-get update && apt-get install -y python3-pytest ament-python  libgstreamer-plugins-base1.0-dev libgstreamer1.0-dev gstreamer1.0-plugins-good gstreamer1.0-plugins-bad \
+     && rm -rf /var/lib/apt/lists/*
+
+# Build - Key improvements here for reliability and clarity
 RUN . /opt/ros/humble/setup.sh && \
     cd /isaac_ws && \
-    rosdep install --from-paths src --ignore-src -y && \
-    colcon build --symlink-install --parallel-workers $(nproc) \
-    --cmake-args -DCMAKE_BUILD_TYPE=Release
+    rosdep install --from-paths src --ignore-src --rosdistro humble -yrv && \  # Added -r for retrying failed dependencies
+    colcon build --symlink-install --parallel-workers $(nproc) --cmake-args -DCMAKE_BUILD_TYPE=Release --event-handlers console_cohesion+
+
 
 # Stage 4: 最终镜像
 FROM base
@@ -74,4 +73,8 @@ ENV HOME=/home/appuser
 USER appuser
 WORKDIR $HOME
 
-CMD ["bash"]
+# Set environment variables for ROS (important!)
+RUN echo "source /opt/ros/humble/setup.bash" >> $HOME/.bashrc
+ENV ROS_DISTRO=humble
+
+CMD ["bash"] # Or your desired command
