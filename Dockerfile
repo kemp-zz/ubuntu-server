@@ -1,7 +1,6 @@
 # Stage 1: 基础镜像
 FROM nvidia/cuda:12.8.0-base-ubuntu22.04 AS base
 
-# 系统配置
 ENV DEBIAN_FRONTEND=noninteractive \
     LANG=en_US.UTF-8 \
     TZ=Asia/Shanghai
@@ -26,32 +25,33 @@ RUN apt-get update && \
 
 # Stage 3: Isaac ROS 构建
 FROM base AS isaac-builder
-# 继承 ROS 软件源配置
 COPY --from=ros-installer /usr/share/keyrings/ros-archive-keyring.gpg /usr/share/keyrings/
 COPY --from=ros-installer /etc/apt/sources.list.d/ros2.list /etc/apt/sources.list.d/
 
 RUN apt-get update && \
     apt-get install -y --no-install-recommends \
-    git cmake build-essential python3-rosdep && \
-    rm -rf /var/lib/apt/lists/*
+    git cmake build-essential python3-rosdep python3-venv \
+    libopencv-dev libeigen3-dev \
+    && apt-get clean \
+    && rm -rf /var/lib/apt/lists/*
 
-# 配置官方 rosdep 源
 RUN mkdir -p /etc/ros/rosdep/sources.list.d && \
     echo "yaml https://raw.githubusercontent.com/ros/rosdistro/master/rosdep/base.yaml" > /etc/ros/rosdep/sources.list.d/20-default.list && \
     echo "yaml https://raw.githubusercontent.com/ros/rosdistro/master/rosdep/python.yaml" >> /etc/ros/rosdep/sources.list.d/20-default.list && \
     rosdep update
 
-# 克隆仓库
 WORKDIR /isaac_ws/src
 RUN for repo in isaac_ros_common isaac_ros_nvblox isaac_ros_visual_slam; do \
-        git clone --depth 1 --branch humble https://github.com/NVIDIA-ISAAC-ROS/${repo}.git || exit 1; \
+        git clone --depth 1 --branch main \
+        --retry 5 --timeout 60 \
+        https://github.com/NVIDIA-ISAAC-ROS/${repo}.git || { echo "Clone failed for $repo"; exit 1; } \
     done
 
-# 构建
 RUN . /opt/ros/humble/setup.sh && \
     cd /isaac_ws && \
     rosdep install --from-paths src --ignore-src -y && \
-    colcon build --symlink-install --cmake-args -DCMAKE_BUILD_TYPE=Release
+    colcon build --symlink-install --parallel-workers $(nproc) \
+    --cmake-args -DCMAKE_BUILD_TYPE=Release
 
 # Stage 4: 最终镜像
 FROM base
@@ -59,7 +59,7 @@ COPY --from=ros-installer /opt/ros/humble /opt/ros/humble
 COPY --from=isaac-builder /isaac_ws/install /isaac_ws/install
 
 RUN useradd -m appuser && \
-    chown -R appuser:appuser /isaac_ws
+    chown -R appuser:appuser /isaac_ws /opt/ros/humble
 
 USER appuser
 WORKDIR /home/appuser
