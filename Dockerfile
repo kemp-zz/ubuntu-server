@@ -10,7 +10,7 @@ RUN apt-get update && \
     dpkg-reconfigure -f noninteractive tzdata && \
     locale-gen en_US.UTF-8
 
-# Stage 2: ROS2 Humble 安装
+# Stage 2: ROS2 Humble and dependencies
 FROM base AS ros-installer
 RUN apt-get update && \
     apt-get install -y curl gnupg2 lsb-release && \
@@ -18,16 +18,23 @@ RUN apt-get update && \
     echo "deb [arch=$(dpkg --print-architecture) signed-by=/usr/share/keyrings/ros-archive-keyring.gpg] http://packages.ros.org/ros2/ubuntu $(lsb_release -cs) main" > /etc/apt/sources.list.d/ros2.list
 
 RUN apt-get update && \
-    apt-get install -y ros-humble-desktop ros-humble-ros-base python3-rosdep python3-vcstool  && \ # Added vcstool
+    apt-get install -y ros-humble-desktop ros-humble-ros-base python3-rosdep python3-vcstool && \
     rosdep init && \
-    rosdep update --include-eol-distros
+    rosdep update --include-eol-distros  && \  # Correct chaining
+    apt-get install -y python3-pytest ament-python  libgstreamer-plugins-base1.0-dev libgstreamer1.0-dev gstreamer1.0-plugins-good gstreamer1.0-plugins-bad \
+    && rm -rf /var/lib/apt/lists/*
+
 
 
 # Stage 3: Isaac ROS 构建
-FROM base AS isaac-builder
-COPY --from=ros-installer /opt/ros/humble /opt/ros/humble
-COPY --from=ros-installer /usr/share/keyrings/ros-archive-keyring.gpg /usr/share/keyrings/
-COPY --from=ros-installer /etc/apt/sources.list.d/ros2.list /etc/apt/sources.list.d/
+FROM ros-installer AS isaac-builder  # <--- CRUCIAL CHANGE: Inherit from ros-installer
+
+# Use the official ROS sources and add Isaac ROS sources - Now in the correct stage
+RUN mkdir -p /etc/ros/rosdep/sources.list.d && \
+    echo "yaml https://raw.githubusercontent.com/ros/rosdistro/master/rosdep/base.yaml" > /etc/ros/rosdep/sources.list.d/20-default.list && \
+    wget https://raw.githubusercontent.com/NVIDIA-ISAAC-ROS/isaac_ros-humble/main/rosdep/isaac-ros.repos -O /etc/ros/rosdep/sources.list.d/30-isaac-ros.list && \
+    rosdep update
+
 
 # 安装核心依赖
 RUN apt-get update && \
