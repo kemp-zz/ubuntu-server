@@ -39,7 +39,9 @@ RUN apt-get update && \
     apt-get install -y --no-install-recommends \
     ros-humble-ament-cmake
 
-
+RUN apt-get update && \
+    apt-get install -y --no-install-recommends \
+    cuda-toolkit-12-8 python3-pytest
 
 RUN apt-get clean && \
     rm -rf /var/lib/apt/lists/*
@@ -58,10 +60,15 @@ RUN for repo in isaac_ros_common isaac_ros_nvblox isaac_ros_visual_slam; do \
 # 删除不需要的包
 RUN rm -rf isaac_ros_nitros
 
+# 安装未解析的依赖项
+RUN apt-get update && \
+    apt-get install -y --no-install-recommends \
+    libopencv-dev libeigen3-dev python3-pytest
+
 # 构建
 RUN . /opt/ros/humble/setup.sh && \
     cd /isaac_ws && \
-    rosdep install --from-paths src --ignore-src -y && \
+    rosdep install --from-paths src --ignore-src -y || true && \
     colcon build --symlink-install --parallel-workers $(nproc) \
     --cmake-args -DCMAKE_BUILD_TYPE=Release
 
