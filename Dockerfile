@@ -23,7 +23,6 @@ RUN apt-get update && \
     rosdep init && \
     rosdep update --include-eol-distros
 
-
 # Stage 3: Isaac ROS 构建
 FROM base AS isaac-builder
 COPY --from=ros-installer /opt/ros/humble /opt/ros/humble
@@ -34,20 +33,23 @@ COPY --from=ros-installer /etc/apt/sources.list.d/ros2.list /etc/apt/sources.lis
 RUN apt-get update && \
     apt-get install -y --no-install-recommends \
     git cmake build-essential python3-rosdep python3-venv \
-    libopencv-dev libeigen3-dev && \
+    libopencv-dev libeigen3-dev
+
+RUN apt-get update && \
     apt-get install -y --no-install-recommends \
-    libgxf-core libgxf-std ros-humble-ament-cmake && \
+    libgxf-core libgxf-std ros-humble-ament-cmake
+
+RUN apt-get update && \
     apt-get install -y --no-install-recommends \
-    cuda-toolkit-12-8 libgxf-core-12-8 libgxf-std-12-8 && \
-    apt-get clean && \
+    cuda-toolkit-12-8 libgxf-core-12-8 libgxf-std-12-8
+
+RUN apt-get clean && \
     rm -rf /var/lib/apt/lists/*
+
 # 配置仅官方 ROS 源（移除 NVIDIA 无效源）
 RUN mkdir -p /etc/ros/rosdep/sources.list.d && \
     echo "yaml https://raw.githubusercontent.com/ros/rosdistro/master/rosdep/base.yaml" > /etc/ros/rosdep/sources.list.d/20-default.list && \
     rosdep update
-
-# 国内 Git 镜像加速
-RUN git config --global url."https://ghproxy.com/https://github.com/".insteadOf "https://github.com/"
 
 # 克隆所有必要仓库
 WORKDIR /isaac_ws/src
