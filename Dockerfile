@@ -32,7 +32,7 @@ COPY --from=ros-installer /etc/apt/sources.list.d/ros2.list /etc/apt/sources.lis
 RUN apt-get update && \
     apt-get install -y --no-install-recommends \
     git cmake build-essential python3-rosdep python3-venv \
-    libopencv-dev libeigen3-dev gosu && \
+    libopencv-dev libeigen3-dev && \
     apt-get clean && \
     rm -rf /var/lib/apt/lists/*
 
@@ -42,7 +42,6 @@ RUN mkdir -p /etc/ros/rosdep/sources.list.d && \
     rosdep update
 
 WORKDIR /isaac_ws/src
-RUN chown -R appuser:appuser /isaac_ws
 
 RUN for repo in isaac_ros_common isaac_ros_nvblox isaac_ros_visual_slam; do \
         retries=0; max_retries=5; \
@@ -67,7 +66,7 @@ COPY --from=ros-installer /opt/ros/humble /opt/ros/humble
 COPY --from=isaac-builder /isaac_ws/install /isaac_ws/install
 
 RUN useradd -m appuser && \
-    chown -R appuser:appuser /isaac_ws /opt/ros/humble /var/log
+    chown -R appuser:appuser /isaac_ws /opt/ros/humble
 
 ENV HOME=/home/appuser
 USER appuser
