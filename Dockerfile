@@ -29,54 +29,37 @@ COPY --from=ros-installer /opt/ros/humble /opt/ros/humble
 COPY --from=ros-installer /usr/share/keyrings/ros-archive-keyring.gpg /usr/share/keyrings/
 COPY --from=ros-installer /etc/apt/sources.list.d/ros2.list /etc/apt/sources.list.d/
 
-# 安装核心依赖（补充 NVIDIA GXF 和 ament-cmake）
+# 安装核心依赖（移除非必要的GXF库）
 RUN apt-get update && \
     apt-get install -y --no-install-recommends \
     git cmake build-essential python3-rosdep python3-venv \
-    libopencv-dev libeigen3-dev libssl-dev
-
-RUN apt-get update && \
-    apt-get install -y --no-install-recommends \
-    ros-humble-ament-cmake
-
-RUN apt-get update && \
-    apt-get install -y --no-install-recommends \
-    cuda-toolkit-12-8 python3-pytest python3-colcon-common-extensions
-
-# 安装 pip3
-RUN apt-get update && \
-    apt-get install -y python3-pip
-
-# 安装 vcs 工具
-RUN apt-get update && \
-    apt-get install -y python3-vcstool
-
-RUN apt-get clean && \
+    libopencv-dev libeigen3-dev && \
+    apt-get clean && \
     rm -rf /var/lib/apt/lists/*
 
-# 配置仅官方 ROS 源（移除 NVIDIA 无效源）
+# 仅保留官方ROS源（移除NVIDIA私有源）
 RUN mkdir -p /etc/ros/rosdep/sources.list.d && \
     echo "yaml https://raw.githubusercontent.com/ros/rosdistro/master/rosdep/base.yaml" > /etc/ros/rosdep/sources.list.d/20-default.list && \
     rosdep update
 
-# 克隆所有必要仓库
+# 克隆仓库（移除非必要仓库）
 WORKDIR /isaac_ws/src
-COPY repositories.yaml ./
-RUN vcs import < repositories.yaml
-
-# 安装未解析的依赖项
-RUN apt-get update && \
-    apt-get install -y --no-install-recommends \
-    libopencv-dev libeigen3-dev python3-pytest
-
-# 安装 colcon
-RUN pip3 install colcon-common-extensions
+RUN for repo in isaac_ros_common isaac_ros_nvblox isaac_ros_visual_slam; do \
+        retries=0; max_retries=5; \
+        until [ $retries -ge $max_retries ]; do \
+            git clone --depth 1 --branch main https://github.com/NVIDIA-ISAAC-ROS/${repo}.git && break; \
+            retries=$((retries+1)); \
+            echo "Retrying $repo ($retries/$max_retries)..."; \
+            sleep 10; \
+        done; \
+        [ $retries -lt $max_retries ] || { echo "Clone failed for $repo"; exit 1; }; \
+    done
 
 # 构建
 RUN . /opt/ros/humble/setup.sh && \
     cd /isaac_ws && \
-    rosdep install --from-paths src --ignore-src -y || true && \
-    colcon build --symlink-install --parallel-workers 4 \
+    rosdep install --from-paths src --ignore-src -y && \
+    colcon build --symlink-install --parallel-workers $(nproc) \
     --cmake-args -DCMAKE_BUILD_TYPE=Release
 
 # Stage 4: 最终镜像
