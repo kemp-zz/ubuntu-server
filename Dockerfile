@@ -33,7 +33,7 @@ COPY --from=ros-installer /etc/apt/sources.list.d/ros2.list /etc/apt/sources.lis
 RUN apt-get update && \
     apt-get install -y --no-install-recommends \
     git cmake build-essential python3-rosdep python3-venv \
-    libopencv-dev libeigen3-dev
+    libopencv-dev libeigen3-dev libssl-dev
 
 RUN apt-get update && \
     apt-get install -y --no-install-recommends \
@@ -47,12 +47,12 @@ RUN apt-get update && \
 RUN apt-get update && \
     apt-get install -y python3-pip
 
+# 安装 vcs 工具
+RUN apt-get update && \
+    apt-get install -y python3-vcstool
+
 RUN apt-get clean && \
     rm -rf /var/lib/apt/lists/*
-
-# 安装 OpenSSL 开发库
-RUN apt-get update && \
-    apt-get install -y libssl-dev
 
 # 配置仅官方 ROS 源（移除 NVIDIA 无效源）
 RUN mkdir -p /etc/ros/rosdep/sources.list.d && \
@@ -61,12 +61,8 @@ RUN mkdir -p /etc/ros/rosdep/sources.list.d && \
 
 # 克隆所有必要仓库
 WORKDIR /isaac_ws/src
-RUN for repo in isaac_ros_common isaac_ros_nvblox isaac_ros_visual_slam; do \
-        git clone --depth 1 --branch main https://github.com/NVIDIA-ISAAC-ROS/${repo}.git; \
-    done
-
-# 删除不需要的包
-RUN rm -rf isaac_ros_nitros
+COPY repositories.yaml ./
+RUN vcs import < repositories.yaml
 
 # 安装未解析的依赖项
 RUN apt-get update && \
