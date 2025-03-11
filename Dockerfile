@@ -39,9 +39,7 @@ RUN apt-get update && \
     apt-get install -y --no-install-recommends \
     ros-humble-ament-cmake
 
-RUN apt-get update && \
-    apt-get install -y --no-install-recommends \
-    cuda-toolkit-12-8 python3-pytest ament-python
+
 
 RUN apt-get clean && \
     rm -rf /var/lib/apt/lists/*
