@@ -43,6 +43,10 @@ RUN apt-get update && \
     apt-get install -y --no-install-recommends \
     cuda-toolkit-12-8 python3-pytest python3-colcon-common-extensions
 
+# 安装 pip3
+RUN apt-get update && \
+    apt-get install -y python3-pip
+
 RUN apt-get clean && \
     rm -rf /var/lib/apt/lists/*
 
