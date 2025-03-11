@@ -35,8 +35,10 @@ jobs:
           username: ${{ secrets.DOCKERHUB_USERNAME }}
           password: ${{ secrets.DOCKERHUB_TOKEN }}
           registry: docker.io
-
-
+      - name: Build Docker Image
+        run: |
+         docker build -t fskemp/ubuntu:latest .
+ 
       - name: Push Docker image to Docker Hub
         run: |
           docker push fskemp/ubuntu:latest
