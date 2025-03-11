@@ -42,9 +42,14 @@ RUN mkdir -p /etc/ros/rosdep/sources.list.d && \
 
 WORKDIR /isaac_ws/src
 RUN for repo in isaac_ros_common isaac_ros_nvblox isaac_ros_visual_slam; do \
-        git clone --depth 1 --branch main \
-        --retry 5 --timeout 60 \
-        https://github.com/NVIDIA-ISAAC-ROS/${repo}.git || { echo "Clone failed for $repo"; exit 1; } \
+        retries=0; max_retries=5; \
+        until [ $retries -ge $max_retries ]; do \
+            git clone --depth 1 --branch main https://github.com/NVIDIA-ISAAC-ROS/${repo}.git && break; \
+            retries=$((retries+1)); \
+            echo "Retrying $repo ($retries/$max_retries)..."; \
+            sleep 10; \
+        done; \
+        [ $retries -lt $max_retries ] || { echo "Clone failed for $repo"; exit 1; }; \
     done
 
 RUN . /opt/ros/humble/setup.sh && \
