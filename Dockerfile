@@ -29,6 +29,7 @@ COPY --from=ros-installer /opt/ros/humble /opt/ros/humble
 COPY --from=ros-installer /usr/share/keyrings/ros-archive-keyring.gpg /usr/share/keyrings/
 COPY --from=ros-installer /etc/apt/sources.list.d/ros2.list /etc/apt/sources.list.d/
 
+# 安装核心依赖（移除非必要的GXF库）
 RUN apt-get update && \
     apt-get install -y --no-install-recommends \
     git cmake build-essential python3-rosdep python3-venv \
@@ -36,13 +37,13 @@ RUN apt-get update && \
     apt-get clean && \
     rm -rf /var/lib/apt/lists/*
 
+# 仅保留官方ROS源（移除NVIDIA私有源）
 RUN mkdir -p /etc/ros/rosdep/sources.list.d && \
     echo "yaml https://raw.githubusercontent.com/ros/rosdistro/master/rosdep/base.yaml" > /etc/ros/rosdep/sources.list.d/20-default.list && \
-    echo "yaml https://raw.githubusercontent.com/ros/rosdistro/master/rosdep/python.yaml" >> /etc/ros/rosdep/sources.list.d/20-default.list && \
     rosdep update
 
+# 克隆仓库（移除非必要仓库）
 WORKDIR /isaac_ws/src
-
 RUN for repo in isaac_ros_common isaac_ros_nvblox isaac_ros_visual_slam; do \
         retries=0; max_retries=5; \
         until [ $retries -ge $max_retries ]; do \
@@ -54,6 +55,7 @@ RUN for repo in isaac_ros_common isaac_ros_nvblox isaac_ros_visual_slam; do \
         [ $retries -lt $max_retries ] || { echo "Clone failed for $repo"; exit 1; }; \
     done
 
+# 构建
 RUN . /opt/ros/humble/setup.sh && \
     cd /isaac_ws && \
     rosdep install --from-paths src --ignore-src -y && \
