@@ -50,6 +50,10 @@ RUN apt-get update && \
 RUN apt-get clean && \
     rm -rf /var/lib/apt/lists/*
 
+# 安装 OpenSSL 开发库
+RUN apt-get update && \
+    apt-get install -y libssl-dev
+
 # 配置仅官方 ROS 源（移除 NVIDIA 无效源）
 RUN mkdir -p /etc/ros/rosdep/sources.list.d && \
     echo "yaml https://raw.githubusercontent.com/ros/rosdistro/master/rosdep/base.yaml" > /etc/ros/rosdep/sources.list.d/20-default.list && \
