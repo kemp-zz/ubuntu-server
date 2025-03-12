@@ -39,16 +39,26 @@ RUN --mount=type=cache,target=/var/cache/apt \
     apt-get install -y --no-install-recommends \
         ros-${ROS_DISTRO}-ros-base \
         python3-colcon-common-extensions \
+        ros-${ROS_DISTRO}-colcon-core \ 
         ros-${ROS_DISTRO}-rcl-logging-spdlog \
         ros-${ROS_DISTRO}-ament-cmake-auto \
         ros-${ROS_DISTRO}-rclcpp \
         libspdlog-dev \
         python3-rosdep && \
     ln -sf /usr/bin/python3 /usr/bin/python && \
+    pip3 install --upgrade setuptools wheel && \
     rosdep init || true && \
     rosdep update --include-eol-distros && \
     apt-get clean && \
     rm -rf /var/lib/apt/lists/*
+ # 添加环境验证步骤
+RUN --mount=type=cache,target=/root/.cache/ccache \
+    { [ -f "/opt/ros/${ROS_DISTRO}/setup.sh" ] && \
+      [ -x "$(command -v colcon)" ]; } || \
+    { echo "Environment validation failed"; exit 1; } && \
+    . /opt/ros/${ROS_DISTRO}/setup.sh && \
+    cd $ISAAC_WS && \
+    colcon build ...   
 
 # ====================== Stage 3: 构建环境 ======================
 FROM base AS builder
