@@ -6,7 +6,7 @@ on:
   workflow_dispatch:
 
 env:
-  CUDA_VERSION: 12.8.1
+  CUDA_VERSION: 12.8.0
   IMAGE_NAME: fskemp/ubuntu
 
 jobs:
