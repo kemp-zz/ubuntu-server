@@ -57,6 +57,7 @@ RUN --mount=type=cache,target=/var/cache/apt \
     python3-rosinstall-generator \
     python3-vcstool \
     quilt \
+    ccache \
     # 新增ROS组件 ↓
     ros-humble-angles \
     ros-humble-apriltag \
@@ -184,19 +185,19 @@ RUN for repo in isaac_ros_common isaac_ros_nvblox isaac_ros_visual_slam; do \
     done
 
 # 构建优化参数扩展
-ENV CMAKE_ARGS="-DCMAKE_BUILD_TYPE=Release \
+ENV CMAKE_ARGS="-DCMAKE_CXX_COMPILER_LAUNCHER=ccache \
+                -DCMAKE_C_COMPILER_LAUNCHER=ccache \
+                -DCMAKE_BUILD_TYPE=Release \
                 -DCMAKE_CUDA_ARCHITECTURES=80 \
                 -DCMAKE_EXPORT_COMPILE_COMMANDS=ON"
 
 # 启用分层编译缓存
-RUN --mount=type=cache,target=/root/.cache/ccache \
-    ls /opt/ros/humble/setup.sh && \
+RUN --mount=type=cache,target=/root/.cache/ccache \  
     . /opt/ros/humble/setup.sh && \
     cd /isaac_ws && \
     colcon build \
         --symlink-install \
         --parallel-workers $(($(nproc) * 3)) \
-        --mixin ccache \
         --event-handlers console_cohesion+ \
         --cmake-args $CMAKE_ARGS
 # Stage 4: 最终运行时镜像
