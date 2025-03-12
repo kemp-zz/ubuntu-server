@@ -140,6 +140,8 @@ ENV CMAKE_ARGS="-DOPENSSL_ROOT_DIR=/usr \
                 -DCMAKE_C_COMPILER_LAUNCHER=ccache \
                 -DCMAKE_BUILD_TYPE=Release \
                 -DCMAKE_CUDA_ARCHITECTURES=80 \
+                -Dvpi_DIR=/opt/nvidia/vpi2 \
+                -DCMAKE_PREFIX_PATH=/opt/nvidia/vpi2/lib/cmake/vpi \
                 -DCMAKE_EXPORT_COMPILE_COMMANDS=ON"
 
 # 执行构建
