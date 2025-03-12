@@ -40,7 +40,6 @@ RUN mkdir -p /usr/share/keyrings && \
 RUN curl -fsSL https://developer.download.nvidia.com/compute/cuda/repos/ubuntu2204/x86_64/3bf863cc.pub | gpg --dearmor > /usr/share/keyrings/cuda-archive-keyring.gpg && \
     echo "deb [arch=$(dpkg --print-architecture) signed-by=/usr/share/keyrings/cuda-archive-keyring.gpg] https://developer.download.nvidia.com/compute/cuda/repos/ubuntu2204/x86_64 /" > /etc/apt/sources.list.d/cuda.list
 # 安装ROS核心组件（合并新包列表）
-# 安装ROS核心组件（合并新包列表）
 RUN --mount=type=cache,target=/var/cache/apt \
     apt-get update && \
     apt-get install -y \
@@ -50,6 +49,7 @@ RUN --mount=type=cache,target=/var/cache/apt \
     build-essential \
     cmake \
     git \
+    python3-rosdep \
     devscripts \
     && rosdep init \
     && rosdep update --include-eol-distros \
