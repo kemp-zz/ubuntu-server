@@ -54,7 +54,7 @@ COPY --from=ros-core /usr/bin/colcon /usr/bin/colcon
 RUN --mount=type=cache,target=/var/cache/apt \
     apt-get update && \
     apt-get install -y --no-install-recommends \
-        build-essential libssl-dev ros-humble-ament-cmake \
+        build-essential libssl-dev ros-humble-ament-cmake ros-humble-ament-cmake-auto \
         cmake git libopencv-dev ccache && \
     ln -sf /usr/bin/ccache /usr/local/bin/gcc && \
     ln -sf /usr/bin/ccache /usr/local/bin/g++
