@@ -41,16 +41,12 @@ RUN --mount=type=cache,target=/var/cache/apt \
     apt-get update && \
     apt-get install -y --no-install-recommends \
         ros-humble-ros-base \
-        python3.10 python3-pip python3.10-venv \  
         python3-colcon-common-extensions \   
-        python3-rosdep python3-rosinstall-generator \
-        python3-dev \
-        ros-humble-rcl-logging-spdlog \
-        libssl-dev \
-        libspdlog-dev && \
+        ros-humble-rcl-logging-spdlog \  # 关键修复：ROS专用spdlog集成[1](@ref)
+        libspdlog-dev \
+        python3-rosdep && \
     # Python 版本管理
-    ln -sf /usr/bin/python3.10 /usr/bin/python && \
-    ln -sf /usr/bin/python3.10 /usr/bin/python3 && \
+    ln -sf /usr/bin/python3 /usr/bin/python && \
     # ROS 初始化
     rosdep init || true && \
     rosdep update --include-eol-distros && \
@@ -61,27 +57,24 @@ RUN --mount=type=cache,target=/var/cache/apt \
 # ====================== Stage 3: 构建环境 ======================
 FROM base AS builder
 
-
 # 继承ROS核心（安全复制）
 COPY --from=ros-core /opt/ros/humble /opt/ros/humble
 COPY --from=ros-core /usr/bin/colcon /usr/bin/colcon
 COPY --from=ros-core /usr/share/keyrings/ /usr/share/keyrings/
 COPY --from=ros-core /etc/apt/sources.list.d/ /etc/apt/sources.list.d/
-COPY --from=ros-core /usr/lib/python3/dist-packages /usr/lib/python3/dist-packages
 
 # 构建依赖（缓存优化）
 RUN --mount=type=cache,target=/var/cache/apt \
     apt-get update && \
     apt-get install -y --no-install-recommends \
         build-essential \
-        libssl-dev libffi-dev \
-        python3-pip python3-setuptools \
+        libssl-dev \
         ros-humble-ament-cmake \
         cmake git libopencv-dev ccache && \
-    apt-get clean && \
-    rm -rf /var/lib/apt/lists/* && \
-    ln -s /usr/bin/ccache /usr/local/bin/gcc && \
-    ln -s /usr/bin/ccache /usr/local/bin/g++
+    # 符号链接优化[6](@ref)
+    ln -sf /usr/bin/ccache /usr/local/bin/gcc && \
+    ln -sf /usr/bin/ccache /usr/local/bin/g++ && \
+    rm -rf /var/lib/apt/lists/*
 
 # 代码克隆与验证（完整性检查）
 WORKDIR $ISAAC_WS/src
@@ -100,16 +93,13 @@ RUN git clone --depth 1 --branch main \
 # 构建参数优化（安全编译选项）
 ENV CMAKE_ARGS="-DCMAKE_BUILD_TYPE=Release \
                 -DCMAKE_CUDA_ARCHITECTURES='80-real;86-real;89-virtual' \
+                -DCMAKE_PREFIX_PATH=/opt/ros/humble \  # 增强ROS环境识别[4](@ref)
                 -Dspdlog_DIR=/usr/lib/x86_64-linux-gnu/cmake/spdlog \
-                -DOPENSSL_ROOT_DIR=/usr/lib/x86_64-linux-gnu \
-                -DOPENSSL_CRYPTO_LIBRARY=/usr/lib/x86_64-linux-gnu/libcrypto.so \
-                -DOPENSSL_INCLUDE_DIR=/usr/include/openssl"
-                
-RUN [ -f "/usr/bin/colcon" ] || { echo "colcon binary missing"; exit 1; }
+                -DOPENSSL_ROOT_DIR=/usr/lib/x86_64-linux/gnu"
 
-# 设置ROS环境路径
-ENV PATH="/opt/ros/humble/bin:$PATH"                   
-              
+# 构建前验证
+RUN [ -f "/usr/bin/colcon" ] || { echo "colcon binary missing"; exit 1; } && \
+    . /opt/ros/humble/setup.sh
 
 # 构建执行（安全缓存隔离）
 RUN --mount=type=cache,target=/root/.cache/ccache \
@@ -119,9 +109,10 @@ RUN --mount=type=cache,target=/root/.cache/ccache \
         --symlink-install \
         --parallel-workers $(nproc) \
         --cmake-args $CMAKE_ARGS && \
-    # 构建后清理
+    # 构建后清理优化[5](@ref)
     find . -name '*.o' -delete && \
-    rm -rf /var/lib/apt/lists/*
+    rm -rf /var/lib/apt/lists/* /tmp/* /var/tmp/*
+
 # ====================== Stage 4: 运行时镜像 ======================
 FROM base
 
@@ -129,19 +120,19 @@ FROM base
 COPY --from=ros-core /opt/ros/humble /opt/ros/humble
 COPY --from=builder $ISAAC_WS/install $ISAAC_WS/install
 
-# 非特权用户配置（网页5/7安全实践）
+# 非特权用户配置（安全实践）
 RUN useradd -m -d /home/appuser -s /bin/bash -u 1001 appuser && \
     chown -R appuser:appuser $ISAAC_WS /opt/ros/humble && \
-    chmod 700 $ISAAC_WS /opt/ros/humble
+    chmod 750 $ISAAC_WS /opt/ros/humble
 
 # 环境变量隔离
-ENV PATH="/home/appuser/.local/bin:$PATH" \
-    HOME=/home/appuser \
-    LD_LIBRARY_PATH="/opt/ros/humble/lib:$LD_LIBRARY_PATH"
+ENV PATH="/home/appuser/.local/bin:/opt/ros/humble/bin:$PATH" \
+    LD_LIBRARY_PATH="/opt/ros/humble/lib:$LD_LIBRARY_PATH" \
+    PYTHONPATH="/opt/ros/humble/lib/python3.10/site-packages:$PYTHONPATH"
 
 # 安全启动配置
 USER appuser
-WORKDIR $HOME
+WORKDIR /home/appuser
 EXPOSE 5000/tcp 5005/udp
 HEALTHCHECK --interval=30s --timeout=5s --retries=3 \
     CMD ros2 node list || exit 1
