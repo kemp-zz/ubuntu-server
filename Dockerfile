@@ -47,6 +47,7 @@ RUN --mount=type=cache,target=/var/cache/apt \
     build-essential \
     cmake \
     git \
+    libspdlog-dev \ 
     python3-rosdep \
     python3-pip \  
     libssl-dev \
@@ -98,6 +99,7 @@ RUN --mount=type=cache,target=/var/cache/apt \
     python3-pytest-mock \
     libopencv-dev \
     libeigen3-dev \
+    libspdlog-dev \ 
     libssl-dev \
     pkg-config \
     devscripts \
