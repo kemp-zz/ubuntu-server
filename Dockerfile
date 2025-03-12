@@ -41,6 +41,8 @@ RUN --mount=type=cache,target=/var/cache/apt \
     ros-humble-ros-base \
     ros-humble-desktop \
     python3-rosdep \
+    libssl-dev \
+    openssl \
     python3-pip \
     libspdlog-dev && \
     # 删除VPI相关操作
