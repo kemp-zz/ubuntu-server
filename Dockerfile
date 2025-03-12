@@ -40,15 +40,21 @@ RUN --mount=type=cache,target=/var/cache/apt \
 RUN --mount=type=cache,target=/var/cache/apt \
     apt-get update && \
     apt-get install -y --no-install-recommends \
-    ros-humble-ros-base \
-    python3 python3-pip python3-venv \
-    python3-colcon-common-extensions \ 
-    python3-rosdep \
-    libssl-dev \
-    libspdlog-dev && \
-    # 安全初始化流程
+        ros-humble-ros-base \
+        python3.10 python3-pip python3.10-venv \  
+        python3-colcon-common-extensions \   
+        python3-rosdep python3-rosinstall-generator \
+        python3-dev \
+        libssl-dev \
+        libspdlog-dev && \
+    # Python 版本管理
+    ln -sf /usr/bin/python3.10 /usr/bin/python && \
+    ln -sf /usr/bin/python3.10 /usr/bin/python3 && \
+    # ROS 初始化
     rosdep init || true && \
     rosdep update --include-eol-distros && \
+    # 清理阶段
+    apt-get clean && \
     rm -rf /var/lib/apt/lists/*
 
 # ====================== Stage 3: 构建环境 ======================
@@ -64,6 +70,9 @@ RUN --mount=type=cache,target=/var/cache/apt \
     apt-get update && \
     apt-get install -y --no-install-recommends \
     build-essential \
+    libssl-dev libffi-dev \
+    python3-pip python3-setuptools \
+    ros-humble-ament-cmake && \  
     cmake \
     git \
     libopencv-dev \
