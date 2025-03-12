@@ -84,7 +84,7 @@ COPY --from=ros-installer /usr/share/keyrings/ros-archive-keyring.gpg /usr/share
 COPY --from=ros-installer /usr/share/keyrings/cuda-archive-keyring.gpg /usr/share/keyrings/
 COPY --from=ros-installer /opt/ros/humble /opt/ros/humble
 
-# 安装构建依赖
+# 安装构建依赖（新增关键库）
 RUN --mount=type=cache,target=/var/cache/apt \
     apt-get update && \
     apt-get install -y --no-install-recommends \
@@ -98,6 +98,8 @@ RUN --mount=type=cache,target=/var/cache/apt \
     python3-pytest-mock \
     libopencv-dev \
     libeigen3-dev \
+    libssl-dev \
+    pkg-config \
     devscripts \
     dh-make \
     fakeroot \
@@ -113,8 +115,11 @@ RUN for repo in isaac_ros_common isaac_ros_nvblox isaac_ros_visual_slam; do \
         git clone --depth 1 --branch main --no-tags https://github.com/NVIDIA-ISAAC-ROS/${repo}.git; \
     done
 
-# 构建参数
-ENV CMAKE_ARGS="-DCMAKE_CXX_COMPILER_LAUNCHER=ccache \
+# 构建参数（新增OpenSSL路径）
+ENV CMAKE_ARGS="-DOPENSSL_ROOT_DIR=/usr \
+                -DOPENSSL_INCLUDE_DIR=/usr/include/openssl \
+                -DOPENSSL_LIBRARIES=/usr/lib/x86_64-linux-gnu \
+                -DCMAKE_CXX_COMPILER_LAUNCHER=ccache \
                 -DCMAKE_C_COMPILER_LAUNCHER=ccache \
                 -DCMAKE_BUILD_TYPE=Release \
                 -DCMAKE_CUDA_ARCHITECTURES=80 \
@@ -129,7 +134,6 @@ RUN --mount=type=cache,target=/root/.cache/ccache \
         --parallel-workers $(($(nproc) * 3)) \
         --event-handlers console_cohesion+ \
         --cmake-args $CMAKE_ARGS
-
 # Stage 4: 最终镜像
 FROM base
 
