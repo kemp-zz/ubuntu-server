@@ -48,6 +48,7 @@ RUN --mount=type=cache,target=/var/cache/apt \
     cmake \
     git \
     python3-rosdep \
+    python3-pip \  
     devscripts && \
     mkdir -p /isaac_ws/src && \
     rosdep init && \
