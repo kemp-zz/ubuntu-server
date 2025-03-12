@@ -42,7 +42,9 @@ RUN --mount=type=cache,target=/var/cache/apt \
     apt-get install -y --no-install-recommends \
         ros-humble-ros-base \
         python3-colcon-common-extensions \   
-        ros-humble-rcl-logging-spdlog \
+        ros-humble-rcl-logging-spdlog \      
+        libspdlog-dev=1.9.2+ds-2 \ 
+        ros-humble-libstatistics-collector
         libspdlog-dev \
         python3-rosdep && \
     # Python 版本管理
@@ -81,6 +83,10 @@ WORKDIR $ISAAC_WS/src
 RUN git clone --depth 1 --branch main --shallow-submodules \
     https://github.com/NVIDIA-ISAAC-ROS/isaac_ros_common.git && \
     [ -f "isaac_ros_common/isaac_common/package.xml" ] || { echo "Missing package.xml"; exit 1; }
+
+RUN git clone --branch main --recurse-submodules \
+    https://github.com/NVIDIA-ISAAC-ROS/isaac_ros_common.git && \
+    [ -f "isaac_ros_common/isaac_ros_common/package.xml" ] || { echo "Missing core package"; exit 1; }[3,5](@ref)
 
 RUN git clone --depth 1 --branch main \
     https://github.com/NVIDIA-ISAAC-ROS/isaac_ros_nvblox.git && \
