@@ -45,9 +45,9 @@ RUN mkdir -p /usr/share/keyrings && \
 RUN curl -fsSL https://developer.download.nvidia.com/compute/cuda/repos/ubuntu2204/x86_64/3bf863cc.pub | gpg --dearmor > /usr/share/keyrings/cuda-archive-keyring.gpg && \
     echo "deb [arch=$(dpkg --print-architecture) signed-by=/usr/share/keyrings/cuda-archive-keyring.gpg] https://developer.download.nvidia.com/compute/cuda/repos/ubuntu2204/x86_64 /" > /etc/apt/sources.list.d/cuda.list
 
-RUN curl -fsSL https://repo.download.nvidia.com/jetson/jetson-ota-public.asc | gpg --dearmor > /usr/share/keyrings/jetson-archive-keyring.gpg && \
-    echo "deb [signed-by=/usr/share/keyrings/jetson-archive-keyring.gpg] https://repo.download.nvidia.com/jetson/common r36.2 main" > /etc/apt/sources.list.d/nvidia-l4t-apt-source.list
-
+# 替换为x86_64架构的VPI仓库配置
+RUN curl -fsSL https://repo.download.nvidia.com/ubuntu2204/x86_64/7fa2af80.pub | gpg --dearmor > /usr/share/keyrings/nvidia-vpi-keyring.gpg && \
+    echo "deb [signed-by=/usr/share/keyrings/nvidia-vpi-keyring.gpg] https://repo.download.nvidia.com/ubuntu2204/x86_64 /" > /etc/apt/sources.list.d/nvidia-vpi.list
 # 安装VPI开发包
 RUN --mount=type=cache,target=/var/cache/apt \
 
@@ -60,8 +60,6 @@ RUN --mount=type=cache,target=/var/cache/apt \
     build-essential \
     cmake \
     git \
-    vpi2-dev \ 
-    vpi2-samples \
     libspdlog-dev \ 
     python3-rosdep \
     python3-pip \  
@@ -139,9 +137,7 @@ ENV CMAKE_ARGS="-DOPENSSL_ROOT_DIR=/usr \
                 -DCMAKE_CXX_COMPILER_LAUNCHER=ccache \
                 -DCMAKE_C_COMPILER_LAUNCHER=ccache \
                 -DCMAKE_BUILD_TYPE=Release \
-                -DCMAKE_CUDA_ARCHITECTURES=80 \
-                -Dvpi_DIR=/opt/nvidia/vpi2 \
-                -DCMAKE_PREFIX_PATH=/opt/nvidia/vpi2/lib/cmake/vpi \
+                -DCMAKE_CUDA_ARCHITECTURES=80 \           
                 -DCMAKE_EXPORT_COMPILE_COMMANDS=ON"
 
 # 执行构建
