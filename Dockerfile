@@ -82,24 +82,22 @@ RUN --mount=type=cache,target=/var/cache/apt \
     ln -sf /usr/bin/ccache /usr/local/bin/g++ && \
     rm -rf /var/lib/apt/lists/*
 
-# 代码克隆与验证（完整性检查）
 WORKDIR $ISAAC_WS/src
-RUN git clone --depth 1 --branch main --shallow-submodules \
-    https://github.com/NVIDIA-ISAAC-ROS/isaac_ros_common.git && \
-    [ -f "isaac_ros_common/isaac_common/package.xml" ] || { echo "Missing package.xml"; exit 1; }
 
-RUN git clone --branch main --recurse-submodules \
-    https://github.com/NVIDIA-ISAAC-ROS/isaac_ros_common.git && \
-    [ -f "isaac_ros_common/isaac_ros_common/package.xml" ] || { echo "Missing core package"; exit 1; }
+# 克隆 isaac_ros_common（合并去重并增强子模块管理）
+RUN git clone --branch main --recurse-submodules --depth 1 \
+    https://github.com/NVIDIA-ISAAC-ROS/isaac_ros_common.git \
+    && { [ -f "isaac_ros_common/isaac_ros_common/package.xml" ] \
+    || { echo "Missing core package.xml"; exit 1; }; } \
+    && cd isaac_ros_common \
+    && git submodule update --init --depth 1 \  # 显式初始化子模块
+    && cd ..
 
-RUN git clone --depth 1 --branch main \
-    https://github.com/NVIDIA-ISAAC-ROS/isaac_ros_nvblox.git && \
-    [ -f "isaac_ros_nvblox/isaac_ros_nvblox/package.xml" ] || { echo "Missing nvblox package"; exit 1; }
-
-#RUN git clone --depth 1 --branch main \
-#    https://github.com/NVIDIA-ISAAC-ROS/isaac_ros_visual_slam.git && \
-#    [ -f "isaac_ros_visual_slam/isaac_ros_visual_slam/package.xml" ] || { echo "Missing visual_slam package"; exit 1; }
-
+# 克隆 isaac_ros_nvblox（优化子模块处理）
+RUN git clone --branch main --recurse-submodules --depth 1 \
+    https://github.com/NVIDIA-ISAAC-ROS/isaac_ros_nvblox.git \
+    && { [ -f "isaac_ros_nvblox/isaac_ros_nvblox/package.xml" ] \
+    || { echo "Missing nvblox package.xml"; exit 1; }; }
 # 构建参数优化（安全编译选项）
 ENV CMAKE_ARGS="-DCMAKE_BUILD_TYPE=Release \
                 -DBUILD_TESTING=OFF \
