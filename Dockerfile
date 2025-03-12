@@ -211,7 +211,7 @@ RUN . /opt/ros/humble/setup.sh && \
     rosdep install --from-paths src --ignore-src -y --skip-keys "isaac_ros_test" \
     && colcon build \
         --symlink-install \
-        --parallel-workers $(($(nproc) * 2)) \  # 超线程优化
+        --parallel-workers $(($(nproc) * 2)) \
         --cmake-args $CMAKE_ARGS
 # Stage 4: 最终运行时镜像
 FROM base
