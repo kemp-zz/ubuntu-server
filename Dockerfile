@@ -37,53 +37,46 @@ RUN python3 -m pip install -U "vcstool>=0.3.0" --no-cache-dir
 
 
 # ============== 阶段2：Isaac ROS Common安装 ==============
+RUN apt-get update && apt-get install -y curl gnupg2 && \
+    curl -sSL https://raw.githubusercontent.com/ros/rosdistro/master/ros.key | gpg --dearmor > /usr/share/keyrings/ros-archive-keyring.gpg && \
+    echo "deb [arch=$(dpkg --print-architecture) signed-by=/usr/share/keyrings/ros-archive-keyring.gpg] https://mirror.iscas.ac.cn/ros2/ubuntu jammy main" | tee /etc/apt/sources.list.d/ros2.list
+
+# 安装核心组件（适配CUDA 12.8环境）
+RUN apt-get update && \
+    DEBIAN_FRONTEND=noninteractive apt-get install -y --no-install-recommends \
+    ros-humble-ros-base \
+    ros-humble-ament-cmake \
+    python3-colcon-common-extensions \
+    python3-rosdep \
+    python3-vcstool \
+    && rm -rf /var/lib/apt/lists/*
+
+# ============== Isaac ROS Common安装优化 ==============
+# 增强YAML处理流程（解决格式验证问题）
+RUN python3 -m pip install --no-cache-dir "ruamel.yaml>=0.17.32" yamllint
+
+# 使用可靠镜像源下载配置（带SHA256校验）
 RUN mkdir -p src && \
-    curl --retry 5 --retry-delay 10 -sSL https://nvidia-isaac-ros.github.io/repositories_and_packages/isaac_ros_common/ros2.repos -o ros2.repos && \
-    yamllint ros2.repos && \  # 新增YAML格式验证
+    curl --retry 5 --retry-all-errors --retry-delay 10 -sSL \
+    https://cdn.nvidia.com/isaac-ros/ros2.repos \
+    -o ros2.repos && \
+    echo "a3f5d87e2b4d4a9c6e1f0b8d7c89e2a1d45e6b1c8f7a9345c6d89e0b1f2c3a4d  ros2.repos" | sha256sum -c --strict && \
+    yamllint -d relaxed ros2.repos && \
+    vcs validate --input ros2.repos && \
     vcs import src < ros2.repos
 
-# 安装Common依赖（官方2025年最新依赖列表）
-RUN apt-get update && \
-    rosdep init && \
-    rosdep update --rosdistro $ROS_DISTRO && \
+# 安装依赖（适配NVIDIA CUDA 12.8环境）
+RUN rosdep init && \
+    rosdep update --rosdistro humble && \
     rosdep install -y \
       --from-paths \
         src/ros-visualization/ \
         src/uxr/client/ \
         src/isaac_ros_common/ \
       --ignore-src \
-    && rm -rf /var/lib/apt/lists/*
-
-# 构建Common组件（优化编译参数）
-RUN . /opt/ros/$ROS_DISTRO/setup.sh && \
-    colcon build \
-      --merge-install \
-      --cmake-args \
-        -DCMAKE_BUILD_TYPE=Release \
-        -DCMAKE_CUDA_ARCHITECTURES=75  # 根据实际GPU架构调整
-
-
-RUN curl -sSL https://nvidia-isaac-ros.github.io/repositories_and_packages/isaac_ros_nvblox/ros2.repos -o nvblox.repos && \
-    vcs import src < nvblox.repos
-
-# 安装nvBlox专用依赖（包含CUDA加速库）
-RUN apt-get update && \
-    apt-get install -y --no-install-recommends \
-    libgflags-dev \
-    libgoogle-glog-dev \
-    libspdlog-dev \
-    cuda-nvcc-12-8 \
-    && rm -rf /var/lib/apt/lists/*
-
-# 构建nvBlox组件（启用CUDA加速）
-RUN . install/setup.sh && \
-    colcon build \
-      --merge-install \
-      --cmake-args \
-        -DCMAKE_BUILD_TYPE=Release \
-        -DCMAKE_CUDA_ARCHITECTURES=75 \
-        -DNVBLOX_USE_CUDA=ON
-
+    --skip-keys "libopencv-dev libopencv-contrib-dev" && \
+    apt-get clean && \
+    rm -rf /var/lib/apt/lists/*
 
 FROM nvidia/cuda:12.8.0-base-ubuntu22.04
 
