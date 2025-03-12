@@ -46,6 +46,9 @@ RUN --mount=type=cache,target=/var/cache/apt \
         ros-humble-desktop \
         ros-humble-ros-base \
         ros-humble-navigation2 \
+        libpcl-dev \
+        libopencv-dev \
+        libopencv-contrib-dev \
         ros-humble-nav2-bringup \
         # 开发工具链
         devscripts dh-make fakeroot python3-bloom \
