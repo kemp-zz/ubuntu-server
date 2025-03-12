@@ -34,8 +34,9 @@ RUN --mount=type=cache,target=/var/cache/apt \
     curl -fsSL https://developer.download.nvidia.com/compute/cuda/repos/ubuntu2204/x86_64/3bf863cc.pub | gpg --dearmor > /usr/share/keyrings/cuda-archive-keyring.gpg && \
     echo "deb [arch=$(dpkg --print-architecture) signed-by=/usr/share/keyrings/cuda-archive-keyring.gpg] https://developer.download.nvidia.com/compute/cuda/repos/ubuntu2204/x86_64 /" > /etc/apt/sources.list.d/cuda.list && \
     # VPI源
-    curl -fsSL https://repo.download.nvidia.com/ubuntu2204/x86_64/7fa2af80.pub | gpg --dearmor > /usr/share/keyrings/nvidia-vpi-keyring.gpg && \
-    echo "deb [signed-by=/usr/share/keyrings/nvidia-vpi-keyring.gpg] https://repo.download.nvidia.com/ubuntu2204/x86_64 /" > /etc/apt/sources.list.d/nvidia-vpi.list && \
+    # 配置VPI官方源（x86_64专属）
+    curl -fsSL https://repo.download.nvidia.com/jetson/jetson-ota-public.asc | gpg --dearmor > /usr/share/keyrings/nvidia-vpi-keyring.gpg && \
+    echo "deb [signed-by=/usr/share/keyrings/nvidia-vpi-keyring.gpg] https://repo.download.nvidia.com/jetson/x86_64/jammy r36.2 main" > /etc/apt/sources.list.d/nvidia-vpi.list && \
     apt-get clean
 
 # 安装ROS核心组件和VPI
@@ -47,8 +48,9 @@ RUN --mount=type=cache,target=/var/cache/apt \
     build-essential \
     cmake \
     git \
-    vpi2-dev=2.1.5 \
-    vpi2-libnvvpi=2.1.5 \
+    libnvvpi3 \
+    vpi3-dev \
+    vpi3-samples \
     libvpi2=2.1.5 \
     libspdlog-dev \
     python3-rosdep \
@@ -107,11 +109,14 @@ RUN for repo in isaac_ros_common isaac_ros_nvblox isaac_ros_visual_slam; do \
     done
 
 # 构建参数
-ENV CMAKE_ARGS="-Dvpi_DIR=/opt/nvidia/vpi2/lib/cmake/vpi \
-                -Dspdlog_DIR=/usr/lib/cmake/spdlog \
+ENV CMAKE_ARGS="-Dvpi_DIR=/opt/nvidia/vpi3/lib/cmake/vpi \
+                -Dspdlog_DIR=/usr/lib/x86_64-linux-gnu/cmake/spdlog \
                 -DOPENSSL_ROOT_DIR=/usr \
-                -DCMAKE_CUDA_ARCHITECTURES=80 \
-                -DCMAKE_BUILD_TYPE=Release"
+                -DOPENSSL_INCLUDE_DIR=/usr/include/openssl \
+                -DOPENSSL_LIBRARIES=/usr/lib/x86_64-linux-gnu \
+                -DCMAKE_CUDA_ARCHITECTURES='80-real;86-real;89-virtual' \
+                -DCMAKE_BUILD_TYPE=Release \
+                -DCMAKE_CXX_FLAGS='-O3 -march=native'"
 
 # 执行构建
 RUN --mount=type=cache,target=/root/.cache/ccache \
