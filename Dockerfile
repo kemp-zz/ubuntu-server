@@ -155,46 +155,7 @@ RUN mkdir -p /etc/ros/rosdep/sources.list.d && \
     printf "yaml file:///etc/ros/rosdep/sources.list.d/99-isaac-rosdeps.yaml\nyaml https://raw.githubusercontent.com/ros/rosdistro/master/rosdep/base.yaml\n" > /etc/ros/rosdep/sources.list.d/20-default.list && \
     rosdep update --include-eol-distros --rosdistro humble
 
-# 安装修补后的ROS核心组件
-# 1. 安装negotiated接口
-RUN --mount=type=cache,target=/var/cache/apt \
-    mkdir -p ${ROS_WORKSPACE}/src && cd ${ROS_WORKSPACE}/src \
-    && git clone https://github.com/osrf/negotiated -b master \
-    && source /opt/ros/humble/setup.bash \
-    && cd negotiated_interfaces \
-    && bloom-generate rosdebian && fakeroot debian/rules binary \
-    && cd ../ && apt-get install -y ./*.deb \
-    && rm -rf src build log
 
-# 2. 修复image_proc的resize节点
-RUN --mount=type=cache,target=/var/cache/apt \
-    mkdir -p ${ROS_WORKSPACE}/src && cd ${ROS_WORKSPACE}/src \
-    && git clone https://github.com/ros-perception/image_pipeline.git \
-    && cd image_pipeline \
-    && git checkout 55bf2a38c327b829c3da444f963a6c66bfe0598f \
-    && git cherry-pick 969d6c763df99b42844742946f7a70c605a72a15 \
-    && cd image_proc \
-    && bloom-generate rosdebian && fakeroot debian/rules binary \
-    && cd ../ && apt-get install -y --allow-downgrades ./*.deb
-
-# 3. 修补rclcpp多线程执行器
-COPY patches/rclcpp-disable-tests.patch /tmp/
-RUN --mount=type=cache,target=/var/cache/apt \
-    mkdir -p ${ROS_WORKSPACE}/src && cd ${ROS_WORKSPACE}/src \
-    && git clone https://github.com/ros2-gbp/rclcpp-release.git \
-    && cd rclcpp-release \
-    && patch -i /tmp/rclcpp-disable-tests.patch \
-    && git cherry-pick 232262c02a1265830c7785b7547bd51e1124fcd8 \
-    && bloom-generate rosdebian && fakeroot debian/rules binary \
-    && cd ../ && apt-get install -y --allow-downgrades ./*.deb
-
-# 安装MoveIt 2完整套件
-RUN --mount=type=cache,target=/var/cache/apt \
-    apt-get update && apt-get install -y \
-    ros-humble-moveit* \
-    ros-humble-ur* \
-    ros-humble-rviz2 \
-    && rm -rf /var/lib/apt/lists/*
 
 # 克隆并构建Isaac ROS核心仓库
 WORKDIR /isaac_ws/src
