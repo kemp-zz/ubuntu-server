@@ -1,4 +1,11 @@
 FROM nvidia/cuda:12.8.0-base-ubuntu22.04 AS builder
+# 设置非交互式环境（必须在所有apt-get操作之前）
+ENV DEBIAN_FRONTEND=noninteractive \
+    TZ=Asia/Shanghai
+
+# 预配置时区（2025年推荐写法）
+RUN echo "Asia/Shanghai" > /etc/timezone && \
+    ln -fs /usr/share/zoneinfo/Asia/Shanghai /etc/localtime
 
 # 环境变量设置
 ENV ROS_DISTRO=humble
