@@ -1,8 +1,9 @@
 # 阶段1：基础环境构建
 FROM nvcr.io/nvidia/cuda:12.2.2-devel-ubuntu22.04 AS builder
+ENV DEBIAN_FRONTEND=noninteractive
 
 # 环境参数继承自GitHub Actions
-ARG CUDA_VERSION=12.2.2
+ARG CUDA_VERSION=12.8.1
 ENV DEBIAN_FRONTEND=noninteractive
 
 # 配置APT源（包含ROS和NVIDIA源）
