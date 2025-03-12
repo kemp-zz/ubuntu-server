@@ -53,7 +53,7 @@ RUN --mount=type=cache,target=/var/cache/apt \
     devscripts \
     && rosdep init \
     && rosdep update --include-eol-distros \
-    && rosdep install --from-paths /isaac_ws/src --ignore-src -y \  # 根据实际工作空间路径调整
+    && rosdep install --from-paths /isaac_ws/src --ignore-src -y \
     && apt-get clean
    
 # 升级setuptools并安装Python依赖
