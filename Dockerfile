@@ -203,7 +203,7 @@ RUN for repo in isaac_ros_common isaac_ros_nvblox isaac_ros_visual_slam; do \
     done
 
 # 构建优化参数
-ENV CMAKE_ARGS="-DCMAKE_BUILD_TYPE=Release -DCMAKE_CUDA_ARCHITECTURES=80"  # 针对NVIDIA GPU优化
+ENV CMAKE_ARGS="-DCMAKE_BUILD_TYPE=Release -DCMAKE_CUDA_ARCHITECTURES=80"
 
 # 构建Isaac组件（启用并行编译）
 RUN . /opt/ros/humble/setup.sh && \
