@@ -155,25 +155,7 @@ RUN --mount=type=cache,target=/var/cache/apt \
     && echo "image_pipeline (image_proc) https://github.com/ros-perception/image_pipeline/pull/786/commits/969d6c763df99b42844742946f7a70c605a72a15 on 55bf2a38" >> ${ROS_ROOT}/VERSION \
     && cd ../ && rm -Rf src build log
 
-# Install patched rclcpp package with backported multithreadedexecutor fix
-# https://github.com/ros2/rclcpp/commit/232262c02a1265830c7785b7547bd51e1124fcd8
-COPY patches/rclcpp-disable-tests.patch /tmp/
-RUN --mount=type=cache,target=/var/cache/apt \
-    mkdir -p ${ROS_ROOT}/src && cd ${ROS_ROOT}/src \
-    && export RCLCPP_VERSION="release/humble/rclcpp/$(apt-cache madison ros-humble-rclcpp | grep -m1 -oP 'ros-humble-rclcpp \| \K[^j]+(?=jammy)')" \
-    && echo ${RCLCPP_VERSION} \
-    && git clone https://github.com/ros2-gbp/rclcpp-release.git && cd rclcpp-release && git checkout ${RCLCPP_VERSION} \
-    && patch -i /tmp/rclcpp-disable-tests.patch \
-    && unset RCLCPP_VERSION \
-    && git config user.email "builder@nvidia.com" && git config user.name "NVIDIA Builder" \
-    && git remote add rclcpp https://github.com/ros2/rclcpp.git && git fetch rclcpp \
-    && git cherry-pick 232262c02a1265830c7785b7547bd51e1124fcd8 \
-    && source ${ROS_ROOT}/setup.bash \
-    && cd ../ && rosdep install -i -r --from-paths rclcpp-release/ --rosdistro humble -y \
-    && cd rclcpp-release && bloom-generate rosdebian && fakeroot debian/rules binary \
-    && cd ../ && apt-get install -y --allow-downgrades ./*.deb \
-    && echo "rclcpp https://github.com/ros2/rclcpp/commit/232262c02a1265830c7785b7547bd51e1124fcd8" >> ${ROS_ROOT}/VERSION \
-    && cd ../ && rm -Rf src build log
+
 
 # Install Moveit 2 ROS packages
 RUN --mount=type=cache,target=/var/cache/apt \
