@@ -163,33 +163,38 @@ RUN --mount=type=cache,target=/var/cache/apt \
     && apt-get clean \
     && rm -rf /var/lib/apt/lists/*
 
-# 配置rosdep源（优先级优化）
+# 配置rosdep源（增强完整性）
 RUN mkdir -p /etc/ros/rosdep/sources.list.d && \
     echo "yaml https://raw.githubusercontent.com/ros/rosdistro/master/rosdep/base.yaml" > /etc/ros/rosdep/sources.list.d/20-default.list && \
-    rosdep update --rosdistro humble
+    echo "yaml https://raw.githubusercontent.com/ros/rosdistro/master/rosdep/python.yaml" >> /etc/ros/rosdep/sources.list.d/20-default.list && \
+    apt-get update && \
+    apt-get install -y ca-certificates software-properties-common && \
+    update-ca-certificates && \
+    rosdep update --rosdistro humble --include-eol-distros
 
-WORKDIR /isaac_ws/src
-RUN git clone --depth 1 --branch main https://github.com/NVIDIA-ISAAC-ROS/isaac_ros_common.git && \
-    git clone --depth 1 --branch main https://github.com/NVIDIA-ISAAC-ROS/isaac_ros_nvblox.git && \
-    git clone --depth 1 --branch main https://github.com/NVIDIA-ISAAC-ROS/isaac_ros_visual_slam.git
-
-
-# 克隆并构建Isaac ROS核心仓库
+# 单次克隆操作（合并重复步骤）
 WORKDIR /isaac_ws/src
 RUN for repo in isaac_ros_common isaac_ros_nvblox isaac_ros_visual_slam; do \
-        git clone --depth 1 --branch main https://github.com/NVIDIA-ISAAC-ROS/${repo}.git; \
+        rm -rf ${repo} && \
+        git clone --depth 1 --branch main --no-tags https://github.com/NVIDIA-ISAAC-ROS/${repo}.git; \
     done
 
-# 构建优化参数
-ENV CMAKE_ARGS="-DCMAKE_BUILD_TYPE=Release -DCMAKE_CUDA_ARCHITECTURES=80"
+# 构建优化参数扩展
+ENV CMAKE_ARGS="-DCMAKE_BUILD_TYPE=Release \
+                -DCMAKE_CUDA_ARCHITECTURES=80 \
+                -DCMAKE_EXPORT_COMPILE_COMMANDS=ON"
 
-# 构建Isaac组件（启用并行编译）
-RUN . /opt/ros/humble/setup.sh && \
+# 启用分层编译缓存
+RUN --mount=type=cache,target=/var/cache/apt \
+    --mount=type=cache,target=/root/.cache/ccache \
+    . /opt/ros/humble/setup.sh && \
     cd /isaac_ws && \
-    rosdep install --from-paths src --ignore-src -y --skip-keys "isaac_ros_test" \
-    && colcon build \
+    rosdep install --from-paths src --ignore-src -y --skip-keys "isaac_ros_test" && \
+    colcon build \
         --symlink-install \
-        --parallel-workers $(($(nproc) * 2)) \
+        --parallel-workers $(($(nproc) * 3)) \
+        --mixin ccache \
+        --event-handlers console_cohesion+ \
         --cmake-args $CMAKE_ARGS
 # Stage 4: 最终运行时镜像
 FROM base
