@@ -69,16 +69,15 @@ COPY --from=ros-core /etc/apt/sources.list.d/ /etc/apt/sources.list.d/
 RUN --mount=type=cache,target=/var/cache/apt \
     apt-get update && \
     apt-get install -y --no-install-recommends \
-    build-essential \
-    libssl-dev libffi-dev \
-    python3-pip python3-setuptools \
-    ros-humble-ament-cmake && \  
-    cmake \
-    git \
-    libopencv-dev \
-    ccache && \
+        build-essential \
+        libssl-dev libffi-dev \
+        python3-pip python3-setuptools \
+        ros-humble-ament-cmake \
+        cmake git libopencv-dev ccache && \ 
     apt-get clean && \
-    rm -rf /var/lib/apt/lists/*
+    rm -rf /var/lib/apt/lists/* && \   
+    ln -s /usr/bin/ccache /usr/local/bin/gcc && \
+    ln -s /usr/bin/ccache /usr/local/bin/g++
 
 # 代码克隆与验证（完整性检查）
 WORKDIR $ISAAC_WS/src
