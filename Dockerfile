@@ -279,12 +279,21 @@ RUN python3 -m pip install -U \
 # Install cuda-python for isaac_ros_pynitros
 RUN python3 -m pip install \
         cuda-python
-# Install fake cuda-python Debian package to satisfy apt install check
-COPY rosdep/ros-humble-cuda-python-placeholder /tmp/ros-humble-cuda-python-placeholder
+RUN mkdir -p /tmp/ros-humble-cuda-python-placeholder && \
+    wget -O /tmp/ros-humble-cuda-python-placeholder/control \
+    https://raw.githubusercontent.com/NVIDIA-ISAAC-ROS/isaac_ros_dev/main/rosdep/ros-humble-cuda-python-placeholder/control && \
+    wget -O /tmp/ros-humble-cuda-python-placeholder/changelog \
+    https://raw.githubusercontent.com/NVIDIA-ISAAC-ROS/isaac_ros_dev/main/rosdep/ros-humble-cuda-python-placeholder/changelog
+
+# 构建并安装占位包
 RUN --mount=type=cache,target=/var/cache/apt \
-    cd /tmp && source ${ROS_ROOT}/setup.bash \
-    && dpkg-deb --build ros-humble-cuda-python-placeholder && apt-get install -y ./ros-humble-cuda-python-placeholder.deb \
-    && rm -f ./ros-humble-cuda-python-placeholder.deb
+    cd /tmp/ros-humble-cuda-python-placeholder && \
+    mkdir -p debian && \
+    ln -s control debian/control && \
+    ln -s changelog debian/changelog && \
+    dpkg-buildpackage -us -uc -b && \
+    apt-get install -y ../ros-humble-cuda-python-placeholder_1.0.0_all.deb && \
+    rm -rf ../ros-humble-cuda-python-placeholder*
 
 # Patch gtest to make it work with CXX 17
 RUN sudo sed -i '917i #ifdef GTEST_INTERNAL_NEED_REDUNDANT_CONSTEXPR_DECL' /usr/src/googletest/googletest/include/gtest/internal/gtest-internal.h \
