@@ -47,7 +47,7 @@ RUN --mount=type=cache,target=/var/cache/apt \
         ros-humble-rclcpp \          
         ros-humble-ament-lint-auto \      
         ros-humble-ament-lint-common \      
-        libspdlog-dev=1.9.2+ds-2 \ 
+        libspdlog-dev
         ros-humble-libstatistics-collector \
         libspdlog-dev \
         python3-rosdep && \
