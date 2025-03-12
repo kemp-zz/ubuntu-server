@@ -42,7 +42,7 @@ RUN --mount=type=cache,target=/var/cache/apt \
     apt-get install -y --no-install-recommends \
         ros-humble-ros-base \
         python3-colcon-common-extensions \   
-        ros-humble-rcl-logging-spdlog \  # 关键修复：ROS专用spdlog集成[1](@ref)
+        ros-humble-rcl-logging-spdlog \
         libspdlog-dev \
         python3-rosdep && \
     # Python 版本管理
