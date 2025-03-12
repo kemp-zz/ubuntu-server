@@ -9,14 +9,16 @@ ENV DEBIAN_FRONTEND=noninteractive
 ENV SHELL=/bin/bash
 SHELL ["/bin/bash", "-c"]
 
-# Env setup
-ENV LANG=C.UTF-8 \
-    LC_ALL=C.UTF-8 \
-    ROS_PYTHON_VERSION=3 \
-    ROS_DISTRO=humble \
-    ROS_ROOT=/opt/ros/${ROS_DISTRO} \
-    RMW_IMPLEMENTATION=rmw_fastrtps_cpp
-
+RUN --mount=type=cache,target=/var/cache/apt \
+    apt-get update && \
+    apt-get install -y --no-install-recommends \
+        locales \
+        curl \
+        ca-certificates && \
+    locale-gen en_US en_US.UTF-8 && \
+    update-locale LC_ALL=en_US.UTF-8 LANG=en_US.UTF-8 && \
+    apt-get clean && \
+    rm -rf /var/lib/apt/lists/*
 # Avoid setup.py and easy_install deprecation warnings caused by colcon and setuptools
 # https://github.com/colcon/colcon-core/issues/454
 ENV PYTHONWARNINGS=ignore:::setuptools.command.install,ignore:::setuptools.command.easy_install,ignore:::pkg_resources,ignore:::setuptools.command.develop
