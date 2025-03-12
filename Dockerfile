@@ -42,7 +42,11 @@ RUN --mount=type=cache,target=/var/cache/apt \
     apt-get install -y --no-install-recommends \
         ros-humble-ros-base \
         python3-colcon-common-extensions \   
-        ros-humble-rcl-logging-spdlog \      
+        ros-humble-rcl-logging-spdlog \    
+        ros-humble-ament-cmake-auto \ 
+        ros-humble-rclcpp \          
+        ros-humble-ament-lint-auto \      
+        ros-humble-ament-lint-common \      
         libspdlog-dev=1.9.2+ds-2 \ 
         ros-humble-libstatistics-collector \
         libspdlog-dev \
@@ -92,12 +96,13 @@ RUN git clone --depth 1 --branch main \
     https://github.com/NVIDIA-ISAAC-ROS/isaac_ros_nvblox.git && \
     [ -f "isaac_ros_nvblox/isaac_ros_nvblox/package.xml" ] || { echo "Missing nvblox package"; exit 1; }
 
-RUN git clone --depth 1 --branch main \
-    https://github.com/NVIDIA-ISAAC-ROS/isaac_ros_visual_slam.git && \
-    [ -f "isaac_ros_visual_slam/isaac_ros_visual_slam/package.xml" ] || { echo "Missing visual_slam package"; exit 1; }
+#RUN git clone --depth 1 --branch main \
+#    https://github.com/NVIDIA-ISAAC-ROS/isaac_ros_visual_slam.git && \
+#    [ -f "isaac_ros_visual_slam/isaac_ros_visual_slam/package.xml" ] || { echo "Missing visual_slam package"; exit 1; }
 
 # 构建参数优化（安全编译选项）
 ENV CMAKE_ARGS="-DCMAKE_BUILD_TYPE=Release \
+                -DBUILD_TESTING=OFF \
                 -DCMAKE_CUDA_ARCHITECTURES='80-real;86-real;89-virtual' \
                 -DCMAKE_PREFIX_PATH=/opt/ros/humble \
                 -Dspdlog_DIR=/usr/lib/x86_64-linux-gnu/cmake/spdlog \
@@ -115,9 +120,9 @@ RUN --mount=type=cache,target=/root/.cache/ccache \
         --symlink-install \
         --parallel-workers $(nproc) \
         --cmake-args $CMAKE_ARGS && \
-    # 构建后清理优化[5](@ref)
+    # 构建后清理
     find . -name '*.o' -delete && \
-    rm -rf /var/lib/apt/lists/* /tmp/* /var/tmp/*
+    rm -rf /var/lib/apt/lists/*
 
 # ====================== Stage 4: 运行时镜像 ======================
 FROM base
