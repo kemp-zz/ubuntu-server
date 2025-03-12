@@ -29,26 +29,31 @@ COPY --from=ros-installer /opt/ros/humble /opt/ros/humble
 COPY --from=ros-installer /usr/share/keyrings/ros-archive-keyring.gpg /usr/share/keyrings/
 COPY --from=ros-installer /etc/apt/sources.list.d/ros2.list /etc/apt/sources.list.d/
 
-# 安装核心依赖
+# 新增：配置自定义rosdep源
+RUN mkdir -p /etc/ros/rosdep/sources.list.d && \
+    # 下载NVIDIA官方额外依赖定义
+    curl -sSL https://raw.githubusercontent.com/NVIDIA-ISAAC-ROS/isaac_ros_common/main/docker/rosdep/extra_rosdeps.yaml \
+        -o /etc/ros/rosdep/sources.list.d/99-isaac-rosdeps.yaml && \
+    # 更新rosdep配置
+    echo "yaml file:///etc/ros/rosdep/sources.list.d/99-isaac-rosdeps.yaml" \
+        >> /etc/ros/rosdep/sources.list.d/20-default.list && \
+    # 添加标准ROS源
+    echo "yaml https://raw.githubusercontent.com/ros/rosdistro/master/rosdep/base.yaml" \
+        >> /etc/ros/rosdep/sources.list.d/20-default.list && \
+    # 添加Ubuntu系统源
+    echo "yaml https://raw.githubusercontent.com/ros/rosdistro/master/rosdep/osx-homebrew.yaml" \
+        >> /etc/ros/rosdep/sources.list.d/20-default.list
+
+# 安装核心依赖（新增python3-pip）
 RUN apt-get update && \
     apt-get install -y --no-install-recommends \
-    git cmake build-essential python3-rosdep python3-venv \
+    git cmake build-essential python3-pip python3-rosdep python3-venv \
     libopencv-dev libeigen3-dev && \
     apt-get clean && \
     rm -rf /var/lib/apt/lists/*
 
-# 仅保留官方ROS源
-RUN mkdir -p /etc/ros/rosdep/sources.list.d && \
-    echo "yaml https://raw.githubusercontent.com/ros/rosdistro/master/rosdep/base.yaml" > /etc/ros/rosdep/sources.list.d/20-default.list && \
-    rosdep update
-
-# Setup rosdep
-COPY rosdep/extra_rosdeps.yaml /etc/ros/rosdep/sources.list.d/nvidia-isaac.yaml
-RUN --mount=type=cache,target=/var/cache/apt \
-    rosdep init \
-    && echo "yaml file:///etc/ros/rosdep/sources.list.d/nvidia-isaac.yaml" | tee /etc/ros/rosdep/sources.list.d/00-nvidia-isaac.list \
-    && rosdep update
-
+# 更新rosdep（新增--include-eol-distros参数）
+RUN rosdep update --include-eol-distros --rosdistro=humble
 # 克隆仓库
 WORKDIR /isaac_ws/src
 RUN for repo in isaac_ros_common isaac_ros_nvblox isaac_ros_visual_slam; do \
@@ -64,10 +69,15 @@ RUN for repo in isaac_ros_common isaac_ros_nvblox isaac_ros_visual_slam; do \
 
 # 构建
 RUN . /opt/ros/humble/setup.sh && \
-    cd /isaac_ws && \
-    rosdep install --from-paths src --ignore-src -y && \
-    colcon build --symlink-install --parallel-workers $(nproc) \
-    --cmake-args -DCMAKE_BUILD_TYPE=Release
+    # 安装额外Python依赖
+    pip3 install --no-cache-dir \
+    "setuptools>=58.0" \
+    "vcd>=0.1" \
+    "nvidia-pyindex>=1.0.9" && \
+    # 预安装Isaac ROS核心依赖
+    apt-get update && \
+    rosdep install --from-paths src --ignore-src -y \
+    --skip-keys "libopencv-dev libeigen3-dev"
 
 # Stage 4: 最终镜像
 FROM base
