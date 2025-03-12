@@ -1,3 +1,5 @@
+RUN python3 -m pip install -U "vcstool>=2025.4.0" --no-cache-dir
+
 FROM nvidia/cuda:12.8.0-base-ubuntu22.04 AS builder
 # 设置非交互式环境（必须在所有apt-get操作之前）
 ENV DEBIAN_FRONTEND=noninteractive \
@@ -31,9 +33,9 @@ RUN apt-get update && \
     ros-$ROS_DISTRO-ament-cmake \
     python3-colcon-common-extensions \
     && rm -rf /var/lib/apt/lists/*
+    
+RUN python3 -m pip install -U "vcstool>=2025.4.0" --no-cache-dir
 
-# 安装vcs工具（2025.03版）
-RUN pip3 install -U "git+https://github.com/dirk-thomas/vcstool@2023.10.0"
 
 # ============== 阶段2：Isaac ROS Common安装 ==============
 RUN mkdir -p src && \
