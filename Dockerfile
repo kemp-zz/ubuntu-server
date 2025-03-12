@@ -77,11 +77,11 @@ RUN git clone --depth 1 --branch main https://github.com/NVIDIA-ISAAC-ROS/isaac_
     { [ -f "isaac_ros_common/isaac_common/package.xml" ] || { echo "Missing package.xml"; exit 1; }; }
 # 第二阶段：安装功能组件
 # isaac_ros_nvblox 安装
-RUN git clone --depth 1 --branch humble https://github.com/NVIDIA-ISAAC-ROS/isaac_ros_nvblox.git && \
+RUN git clone --depth 1 --branch main https://github.com/NVIDIA-ISAAC-ROS/isaac_ros_nvblox.git && \
     { [ -f "isaac_ros_nvblox/isaac_ros_nvblox/package.xml" ] || { echo "Missing package.xml in nvblox"; exit 1; }; }
 
 # isaac_ros_visual_slam 安装
-RUN git clone --depth 1 --branch humble https://github.com/NVIDIA-ISAAC-ROS/isaac_ros_visual_slam.git && \
+RUN git clone --depth 1 --branch main https://github.com/NVIDIA-ISAAC-ROS/isaac_ros_visual_slam.git && \
     { [ -f "isaac_ros_visual_slam/isaac_ros_visual_slam/package.xml" ] || { echo "Missing package.xml in visual_slam"; exit 1; }; }
 
 # 构建参数优化（移除vpi_DIR引用）
