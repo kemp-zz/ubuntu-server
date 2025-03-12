@@ -50,6 +50,7 @@ RUN apt-get update && \
     curl \
     python3-rosdep \
     python3-venv \
+    python3-pytest \
     libopencv-dev \
     libeigen3-dev && \
     apt-get clean && \
