@@ -135,7 +135,9 @@ RUN --mount=type=cache,target=/root/.cache/ccache \
         --symlink-install \
         --parallel-workers $(($(nproc) * 3)) \
         --event-handlers console_cohesion+ \
-        --cmake-args $CMAKE_ARGS
+        --cmake-args \
+            -DCUDA_TOOLKIT_ROOT_DIR=/usr/local/cuda \
+            $CMAKE_ARGS
 # Stage 4: 最终镜像
 FROM base
 
