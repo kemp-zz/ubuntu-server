@@ -45,6 +45,7 @@ RUN --mount=type=cache,target=/var/cache/apt \
         python3-colcon-common-extensions \   
         python3-rosdep python3-rosinstall-generator \
         python3-dev \
+        ros-humble-rcl-logging-spdlog \
         libssl-dev \
         libspdlog-dev && \
     # Python 版本管理
