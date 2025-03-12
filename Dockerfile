@@ -49,6 +49,8 @@ RUN --mount=type=cache,target=/var/cache/apt \
     git \
     python3-rosdep \
     python3-pip \  
+    libssl-dev \
+    pkg-config \  
     devscripts && \
     mkdir -p /isaac_ws/src && \
     rosdep init && \
