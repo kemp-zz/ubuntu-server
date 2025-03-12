@@ -27,6 +27,8 @@ RUN apt-get update && \
     apt-get install -y \
     ros-humble-desktop \
     ros-humble-ros-base \
+    ros-humble-navigation2 \
+    ros-humble-nav2-bringup \
     python3-rosdep && \
     rosdep init && \
     rosdep update --include-eol-distros && \
