@@ -64,7 +64,7 @@ FROM base AS builder
 COPY --from=ros-core /opt/ros/humble /opt/ros/humble
 COPY --from=ros-core /usr/share/keyrings/ /usr/share/keyrings/
 COPY --from=ros-core /etc/apt/sources.list.d/ /etc/apt/sources.list.d/
-
+COPY --from=ros-core /usr/lib/python3/dist-packages /usr/lib/python3/dist-packages
 # 构建依赖（缓存优化）
 RUN --mount=type=cache,target=/var/cache/apt \
     apt-get update && \
