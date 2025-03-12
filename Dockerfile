@@ -90,7 +90,7 @@ RUN git clone --depth 1 --branch main --shallow-submodules \
 
 RUN git clone --branch main --recurse-submodules \
     https://github.com/NVIDIA-ISAAC-ROS/isaac_ros_common.git && \
-    [ -f "isaac_ros_common/isaac_ros_common/package.xml" ] || { echo "Missing core package"; exit 1; }[3,5](@ref)
+    [ -f "isaac_ros_common/isaac_ros_common/package.xml" ] || { echo "Missing core package"; exit 1; }
 
 RUN git clone --depth 1 --branch main \
     https://github.com/NVIDIA-ISAAC-ROS/isaac_ros_nvblox.git && \
