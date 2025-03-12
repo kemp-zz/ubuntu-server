@@ -1,4 +1,4 @@
-RUN python3 -m pip install -U "vcstool>=2025.4.0" --no-cache-dir
+
 
 FROM nvidia/cuda:12.8.0-base-ubuntu22.04 AS builder
 # 设置非交互式环境（必须在所有apt-get操作之前）
