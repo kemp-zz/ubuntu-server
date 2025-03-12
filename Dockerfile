@@ -1,5 +1,5 @@
 # 阶段1：基础环境构建
-FROM nvcr.io/nvidia/cuda:12.8.1-devel-ubuntu22.04 AS builder
+FROM nvcr.io/nvidia/cuda:12.8.0-devel-ubuntu22.04 AS builder
 
 # 必须分两阶段设置（先全局后局部）
 ENV DEBIAN_FRONTEND=noninteractive
