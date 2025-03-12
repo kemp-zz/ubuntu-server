@@ -1,87 +1,60 @@
-FROM nvidia/cuda:12.8.0-base-ubuntu22.04 AS base
+# 阶段1：基础环境构建
+FROM nvcr.io/nvidia/cuda:12.2.2-devel-ubuntu22.04 AS builder
 
-ENV DEBIAN_FRONTEND=noninteractive \
-    LANG=en_US.UTF-8 \
-    TZ=Asia/Shanghai
+# 环境参数继承自GitHub Actions
+ARG CUDA_VERSION=12.2.2
+ENV DEBIAN_FRONTEND=noninteractive
 
-RUN apt-get update && \
-    apt-get install -y locales tzdata ca-certificates && \
-    ln -fs /usr/share/zoneinfo/$TZ /etc/localtime && \
-    dpkg-reconfigure -f noninteractive tzdata && \
-    locale-gen en_US.UTF-8
-
-# Stage 2: ROS2 Humble and dependencies
-FROM base AS ros-installer
-RUN apt-get update && \
-    apt-get install -y curl gnupg2 lsb-release && \
+# 配置APT源（包含ROS和NVIDIA源）
+RUN apt-get update && apt-get install -y \
+    curl gnupg2 lsb-release software-properties-common && \
     curl -sSL https://raw.githubusercontent.com/ros/rosdistro/master/ros.key -o /usr/share/keyrings/ros-archive-keyring.gpg && \
-    echo "deb [arch=$(dpkg --print-architecture) signed-by=/usr/share/keyrings/ros-archive-keyring.gpg] http://packages.ros.org/ros2/ubuntu $(lsb_release -cs) main" > /etc/apt/sources.list.d/ros2.list
+    echo "deb [arch=$(dpkg --print-architecture) signed-by=/usr/share/keyrings/ros-archive-keyring.gpg] http://packages.ros.org/ros2/ubuntu jammy main" > /etc/apt/sources.list.d/ros2.list
 
-RUN apt-get update && \
-    apt-get install -y ros-humble-desktop ros-humble-ros-base python3-rosdep python3-vcstool && \
-    rosdep init && \
-    rosdep update --include-eol-distros  && \  # Correct chaining
-    apt-get install -y python3-pytest ament-python  libgstreamer-plugins-base1.0-dev libgstreamer1.0-dev gstreamer1.0-plugins-good gstreamer1.0-plugins-bad \
-    && rm -rf /var/lib/apt/lists/*
-
-
-
-# Stage 3: Isaac ROS 构建
-FROM ros-installer AS isaac-builder  # <--- CRUCIAL CHANGE: Inherit from ros-installer
-
-# Use the official ROS sources and add Isaac ROS sources - Now in the correct stage
-RUN mkdir -p /etc/ros/rosdep/sources.list.d && \
-    echo "yaml https://raw.githubusercontent.com/ros/rosdistro/master/rosdep/base.yaml" > /etc/ros/rosdep/sources.list.d/20-default.list && \
-    wget https://raw.githubusercontent.com/NVIDIA-ISAAC-ROS/isaac_ros-humble/main/rosdep/isaac-ros.repos -O /etc/ros/rosdep/sources.list.d/30-isaac-ros.list && \
-    rosdep update
-
-
-# 安装核心依赖
-RUN apt-get update && \
-    apt-get install -y --no-install-recommends \
-    git cmake build-essential python3-rosdep python3-venv \
-    libopencv-dev libeigen3-dev python3-colcon-common-extensions wget \
-    && apt-get clean && \
+# 安装核心依赖（参考Isaac ROS构建实践）
+RUN apt-get update && apt-get install -y \
+    build-essential \
+    cmake \
+    git \
+    python3-colcon-common-extensions \
+    python3-pip \
+    ros-humble-desktop \
+    ros-dev-tools && \
     rm -rf /var/lib/apt/lists/*
 
+# 配置非特权用户（安全最佳实践）
+RUN useradd -m -u 1000 -s /bin/bash developer && \
+    echo "developer ALL=(ALL) NOPASSWD:ALL" >> /etc/sudoers
 
-# Use the official ROS sources and add Isaac ROS sources
-RUN mkdir -p /etc/ros/rosdep/sources.list.d && \
-    echo "yaml https://raw.githubusercontent.com/ros/rosdistro/master/rosdep/base.yaml" > /etc/ros/rosdep/sources.list.d/20-default.list && \
-    wget https://raw.githubusercontent.com/NVIDIA-ISAAC-ROS/isaac_ros-humble/main/rosdep/isaac-ros.repos -O /etc/ros/rosdep/sources.list.d/30-isaac-ros.list && \
-    rosdep update  # Update rosdep after adding Isaac ROS sources
+# 阶段2：运行时镜像
+FROM nvcr.io/nvidia/cuda:12.2.2-runtime-ubuntu22.04
 
+# 继承构建阶段配置
+COPY --from=builder /etc/apt/sources.list.d/ros2.list /etc/apt/sources.list.d/
+COPY --from=builder /usr/share/keyrings/ros-archive-keyring.gpg /usr/share/keyrings/
+COPY --from=builder /etc/sudoers /etc/sudoers
+COPY --from=builder /home/developer /home/developer
 
-# Clone repositories using vcstool
-WORKDIR /isaac_ws/src
-COPY isaac_ros.repos .  # Assumes you have an isaac_ros.repos file in your build context
-RUN vcs import < isaac_ros.repos # Use vcstool for consistent versioning
+# 安装运行时依赖
+RUN apt-get update && apt-get install -y \
+    python3-colcon-common-extensions \
+    ros-humble-desktop \
+    libopencv-dev && \
+    rm -rf /var/lib/apt/lists/*
 
-# Install specific dependencies for the packages you're building (adjust as needed)
-RUN apt-get update && apt-get install -y python3-pytest ament-python  libgstreamer-plugins-base1.0-dev libgstreamer1.0-dev gstreamer1.0-plugins-good gstreamer1.0-plugins-bad \
-     && rm -rf /var/lib/apt/lists/*
+# 配置环境变量
+ENV NVIDIA_VISIBLE_DEVICES=all
+ENV NVIDIA_DRIVER_CAPABILITIES=all
+ENV ROS_DOMAIN_ID=0
+ENV USER=developer
 
-# Build - Key improvements here for reliability and clarity
-RUN . /opt/ros/humble/setup.sh && \
-    cd /isaac_ws && \
-    rosdep install --from-paths src --ignore-src --rosdistro humble -yrv && \  # Added -r for retrying failed dependencies
-    colcon build --symlink-install --parallel-workers $(nproc) --cmake-args -DCMAKE_BUILD_TYPE=Release --event-handlers console_cohesion+
+# 设置工作目录及权限
+WORKDIR /workspace
+RUN chown -R developer:developer /workspace
 
+# 切换非root用户
+USER developer
 
-# Stage 4: 最终镜像
-FROM base
-COPY --from=ros-installer /opt/ros/humble /opt/ros/humble
-COPY --from=isaac-builder /isaac_ws/install /isaac_ws/install
-
-RUN useradd -m appuser && \
-    chown -R appuser:appuser /isaac_ws /opt/ros/humble
-
-ENV HOME=/home/appuser
-USER appuser
-WORKDIR $HOME
-
-# Set environment variables for ROS (important!)
-RUN echo "source /opt/ros/humble/setup.bash" >> $HOME/.bashrc
-ENV ROS_DISTRO=humble
-
-CMD ["bash"] # Or your desired command
+# 初始化ROS环境
+RUN echo "source /opt/ros/humble/setup.bash" >> /home/developer/.bashrc
+CMD ["/bin/bash"]
