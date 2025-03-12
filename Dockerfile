@@ -42,6 +42,13 @@ RUN mkdir -p /etc/ros/rosdep/sources.list.d && \
     echo "yaml https://raw.githubusercontent.com/ros/rosdistro/master/rosdep/base.yaml" > /etc/ros/rosdep/sources.list.d/20-default.list && \
     rosdep update
 
+# Setup rosdep
+COPY rosdep/extra_rosdeps.yaml /etc/ros/rosdep/sources.list.d/nvidia-isaac.yaml
+RUN --mount=type=cache,target=/var/cache/apt \
+    rosdep init \
+    && echo "yaml file:///etc/ros/rosdep/sources.list.d/nvidia-isaac.yaml" | tee /etc/ros/rosdep/sources.list.d/00-nvidia-isaac.list \
+    && rosdep update
+
 # 克隆仓库
 WORKDIR /isaac_ws/src
 RUN for repo in isaac_ros_common isaac_ros_nvblox isaac_ros_visual_slam; do \
