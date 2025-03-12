@@ -1,5 +1,4 @@
 
-
 FROM nvidia/cuda:12.8.0-base-ubuntu22.04 AS builder
 # 设置非交互式环境（必须在所有apt-get操作之前）
 ENV DEBIAN_FRONTEND=noninteractive \
@@ -23,11 +22,10 @@ RUN apt-get update && \
     python3-pip \
     && rm -rf /var/lib/apt/lists/*
 
-RUN mkdir -p src && \
-    curl --retry 5 --retry-delay 10 -sSL https://nvidia-isaac-ros.github.io/repositories_and_packages/isaac_ros_common/ros2.repos -o ros2.repos && \
-    yamllint ros2.repos && \
-    vcs import src < ros2.repos
-    
+# 安装ROS 2 Humble（官方指定版本）
+RUN curl -sSL https://raw.githubusercontent.com/ros/rosdistro/master/ros.key -o /usr/share/keyrings/ros-archive-keyring.gpg && \
+    echo "deb [arch=$(dpkg --print-architecture) signed-by=/usr/share/keyrings/ros-archive-keyring.gpg] http://packages.ros.org/ros2/ubuntu jammy main" | tee /etc/apt/sources.list.d/ros2.list
+
 RUN apt-get update && \
     apt-get install -y --no-install-recommends \
     ros-$ROS_DISTRO-ros-base \
@@ -40,7 +38,8 @@ RUN python3 -m pip install -U "vcstool>=0.3.0" --no-cache-dir
 
 # ============== 阶段2：Isaac ROS Common安装 ==============
 RUN mkdir -p src && \
-    curl -sSL https://nvidia-isaac-ros.github.io/repositories_and_packages/isaac_ros_common/ros2.repos -o ros2.repos && \
+    curl --retry 5 --retry-delay 10 -sSL https://nvidia-isaac-ros.github.io/repositories_and_packages/isaac_ros_common/ros2.repos -o ros2.repos && \
+    yamllint ros2.repos && \  # 新增YAML格式验证
     vcs import src < ros2.repos
 
 # 安装Common依赖（官方2025年最新依赖列表）
@@ -105,4 +104,4 @@ RUN echo "source /opt/ros/$ROS_DISTRO/setup.bash" >> ~/.bashrc && \
     echo "source $ISAAC_ROS_WS/install/setup.bash" >> ~/.bashrc
 
 WORKDIR $ISAAC_ROS_WS
-CMD ["/bin/bash"]
+CMD ["/bin/bash"] 
