@@ -49,6 +49,13 @@ RUN --mount=type=cache,target=/var/cache/apt \
     # ROS初始化
     rosdep init && \
     rosdep update --include-eol-distros
+ # 修改CMAKE_ARGS环境变量
+ENV CMAKE_ARGS="-DCMAKE_BUILD_TYPE=Release \
+                -DCMAKE_CUDA_ARCHITECTURES='80-real;86-real;89-virtual' \
+                -Dspdlog_DIR=/usr/lib/x86_64-linux-gnu/cmake/spdlog \
+                -DOPENSSL_ROOT_DIR=/usr/lib/x86_64-linux-gnu \
+                -DOPENSSL_CRYPTO_LIBRARY=/usr/lib/x86_64-linux-gnu/libcrypto.so \
+                -DOPENSSL_INCLUDE_DIR=/usr/include/openssl"
 
 # ====================== Stage 3: 构建环境 ======================
 FROM base AS builder
