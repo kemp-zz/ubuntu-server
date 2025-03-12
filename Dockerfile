@@ -46,80 +46,15 @@ RUN --mount=type=cache,target=/var/cache/apt \
     apt-get install -y \
     ros-humble-desktop \
     ros-humble-ros-base \
-    ros-humble-navigation2 \
-    ros-humble-nav2-bringup \
-    # 新增基础开发工具 ↓
+    # 保留系统级构建工具
+    build-essential \
+    cmake \
+    git \
     devscripts \
-    dh-make \
-    fakeroot \
-    python3-bloom \
-    python3-colcon-common-extensions \
-    python3-pip \
-    python3-rosinstall-generator \
-    python3-vcstool \
-    quilt \
-    # 新增ROS组件 ↓
-    ros-humble-angles \
-    ros-humble-apriltag \
-    ros-humble-behaviortree-cpp-v3 \
-    ros-humble-bondcpp \
-    ros-humble-camera-calibration-parsers \
-    ros-humble-camera-info-manager \
-    ros-humble-compressed-image-transport \
-    ros-humble-compressed-depth-image-transport \
-    ros-humble-cv-bridge \
-    ros-humble-demo-nodes-cpp \
-    ros-humble-demo-nodes-py \
-    ros-humble-diagnostics \
-    ros-humble-diagnostic-aggregator \
-    ros-humble-diagnostic-updater \
-    ros-humble-example-interfaces \
-    ros-humble-foxglove-bridge \
-    ros-humble-image-geometry \
-    ros-humble-image-pipeline \
-    ros-humble-image-transport \
-    ros-humble-image-transport-plugins \
-    ros-humble-launch-xml \
-    ros-humble-launch-yaml \
-    ros-humble-launch-testing \
-    ros-humble-launch-testing-ament-cmake \
-    ros-humble-nav2-msgs \
-    ros-humble-nav2-mppi-controller \
-    ros-humble-nav2-graceful-controller \
-    ros-humble-ompl \
-    ros-humble-resource-retriever \
-    ros-humble-rmw-cyclonedds-cpp \
-    ros-humble-rmw-fastrtps-cpp \
-    ros-humble-rosbag2 \
-    ros-humble-rosbag2-compression-zstd \
-    ros-humble-rosbag2-cpp \
-    ros-humble-rosbag2-py \
-    ros-humble-rosbag2-storage-mcap \
-    ros-humble-rosbridge-suite \
-    ros-humble-rosx-introspection \
-    ros-humble-rqt-graph \
-    ros-humble-rqt-image-view \
-    ros-humble-rqt-reconfigure \
-    ros-humble-rqt-robot-monitor \
-    ros-humble-rviz2 \
-    ros-humble-rviz-common \
-    ros-humble-rviz-default-plugins \
-    ros-humble-sensor-msgs \
-    ros-humble-slam-toolbox \
-    ros-humble-v4l2-camera \
-    ros-humble-vision-opencv \
-    ros-humble-vision-msgs \
-    ros-humble-vision-msgs-rviz-plugins \
-    # 添加你需要的包
-    ros-humble-geometry-msgs \
-    ros-humble-rosidl-default-generators \
-    libboost-dev \
-    libeigen3-dev \
-    python3-pyquaternion \
     && rosdep init \
     && rosdep update --include-eol-distros \
-    && apt-get clean \
-    && rm -rf /var/lib/apt/lists/*
+    && rosdep install --from-paths /isaac_ws/src --ignore-src -y \  # 根据实际工作空间路径调整
+    && apt-get clean
    
 # 升级setuptools并安装Python依赖
 RUN python3 -m pip install --upgrade --force-reinstall --target=/usr/lib/python3/dist-packages setuptools==65.7.0 \
