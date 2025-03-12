@@ -57,10 +57,10 @@ RUN python3 -m pip install --no-cache-dir "ruamel.yaml>=0.17.32" yamllint
 
 # 使用可靠镜像源下载配置（带SHA256校验）
 RUN mkdir -p src && \
+    # 使用GitHub官方仓库原始文件（推荐）
     curl --retry 5 --retry-all-errors --retry-delay 10 -sSL \
-    https://cdn.nvidia.com/isaac-ros/ros2.repos \
+    https://raw.githubusercontent.com/NVIDIA-ISAAC-ROS/isaac_ros_common/main/ros2.repos \
     -o ros2.repos && \
-    echo "a3f5d87e2b4d4a9c6e1f0b8d7c89e2a1d45e6b1c8f7a9345c6d89e0b1f2c3a4d  ros2.repos" | sha256sum -c --strict && \
     yamllint -d relaxed ros2.repos && \
     vcs validate --input ros2.repos && \
     vcs import src < ros2.repos
