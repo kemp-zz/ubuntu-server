@@ -93,7 +93,7 @@ RUN git clone --depth 1 --branch main \
 # 构建参数优化（安全编译选项）
 ENV CMAKE_ARGS="-DCMAKE_BUILD_TYPE=Release \
                 -DCMAKE_CUDA_ARCHITECTURES='80-real;86-real;89-virtual' \
-                -DCMAKE_PREFIX_PATH=/opt/ros/humble \  # 增强ROS环境识别[4](@ref)
+                -DCMAKE_PREFIX_PATH=/opt/ros/humble \
                 -Dspdlog_DIR=/usr/lib/x86_64-linux-gnu/cmake/spdlog \
                 -DOPENSSL_ROOT_DIR=/usr/lib/x86_64-linux/gnu"
 
