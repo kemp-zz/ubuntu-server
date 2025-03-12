@@ -1,11 +1,20 @@
 # 阶段1：基础环境构建
-FROM nvcr.io/nvidia/cuda:12.2.2-devel-ubuntu22.04 AS builder
-ENV DEBIAN_FRONTEND=noninteractive
+FROM nvcr.io/nvidia/cuda:12.8.1-devel-ubuntu22.04 AS builder
 
-# 环境参数继承自GitHub Actions
-ARG CUDA_VERSION=12.8.1
+# 必须分两阶段设置（先全局后局部）
 ENV DEBIAN_FRONTEND=noninteractive
+ENV TZ=Asia/Hong_Kong
 
+RUN apt-get update && \
+    # 预配置时区选择答案
+    ln -fs /usr/share/zoneinfo/Asia/Hong_Kong /etc/localtime && \
+    echo "tzdata tzdata/Areas select Asia" | debconf-set-selections && \
+    echo "tzdata tzdata/Zones/Asia select Hong_Kong" | debconf-set-selections && \
+    # 安装并配置tzdata
+    apt-get install -y --no-install-recommends tzdata && \
+    dpkg-reconfigure -f noninteractive tzdata && \
+    # 清理缓存
+    rm -rf /var/lib/apt/lists/*
 # 配置APT源（包含ROS和NVIDIA源）
 RUN apt-get update && apt-get install -y \
     curl gnupg2 lsb-release software-properties-common && \
