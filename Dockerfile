@@ -32,7 +32,7 @@ RUN --mount=type=cache,target=/var/cache/apt \
     apt-get update && \
     apt-get install -y --no-install-recommends \
         ros-humble-ros-base \ 
-        python3-pip
+        python3-pip \
         python3-colcon-common-extensions \
         ros-humble-rcl-logging-spdlog \
         ros-humble-ament-cmake-auto \
