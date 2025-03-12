@@ -15,6 +15,13 @@ RUN apt-get update && \
     locale-gen en_US.UTF-8 && \
     apt-get clean && \
     rm -rf /var/lib/apt/lists/*
+RUN apt-get update && \
+    apt-get install -y --no-install-recommends \
+    cuda-toolkit-12-8 \
+    cuda-libraries-dev-12-8 \
+    libcurand-dev-12-8 && \
+    rm -rf /var/lib/apt/lists/*
+
 
 # Stage 2: ROS2 Humble 安装
 FROM base AS ros-installer
@@ -137,6 +144,9 @@ RUN --mount=type=cache,target=/root/.cache/ccache \
         --event-handlers console_cohesion+ \
         --cmake-args \
             -DCUDA_TOOLKIT_ROOT_DIR=/usr/local/cuda \
+            -DCUDA_NVCC_EXECUTABLE=/usr/local/cuda/bin/nvcc \
+            -DCUDA_INCLUDE_DIRS=/usr/local/cuda/include \
+            -DCUDA_CUDART_LIBRARY=/usr/local/cuda/lib64/libcudart.so \
             $CMAKE_ARGS
 # Stage 4: 最终镜像
 FROM base
