@@ -20,11 +20,12 @@ FROM base AS ros-installer
 RUN --mount=type=cache,target=/var/cache/apt \
     apt-get update && \
     apt-get install -y curl gnupg2 lsb-release && \
-    # 修复ROS源架构声明
-    echo "deb [arch=$(dpkg --print-architecture) signed-by=/usr/share/keyrings/ros-archive-keyring.gpg] http://packages.ros.org/ros2/ubuntu jammy main" > /etc/apt/sources.list.d/ros2.list && \
-    # 添加CUDA仓库
-    curl -sSL https://developer.download.nvidia.cn/compute/cuda/repos/ubuntu2204/x86_64/3bf863cc.pub | apt-key add - && \
-    echo "deb https://developer.download.nvidia.cn/compute/cuda/repos/ubuntu2204/x86_64/ /" > /etc/apt/sources.list.d/cuda.list
+    # 官方ROS源
+    curl -sSL https://raw.githubusercontent.com/ros/rosdistro/master/ros.key -o /usr/share/keyrings/ros-archive-keyring.gpg && \
+    echo "deb [arch=$(dpkg --print-architecture) signed-by=/usr/share/keyrings/ros-archive-keyring.gpg] http://packages.ros.org/ros2/ubuntu $(lsb_release -cs) main" > /etc/apt/sources.list.d/ros2.list && \
+    # NVIDIA官方CUDA源
+    curl -sSL https://developer.download.nvidia.com/compute/cuda/repos/ubuntu2204/x86_64/3bf863cc.pub | apt-key add - && \
+    echo "deb https://developer.download.nvidia.com/compute/cuda/repos/ubuntu2204/x86_64/ /" > /etc/apt/sources.list.d/cuda.list
 
 # 分阶段安装ROS包（防止命令过长）
 RUN --mount=type=cache,target=/var/cache/apt \
@@ -125,8 +126,7 @@ FROM base AS isaac-builder
 
 # 继承ROS安装（新增关键依赖）
 COPY --from=ros-installer /etc/apt/sources.list.d/ros2.list /etc/apt/sources.list.d/
-COPY --from=ros-installer /etc/apt/sources.list.d/isaac-ros.list /etc/apt/sources.list.d/
-COPY --from=ros-installer /usr/share/keyrings/isaac-ros-archive-keyring.gpg /usr/share/keyrings/
+COPY --from=ros-installer /etc/apt/sources.list.d/cuda.list /etc/apt/sources.list.d/
 COPY --from=ros-installer /usr/share/keyrings/ros-archive-keyring.gpg /usr/share/keyrings/
 
 
@@ -154,37 +154,27 @@ RUN --mount=type=cache,target=/var/cache/apt \
     && apt-get clean \
     && rm -rf /var/lib/apt/lists/*
 
-# 配置rosdep源（优先级优化）
+# 配置rosdep（国际源）
 RUN mkdir -p /etc/ros/rosdep/sources.list.d && \
-    curl -sSL https://raw.githubusercontent.com/NVIDIA-ISAAC-ROS/isaac_ros_common/main/docker/rosdep/extra_rosdeps.yaml \
-        -o /etc/ros/rosdep/sources.list.d/99-isaac-rosdeps.yaml && \
-    # 调整优先级顺序（关键修复）
-    printf "yaml https://raw.githubusercontent.com/ros/rosdistro/master/rosdep/base.yaml\nyaml file:///etc/ros/rosdep/sources.list.d/99-isaac-rosdeps.yaml\n" > /etc/ros/rosdep/sources.list.d/20-default.list && \
-    rosdep update --include-eol-distros --rosdistro humble
+    curl -sSL https://raw.githubusercontent.com/ros/rosdistro/master/rosdep/sources.list.d/20-default.list -o /etc/ros/rosdep/sources.list.d/20-default.list && \
+    rosdep update --rosdistro humble
 
-
-
-
-# 克隆并构建Isaac ROS核心仓库
+# 克隆仓库
 WORKDIR /isaac_ws/src
-RUN for repo in isaac_ros_common isaac_ros_nvblox isaac_ros_visual_slam; do \
-        git clone --depth 1 --branch main https://github.com/NVIDIA-ISAAC-ROS/${repo}.git; \
-    done
+RUN git clone --depth 1 --branch main https://github.com/NVIDIA-ISAAC-ROS/isaac_ros_common.git
 
-# 构建优化参数
+# 构建参数
 ENV CMAKE_ARGS="-DCMAKE_BUILD_TYPE=Release -DCMAKE_CUDA_ARCHITECTURES=80"
 
-
-# 构建指令（新增环境变量）
+# 构建指令
 RUN . /opt/ros/humble/setup.sh && \
     cd /isaac_ws && \
-    # 设置CUDA架构（关键修复）
-    export CMAKE_CUDA_ARCHITECTURES=80 && \
-    rosdep install --from-paths src --ignore-src -y --skip-keys "isaac_ros_test python3-pytest" --rosdistro humble \
-    && colcon build \
+    rosdep install --from-paths src --ignore-src -y --skip-keys "isaac_ros_test" && \
+    colcon build \
         --symlink-install \
         --parallel-workers $(($(nproc) * 2)) \
         --cmake-args $CMAKE_ARGS
+
 
 
 # Stage 4: 最终运行时镜像
