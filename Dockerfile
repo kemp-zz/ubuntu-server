@@ -10,12 +10,12 @@ ENV SHELL=/bin/bash
 SHELL ["/bin/bash", "-c"]
 
 # Env setup
-RUN locale-gen en_US en_US.UTF-8 && update-locale LC_ALL=en_US.UTF-8 LANG=en_US.UTF-8
-ENV LANG=en_US.UTF-8
-ENV ROS_PYTHON_VERSION=3
-ENV ROS_DISTRO=humble
-ENV ROS_ROOT=/opt/ros/${ROS_DISTRO}
-ENV RMW_IMPLEMENTATION=rmw_fastrtps_cpp
+ENV LANG=C.UTF-8 \
+    LC_ALL=C.UTF-8 \
+    ROS_PYTHON_VERSION=3 \
+    ROS_DISTRO=humble \
+    ROS_ROOT=/opt/ros/${ROS_DISTRO} \
+    RMW_IMPLEMENTATION=rmw_fastrtps_cpp
 
 # Avoid setup.py and easy_install deprecation warnings caused by colcon and setuptools
 # https://github.com/colcon/colcon-core/issues/454
