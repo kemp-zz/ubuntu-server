@@ -1,147 +1,98 @@
-# Stage 1: 基础镜像
-FROM nvidia/cuda:12.8.0-base-ubuntu22.04 AS base
+FROM nvidia/cuda:12.8.0-base-ubuntu22.04 AS builder
 
-# 环境配置
-ENV DEBIAN_FRONTEND=noninteractive \
-    LANG=en_US.UTF-8 \
-    TZ=UTC \
-    ROS_PYTHON_VERSION=3 \
-    PYTHONWARNINGS=ignore:::setuptools.command.install,ignore:::setuptools.command.easy_install,ignore:::pkg_resources,ignore:::setuptools.command.develop
+# 环境变量设置
+ENV ROS_DISTRO=humble
+ENV ISAAC_ROS_WS=/opt/isaac_ros_ws
+WORKDIR $ISAAC_ROS_WS
 
-# 系统基础配置
+# 安装核心工具链（2025年Ubuntu 22.04适配版本）
 RUN apt-get update && \
-    apt-get install -y locales tzdata && \
-    ln -fs /usr/share/zoneinfo/$TZ /etc/localtime && \
-    locale-gen en_US.UTF-8 && \
-    apt-get clean && \
-    rm -rf /var/lib/apt/lists/*
-
-# Stage 2: ROS2 Humble 安装
-FROM base AS ros-installer
-
-# 安装基础工具并配置所有源
-RUN --mount=type=cache,target=/var/cache/apt \
-    apt-get update && \
     apt-get install -y --no-install-recommends \
-        ca-certificates \
-        software-properties-common \
-        curl gnupg2 lsb-release && \
-    mkdir -p /usr/share/keyrings && \
-    # ROS源
-    curl -fsSL https://raw.githubusercontent.com/ros/rosdistro/master/ros.key | gpg --dearmor -o /usr/share/keyrings/ros-archive-keyring.gpg && \
-    echo "deb [arch=$(dpkg --print-architecture) signed-by=/usr/share/keyrings/ros-archive-keyring.gpg] http://packages.ros.org/ros2/ubuntu jammy main" > /etc/apt/sources.list.d/ros2.list && \
-    # CUDA源
-    curl -fsSL https://developer.download.nvidia.com/compute/cuda/repos/ubuntu2204/x86_64/3bf863cc.pub | gpg --dearmor > /usr/share/keyrings/cuda-archive-keyring.gpg && \
-    echo "deb [arch=$(dpkg --print-architecture) signed-by=/usr/share/keyrings/cuda-archive-keyring.gpg] https://developer.download.nvidia.com/compute/cuda/repos/ubuntu2204/x86_64 /" > /etc/apt/sources.list.d/cuda.list && \
-    # VPI源
-    # 配置VPI官方源（x86_64专属）
-    curl -fsSL https://repo.download.nvidia.com/jetson/jetson-ota-public.asc | gpg --dearmor > /usr/share/keyrings/nvidia-vpi-keyring.gpg && \
-    echo "deb [signed-by=/usr/share/keyrings/nvidia-vpi-keyring.gpg] https://repo.download.nvidia.com/jetson/x86_64/jammy r36.2 main" > /etc/apt/sources.list.d/nvidia-vpi.list && \
-    apt-get clean
-
-# 安装ROS核心组件和VPI
-RUN --mount=type=cache,target=/var/cache/apt \
-    apt-get update && \
-    apt-get install -y \
-    ros-humble-desktop \
-    ros-humble-ros-base \
-    build-essential \
-    cmake \
+    curl \
     git \
-    libnvvpi3 \
-    vpi3-dev \
-    vpi3-samples \
-    libvpi2=2.1.5 \
-    libspdlog-dev \
-    python3-rosdep \
+    software-properties-common \
     python3-pip \
-    libssl-dev \
-    pkg-config \
-    devscripts && \
-    # VPI路径配置
-    echo "/opt/nvidia/vpi2/lib64" >> /etc/ld.so.conf.d/vpi.conf && \
-    ldconfig && \
-    # ROS初始化
-    mkdir -p /isaac_ws/src && \
-    rosdep init && \
-    rosdep update --include-eol-distros && \
-    rosdep install --from-paths /isaac_ws/src --ignore-src -y && \
-    apt-get clean
+    && rm -rf /var/lib/apt/lists/*
 
-# Python虚拟环境配置
-RUN python3 -m venv /opt/venv && \
-    /opt/venv/bin/pip install --no-cache-dir \
-        setuptools==65.7.0 \
-        flake8-blind-except \
-        flake8-builtins \
-        matplotlib \
-        pandas \
-        rosbags \
-        boto3
-ENV PATH="/opt/venv/bin:$PATH"
+# 安装ROS 2 Humble（官方指定版本）
+RUN curl -sSL https://raw.githubusercontent.com/ros/rosdistro/master/ros.key -o /usr/share/keyrings/ros-archive-keyring.gpg && \
+    echo "deb [arch=$(dpkg --print-architecture) signed-by=/usr/share/keyrings/ros-archive-keyring.gpg] http://packages.ros.org/ros2/ubuntu jammy main" | tee /etc/apt/sources.list.d/ros2.list
 
-# Stage 3: Isaac构建环境
-FROM base AS isaac-builder
-
-# 继承配置
-COPY --from=ros-installer /etc/apt/sources.list.d/* /etc/apt/sources.list.d/
-COPY --from=ros-installer /usr/share/keyrings/* /usr/share/keyrings/
-COPY --from=ros-installer /opt/ros/humble /opt/ros/humble
-COPY --from=ros-installer /opt/nvidia/vpi2 /opt/nvidia/vpi2
-
-# 安装构建依赖
-RUN --mount=type=cache,target=/var/cache/apt \
-    apt-get update && \
+RUN apt-get update && \
     apt-get install -y --no-install-recommends \
-    build-essential \
-    cmake \
-    git \
-    libopencv-dev \
-    libeigen3-dev \
+    ros-$ROS_DISTRO-ros-base \
+    ros-$ROS_DISTRO-ament-cmake \
     python3-colcon-common-extensions \
-    ccache && \
-    apt-get clean
+    && rm -rf /var/lib/apt/lists/*
 
-# 代码克隆
-WORKDIR /isaac_ws/src
-RUN for repo in isaac_ros_common isaac_ros_nvblox isaac_ros_visual_slam; do \
-        git clone --depth 1 --branch main https://github.com/NVIDIA-ISAAC-ROS/${repo}.git; \
-    done
+# 安装vcs工具（2025.03版）
+RUN pip3 install -U "git+https://github.com/dirk-thomas/vcstool@2023.10.0"
 
-# 构建参数
-ENV CMAKE_ARGS="-Dvpi_DIR=/opt/nvidia/vpi3/lib/cmake/vpi \
-                -Dspdlog_DIR=/usr/lib/x86_64-linux-gnu/cmake/spdlog \
-                -DOPENSSL_ROOT_DIR=/usr \
-                -DOPENSSL_INCLUDE_DIR=/usr/include/openssl \
-                -DOPENSSL_LIBRARIES=/usr/lib/x86_64-linux-gnu \
-                -DCMAKE_CUDA_ARCHITECTURES='80-real;86-real;89-virtual' \
-                -DCMAKE_BUILD_TYPE=Release \
-                -DCMAKE_CXX_FLAGS='-O3 -march=native'"
+# ============== 阶段2：Isaac ROS Common安装 ==============
+RUN mkdir -p src && \
+    curl -sSL https://nvidia-isaac-ros.github.io/repositories_and_packages/isaac_ros_common/ros2.repos -o ros2.repos && \
+    vcs import src < ros2.repos
 
-# 执行构建
-RUN --mount=type=cache,target=/root/.cache/ccache \
-    . /opt/ros/humble/setup.sh && \
-    cd /isaac_ws && \
+# 安装Common依赖（官方2025年最新依赖列表）
+RUN apt-get update && \
+    rosdep init && \
+    rosdep update --rosdistro $ROS_DISTRO && \
+    rosdep install -y \
+      --from-paths \
+        src/ros-visualization/ \
+        src/uxr/client/ \
+        src/isaac_ros_common/ \
+      --ignore-src \
+    && rm -rf /var/lib/apt/lists/*
+
+# 构建Common组件（优化编译参数）
+RUN . /opt/ros/$ROS_DISTRO/setup.sh && \
     colcon build \
-        --symlink-install \
-        --parallel-workers $(($(nproc) * 2)) \
-        --cmake-args $CMAKE_ARGS
+      --merge-install \
+      --cmake-args \
+        -DCMAKE_BUILD_TYPE=Release \
+        -DCMAKE_CUDA_ARCHITECTURES=75  # 根据实际GPU架构调整
 
-# Stage 4: 最终镜像
-FROM base
 
-# 继承运行时组件
-COPY --from=ros-installer /opt/ros/humble /opt/ros/humble
-COPY --from=isaac-builder /isaac_ws/install /isaac_ws/install
-COPY --from=ros-installer /opt/venv /opt/venv
+RUN curl -sSL https://nvidia-isaac-ros.github.io/repositories_and_packages/isaac_ros_nvblox/ros2.repos -o nvblox.repos && \
+    vcs import src < nvblox.repos
 
-# 创建非特权用户
-RUN useradd -m appuser && \
-    chown -R appuser:appuser /isaac_ws /opt/ros/humble /opt/venv
+# 安装nvBlox专用依赖（包含CUDA加速库）
+RUN apt-get update && \
+    apt-get install -y --no-install-recommends \
+    libgflags-dev \
+    libgoogle-glog-dev \
+    libspdlog-dev \
+    cuda-nvcc-12-8 \
+    && rm -rf /var/lib/apt/lists/*
 
-ENV PATH="/opt/venv/bin:$PATH" \
-    HOME=/home/appuser
-USER appuser
-WORKDIR $HOME
+# 构建nvBlox组件（启用CUDA加速）
+RUN . install/setup.sh && \
+    colcon build \
+      --merge-install \
+      --cmake-args \
+        -DCMAKE_BUILD_TYPE=Release \
+        -DCMAKE_CUDA_ARCHITECTURES=75 \
+        -DNVBLOX_USE_CUDA=ON
 
-CMD ["bash"]
+
+FROM nvidia/cuda:12.8.0-base-ubuntu22.04
+
+ENV ROS_DISTRO=humble
+ENV ISAAC_ROS_WS=/opt/isaac_ros_ws
+COPY --from=builder $ISAAC_ROS_WS/install $ISAAC_ROS_WS/install
+
+
+RUN apt-get update && \
+    apt-get install -y --no-install-recommends \
+    python3-rosdep \
+    python3-colcon-common-extensions \
+    libspdlog-dev \
+    && rm -rf /var/lib/apt/lists/*
+
+# 配置环境变量（持久化设置）
+RUN echo "source /opt/ros/$ROS_DISTRO/setup.bash" >> ~/.bashrc && \
+    echo "source $ISAAC_ROS_WS/install/setup.bash" >> ~/.bashrc
+
+WORKDIR $ISAAC_ROS_WS
+CMD ["/bin/bash"]
