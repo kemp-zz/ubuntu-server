@@ -57,6 +57,8 @@ ENV CMAKE_ARGS="-DCMAKE_BUILD_TYPE=Release \
                 -DOPENSSL_CRYPTO_LIBRARY=/usr/lib/x86_64-linux-gnu/libcrypto.so \
                 -DOPENSSL_INCLUDE_DIR=/usr/include/openssl"
 
+            
+
 # ====================== Stage 3: 构建环境 ======================
 FROM base AS builder
 
@@ -78,6 +80,11 @@ RUN --mount=type=cache,target=/var/cache/apt \
     ccache && \
     apt-get clean
 
+    
+ENV OPENSSL_ROOT_DIR=/usr/local/openssl \
+    OPENSSL_INCLUDE_DIR=/usr/local/openssl/include \
+    OPENSSL_LIBRARIES=/usr/local/openssl/lib \
+    LD_LIBRARY_PATH=/usr/local/openssl/lib:$LD_LIBRARY_PATH   
 # 代码克隆与验证（保持不变）
 
 WORKDIR $ISAAC_WS/src
