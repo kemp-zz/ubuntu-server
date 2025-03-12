@@ -70,8 +70,13 @@ RUN --mount=type=cache,target=/var/cache/apt \
     apt-get clean
 
 # 代码克隆与验证（保持不变）
+# 第一阶段：安装基础组件
 WORKDIR $ISAAC_WS/src
-RUN for repo in isaac_ros_common isaac_ros_nvblox isaac_ros_visual_slam; do \
+RUN git clone --depth 1 --branch main https://github.com/NVIDIA-ISAAC-ROS/isaac_ros_common.git && \
+    { [ -f "isaac_ros_common/package.xml" ] || { echo "Missing package.xml in isaac_ros_common"; exit 1; }; }
+
+# 第二阶段：安装功能组件
+RUN for repo in isaac_ros_nvblox isaac_ros_visual_slam; do \
         git clone --depth 1 --branch main https://github.com/NVIDIA-ISAAC-ROS/${repo}.git && \
         [ -f "${repo}/package.xml" ] || { echo "Missing package.xml in ${repo}"; exit 1; }; \
     done
