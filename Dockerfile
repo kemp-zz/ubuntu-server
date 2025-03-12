@@ -72,13 +72,17 @@ RUN --mount=type=cache,target=/var/cache/apt \
 # 代码克隆与验证（保持不变）
 
 WORKDIR $ISAAC_WS/src
-RUN git clone --depth 1 --branch humble https://github.com/NVIDIA-ISAAC-ROS/isaac_ros_common.git && \
+# 修改后的Dockerfile关键段
+RUN git clone --depth 1 --branch main https://github.com/NVIDIA-ISAAC-ROS/isaac_ros_common.git && \
     { [ -f "isaac_ros_common/isaac_common/package.xml" ] || { echo "Missing package.xml"; exit 1; }; }
 # 第二阶段：安装功能组件
-RUN for repo in isaac_ros_nvblox isaac_ros_visual_slam; do \
-        git clone --depth 1 --branch main https://github.com/NVIDIA-ISAAC-ROS/${repo}.git && \
-        [ -f "${repo}/package.xml" ] || { echo "Missing package.xml in ${repo}"; exit 1; }; \
-    done
+# isaac_ros_nvblox 安装
+RUN git clone --depth 1 --branch humble https://github.com/NVIDIA-ISAAC-ROS/isaac_ros_nvblox.git && \
+    { [ -f "isaac_ros_nvblox/isaac_ros_nvblox/package.xml" ] || { echo "Missing package.xml in nvblox"; exit 1; }; }
+
+# isaac_ros_visual_slam 安装
+RUN git clone --depth 1 --branch humble https://github.com/NVIDIA-ISAAC-ROS/isaac_ros_visual_slam.git && \
+    { [ -f "isaac_ros_visual_slam/isaac_ros_visual_slam/package.xml" ] || { echo "Missing package.xml in visual_slam"; exit 1; }; }
 
 # 构建参数优化（移除vpi_DIR引用）
 ENV CMAKE_ARGS="-DCMAKE_BUILD_TYPE=Release \
