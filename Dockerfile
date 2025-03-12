@@ -25,7 +25,7 @@ RUN apt-get update && \
 
 RUN mkdir -p src && \
     curl --retry 5 --retry-delay 10 -sSL https://nvidia-isaac-ros.github.io/repositories_and_packages/isaac_ros_common/ros2.repos -o ros2.repos && \
-    yamllint ros2.repos && \  # 新增YAML格式验证
+    yamllint ros2.repos && \
     vcs import src < ros2.repos
     
 RUN apt-get update && \
