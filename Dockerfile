@@ -1,5 +1,4 @@
 # Stage 1: 基础镜像
-# Stage 1: 基础镜像
 FROM nvidia/cuda:12.8.0-base-ubuntu22.04 AS base
 
 # 新增Python警告抑制（来自colcon问题#454）
@@ -118,16 +117,16 @@ RUN python3 -m pip install --upgrade --force-reinstall --target=/usr/lib/python3
     boto3
 
 
-# Stage 3: Isaac ROS 构建环境
 FROM base AS isaac-builder
 
-# 继承ROS安装
+# 继承ROS安装（新增关键依赖）
 COPY --from=ros-installer /opt/ros/humble /opt/ros/humble
 COPY --from=ros-installer /usr/share/keyrings/ros-archive-keyring.gpg /usr/share/keyrings/
 COPY --from=ros-installer /etc/apt/sources.list.d/ros2.list /etc/apt/sources.list.d/
 
-# 安装构建工具链
-RUN apt-get update && \
+# 安装核心构建工具链（强化开发依赖）
+RUN --mount=type=cache,target=/var/cache/apt \
+    apt-get update && \
     apt-get install -y --no-install-recommends \
     build-essential \
     cmake \
@@ -138,36 +137,82 @@ RUN apt-get update && \
     python3-pytest \
     python3-pytest-mock \
     libopencv-dev \
-    libeigen3-dev && \
-    apt-get clean && \
-    rm -rf /var/lib/apt/lists/* \
-           /var/cache/apt/archives/* \
-           /tmp/*
+    libeigen3-dev \
+    # 新增构建必需组件
+    devscripts \
+    dh-make \
+    fakeroot \
+    quilt \
+    bloom \
+    python3-colcon-common-extensions \
+    && apt-get clean \
+    && rm -rf /var/lib/apt/lists/*
 
+# 配置rosdep源（优先级优化）
 RUN mkdir -p /etc/ros/rosdep/sources.list.d && \
-    # 使用原始URL下载（移除代理测试）
     curl -sSL https://raw.githubusercontent.com/NVIDIA-ISAAC-ROS/isaac_ros_common/main/docker/rosdep/extra_rosdeps.yaml \
         -o /etc/ros/rosdep/sources.list.d/99-isaac-rosdeps.yaml && \
-    # 使用printf替代echo确保换行符
-    printf "python3-pytest:\n  ubuntu: [python3-pytest]\npython3-pytest-mock:\n  ubuntu: [python3-pytest-mock]\n" >> /etc/ros/rosdep/sources.list.d/99-isaac-rosdeps.yaml && \
-    # 简化源配置（移除冲突的python.yaml）
     printf "yaml file:///etc/ros/rosdep/sources.list.d/99-isaac-rosdeps.yaml\nyaml https://raw.githubusercontent.com/ros/rosdistro/master/rosdep/base.yaml\n" > /etc/ros/rosdep/sources.list.d/20-default.list && \
-    # 限定rosdistro版本
     rosdep update --include-eol-distros --rosdistro humble
 
-# 克隆Isaac ROS仓库
+# 安装修补后的ROS核心组件
+# 1. 安装negotiated接口
+RUN --mount=type=cache,target=/var/cache/apt \
+    mkdir -p ${ROS_WORKSPACE}/src && cd ${ROS_WORKSPACE}/src \
+    && git clone https://github.com/osrf/negotiated -b master \
+    && source /opt/ros/humble/setup.bash \
+    && cd negotiated_interfaces \
+    && bloom-generate rosdebian && fakeroot debian/rules binary \
+    && cd ../ && apt-get install -y ./*.deb \
+    && rm -rf src build log
+
+# 2. 修复image_proc的resize节点
+RUN --mount=type=cache,target=/var/cache/apt \
+    mkdir -p ${ROS_WORKSPACE}/src && cd ${ROS_WORKSPACE}/src \
+    && git clone https://github.com/ros-perception/image_pipeline.git \
+    && cd image_pipeline \
+    && git checkout 55bf2a38c327b829c3da444f963a6c66bfe0598f \
+    && git cherry-pick 969d6c763df99b42844742946f7a70c605a72a15 \
+    && cd image_proc \
+    && bloom-generate rosdebian && fakeroot debian/rules binary \
+    && cd ../ && apt-get install -y --allow-downgrades ./*.deb
+
+# 3. 修补rclcpp多线程执行器
+COPY patches/rclcpp-disable-tests.patch /tmp/
+RUN --mount=type=cache,target=/var/cache/apt \
+    mkdir -p ${ROS_WORKSPACE}/src && cd ${ROS_WORKSPACE}/src \
+    && git clone https://github.com/ros2-gbp/rclcpp-release.git \
+    && cd rclcpp-release \
+    && patch -i /tmp/rclcpp-disable-tests.patch \
+    && git cherry-pick 232262c02a1265830c7785b7547bd51e1124fcd8 \
+    && bloom-generate rosdebian && fakeroot debian/rules binary \
+    && cd ../ && apt-get install -y --allow-downgrades ./*.deb
+
+# 安装MoveIt 2完整套件
+RUN --mount=type=cache,target=/var/cache/apt \
+    apt-get update && apt-get install -y \
+    ros-humble-moveit* \
+    ros-humble-ur* \
+    ros-humble-rviz2 \
+    && rm -rf /var/lib/apt/lists/*
+
+# 克隆并构建Isaac ROS核心仓库
 WORKDIR /isaac_ws/src
 RUN for repo in isaac_ros_common isaac_ros_nvblox isaac_ros_visual_slam; do \
         git clone --depth 1 --branch main https://github.com/NVIDIA-ISAAC-ROS/${repo}.git; \
     done
 
-# 构建Isaac组件
+# 构建优化参数
+ENV CMAKE_ARGS="-DCMAKE_BUILD_TYPE=Release -DCMAKE_CUDA_ARCHITECTURES=80"  # 针对NVIDIA GPU优化
+
+# 构建Isaac组件（启用并行编译）
 RUN . /opt/ros/humble/setup.sh && \
     cd /isaac_ws && \
-    rosdep install --from-paths src --ignore-src -y && \
-    colcon build --symlink-install --parallel-workers $(nproc) \
-    --cmake-args -DCMAKE_BUILD_TYPE=Release
-
+    rosdep install --from-paths src --ignore-src -y --skip-keys "isaac_ros_test" \
+    && colcon build \
+        --symlink-install \
+        --parallel-workers $(($(nproc) * 2)) \  # 超线程优化
+        --cmake-args $CMAKE_ARGS
 # Stage 4: 最终运行时镜像
 FROM base
 
