@@ -58,8 +58,14 @@ RUN --mount=type=cache,target=/var/cache/apt \
     python3-vcstool \
     quilt \
     ccache \
+    libssl-dev \ 
+    openssl \
+    dbus \
+    nvidia-cuda-toolkit \
     # 新增ROS组件 ↓
     ros-humble-angles \
+    ros-humble-pcl-msgs \
+    ros-humble-tf2-geometry-msgs \
     ros-humble-apriltag \
     ros-humble-behaviortree-cpp-v3 \
     ros-humble-bondcpp \
