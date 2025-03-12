@@ -41,6 +41,8 @@ RUN --mount=type=cache,target=/var/cache/apt \
     apt-get update && \
     apt-get install -y --no-install-recommends \
     ros-humble-ros-base \
+    python3 python3-pip python3-venv \
+    python3-colcon-common-extensions \ 
     python3-rosdep \
     libssl-dev \
     libspdlog-dev && \
