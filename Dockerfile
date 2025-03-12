@@ -58,14 +58,24 @@ RUN --mount=type=cache,target=/var/cache/apt \
     python3-vcstool \
     quilt \
     ccache \
-    libssl-dev \ 
-    libpcl-dev \
+    libssl-dev \    
     openssl \
     dbus \
     nvidia-cuda-toolkit \
     # 新增ROS组件 ↓
     ros-humble-angles \
     ros-humble-pcl-msgs \
+    ros-humble-geometry-msgs \
+    ros-humble-nav-msgs \
+    ros-humble-stereo-msgs \
+    ros-humble-tf2-geometry-msgs \
+    ros-humble-tf2-sensor-msgs \
+    libpcl-dev \
+    libopencv-dev \
+    libopencv-contrib-dev \
+    libeigen3-dev \
+    libboost-all-dev \
+    libcudnn8-dev && \
     ros-humble-tf2-geometry-msgs \
     ros-humble-apriltag \
     ros-humble-behaviortree-cpp-v3 \
