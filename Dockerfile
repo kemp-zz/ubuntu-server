@@ -45,6 +45,12 @@ RUN mkdir -p /usr/share/keyrings && \
 RUN curl -fsSL https://developer.download.nvidia.com/compute/cuda/repos/ubuntu2204/x86_64/3bf863cc.pub | gpg --dearmor > /usr/share/keyrings/cuda-archive-keyring.gpg && \
     echo "deb [arch=$(dpkg --print-architecture) signed-by=/usr/share/keyrings/cuda-archive-keyring.gpg] https://developer.download.nvidia.com/compute/cuda/repos/ubuntu2204/x86_64 /" > /etc/apt/sources.list.d/cuda.list
 
+RUN curl -fsSL https://repo.download.nvidia.com/jetson/jetson-ota-public.asc | gpg --dearmor > /usr/share/keyrings/jetson-archive-keyring.gpg && \
+    echo "deb [signed-by=/usr/share/keyrings/jetson-archive-keyring.gpg] https://repo.download.nvidia.com/jetson/common r36.2 main" > /etc/apt/sources.list.d/nvidia-l4t-apt-source.list
+
+# 安装VPI开发包
+RUN --mount=type=cache,target=/var/cache/apt \
+
 # 安装ROS核心组件
 RUN --mount=type=cache,target=/var/cache/apt \
     apt-get update && \
@@ -54,6 +60,8 @@ RUN --mount=type=cache,target=/var/cache/apt \
     build-essential \
     cmake \
     git \
+    vpi2-dev \ 
+    vpi2-samples \
     libspdlog-dev \ 
     python3-rosdep \
     python3-pip \  
