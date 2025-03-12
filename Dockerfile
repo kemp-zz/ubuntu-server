@@ -113,7 +113,7 @@ RUN --mount=type=cache,target=/var/cache/apt \
     && rosdep update --include-eol-distros \
     && apt-get clean \
     && rm -rf /var/lib/apt/lists/*
-    && if [ ! -d "/opt/ros/humble" ]; then echo "ROS安装失败"; exit 1; fi
+   
 # 升级setuptools并安装Python依赖
 RUN python3 -m pip install --upgrade --force-reinstall --target=/usr/lib/python3/dist-packages setuptools==65.7.0 \
     && python3 -m pip install -U --no-cache-dir \
