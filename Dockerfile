@@ -40,9 +40,7 @@ RUN mkdir -p /etc/ros/rosdep/sources.list.d && \
     # 添加标准ROS源
     echo "yaml https://raw.githubusercontent.com/ros/rosdistro/master/rosdep/base.yaml" \
         >> /etc/ros/rosdep/sources.list.d/20-default.list && \
-    # 添加Ubuntu系统源
-    echo "yaml https://raw.githubusercontent.com/ros/rosdistro/master/rosdep/osx-homebrew.yaml" \
-        >> /etc/ros/rosdep/sources.list.d/20-default.list
+
 
 # 安装核心依赖（新增python3-pip）
 RUN apt-get update && \
