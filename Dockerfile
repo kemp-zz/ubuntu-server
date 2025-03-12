@@ -18,15 +18,17 @@ RUN apt-get update && \
 # Stage 2: ROS2 Humble 安装
 FROM base AS ros-installer
 
-# 配置官方ROS源（带APT缓存）
+# 配置官方ROS源和CUDA源（修复语法错误）
 RUN --mount=type=cache,target=/var/cache/apt \
     apt-get update && \
     apt-get install -y curl gnupg2 lsb-release && \
+    # 配置ROS官方源
     curl -sSL https://raw.githubusercontent.com/ros/rosdistro/master/ros.key -o /usr/share/keyrings/ros-archive-keyring.gpg && \
-    echo "deb [arch=$(dpkg --print-architecture) signed-by=/usr/share/keyrings/ros-archive-keyring.gpg] http://packages.ros.org/ros2/ubuntu $(lsb_release -cs) main" > /etc/apt/sources.list.d/ros2.list
+    echo "deb [arch=$(dpkg --print-architecture) signed-by=/usr/share/keyrings/ros-archive-keyring.gpg] http://packages.ros.org/ros2/ubuntu $(lsb_release -cs) main" > /etc/apt/sources.list.d/ros2.list && \
+    # 配置NVIDIA CUDA源
+    mkdir -p /usr/share/keyrings && \
     curl -sSL https://developer.download.nvidia.com/compute/cuda/repos/ubuntu2204/x86_64/3bf863cc.pub | gpg --dearmor -o /usr/share/keyrings/cuda-archive-keyring.gpg && \
     echo "deb [arch=$(dpkg --print-architecture) signed-by=/usr/share/keyrings/cuda-archive-keyring.gpg] https://developer.download.nvidia.com/compute/cuda/repos/ubuntu2204/x86_64 /" > /etc/apt/sources.list.d/cuda.list
-
 # 安装ROS核心组件（合并新包列表）
 RUN --mount=type=cache,target=/var/cache/apt \
     apt-get update && \
