@@ -1,6 +1,10 @@
 # 阶段1：基础环境构建
-FROM nvcr.io/nvidia/cuda:12.8.0-devel-ubuntu22.04 AS builder
+# 全局参数声明（必须在首个FROM之前）
+ARG CUDA_VERSION=12.8.0
+ARG BASE_IMAGE=nvcr.io/nvidia/cuda:${CUDA_VERSION}-devel-ubuntu22.04
 
+# 基础镜像阶段
+FROM ${BASE_IMAGE} AS builder
 ARG BASE_IMAGE=ubuntu:22.04
 FROM $BASE_IMAGE
 
