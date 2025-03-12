@@ -143,7 +143,7 @@ RUN --mount=type=cache,target=/var/cache/apt \
     dh-make \
     fakeroot \
     quilt \
-    bloom \
+    python3-bloom \
     python3-colcon-common-extensions \
     && apt-get clean \
     && rm -rf /var/lib/apt/lists/*
