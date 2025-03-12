@@ -31,6 +31,7 @@ COPY --from=ros-installer /etc/apt/sources.list.d/ros2.list /etc/apt/sources.lis
 # 安装核心依赖（移除非必要的GXF库）
 RUN apt-get update && \
     apt-get install -y --no-install-recommends \
+    curl \
     git cmake build-essential python3-rosdep python3-venv \
     libopencv-dev libeigen3-dev && \
     apt-get clean && \
