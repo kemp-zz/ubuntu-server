@@ -59,6 +59,7 @@ RUN --mount=type=cache,target=/var/cache/apt \
     quilt \
     ccache \
     libssl-dev \ 
+    libpcl-dev \
     openssl \
     dbus \
     nvidia-cuda-toolkit \
