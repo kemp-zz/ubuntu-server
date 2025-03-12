@@ -60,11 +60,13 @@ RUN --mount=type=cache,target=/var/cache/apt \
 # ====================== Stage 3: 构建环境 ======================
 FROM base AS builder
 
+
 # 继承ROS核心（安全复制）
 COPY --from=ros-core /opt/ros/humble /opt/ros/humble
 COPY --from=ros-core /usr/share/keyrings/ /usr/share/keyrings/
 COPY --from=ros-core /etc/apt/sources.list.d/ /etc/apt/sources.list.d/
 COPY --from=ros-core /usr/lib/python3/dist-packages /usr/lib/python3/dist-packages
+
 # 构建依赖（缓存优化）
 RUN --mount=type=cache,target=/var/cache/apt \
     apt-get update && \
@@ -73,9 +75,9 @@ RUN --mount=type=cache,target=/var/cache/apt \
         libssl-dev libffi-dev \
         python3-pip python3-setuptools \
         ros-humble-ament-cmake \
-        cmake git libopencv-dev ccache && \ 
+        cmake git libopencv-dev ccache && \
     apt-get clean && \
-    rm -rf /var/lib/apt/lists/* && \   
+    rm -rf /var/lib/apt/lists/* && \
     ln -s /usr/bin/ccache /usr/local/bin/gcc && \
     ln -s /usr/bin/ccache /usr/local/bin/g++
 
@@ -112,7 +114,6 @@ RUN --mount=type=cache,target=/root/.cache/ccache \
     # 构建后清理
     find . -name '*.o' -delete && \
     rm -rf /var/lib/apt/lists/*
-
 # ====================== Stage 4: 运行时镜像 ======================
 FROM base
 
