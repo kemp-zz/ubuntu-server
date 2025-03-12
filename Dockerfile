@@ -44,7 +44,7 @@ RUN --mount=type=cache,target=/var/cache/apt \
         python3-colcon-common-extensions \   
         ros-humble-rcl-logging-spdlog \      
         libspdlog-dev=1.9.2+ds-2 \ 
-        ros-humble-libstatistics-collector
+        ros-humble-libstatistics-collector \
         libspdlog-dev \
         python3-rosdep && \
     # Python 版本管理
