@@ -123,12 +123,14 @@ apt-get update && apt-get install -y \
     ros-humble-vision-msgs-rviz-plugins
 
 # Setup rosdep
-COPY rosdep/extra_rosdeps.yaml /etc/ros/rosdep/sources.list.d/nvidia-isaac.yaml
+RUN curl -sSL https://raw.githubusercontent.com/NVIDIA-ISAAC-ROS/isaac_ros_common/main/rosdep/extra_rosdeps.yaml \
+    -o /etc/ros/rosdep/sources.list.d/nvidia-isaac.yaml
+
+# 后续保持原有 RUN 命令不变
 RUN --mount=type=cache,target=/var/cache/apt \
     rosdep init \
     && echo "yaml file:///etc/ros/rosdep/sources.list.d/nvidia-isaac.yaml" | tee /etc/ros/rosdep/sources.list.d/00-nvidia-isaac.list \
     && rosdep update
-
 ####### -- Install updated packages over installed debians
 
 # Install negotiated from source
