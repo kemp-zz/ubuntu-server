@@ -169,7 +169,7 @@ ENV CMAKE_ARGS="-DCMAKE_BUILD_TYPE=Release -DCMAKE_CUDA_ARCHITECTURES=80"
 # 构建Isaac组件（启用并行编译）
 RUN . /opt/ros/humble/setup.sh && \
     cd /isaac_ws && \
-    rosdep install --from-paths src --ignore-src -y --skip-keys "isaac_ros_test" --rosdistro humble \
+    rosdep install --from-paths src --ignore-src -y --skip-keys "isaac_ros_test python3-pytest" --rosdistro humble \
     && colcon build \
         --symlink-install \
         --parallel-workers $(($(nproc) * 2)) \
