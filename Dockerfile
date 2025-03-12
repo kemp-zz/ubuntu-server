@@ -63,6 +63,7 @@ FROM base AS builder
 
 # 继承ROS核心（安全复制）
 COPY --from=ros-core /opt/ros/humble /opt/ros/humble
+COPY --from=ros-core /usr/bin/colcon /usr/bin/colcon
 COPY --from=ros-core /usr/share/keyrings/ /usr/share/keyrings/
 COPY --from=ros-core /etc/apt/sources.list.d/ /etc/apt/sources.list.d/
 COPY --from=ros-core /usr/lib/python3/dist-packages /usr/lib/python3/dist-packages
@@ -102,6 +103,12 @@ ENV CMAKE_ARGS="-DCMAKE_BUILD_TYPE=Release \
                 -DOPENSSL_ROOT_DIR=/usr/lib/x86_64-linux-gnu \
                 -DOPENSSL_CRYPTO_LIBRARY=/usr/lib/x86_64-linux-gnu/libcrypto.so \
                 -DOPENSSL_INCLUDE_DIR=/usr/include/openssl"
+                
+RUN [ -f "/usr/bin/colcon" ] || { echo "colcon binary missing"; exit 1; }
+
+# 设置ROS环境路径
+ENV PATH="/opt/ros/humble/bin:$PATH"                   
+              
 
 # 构建执行（安全缓存隔离）
 RUN --mount=type=cache,target=/root/.cache/ccache \
