@@ -18,6 +18,7 @@ RUN apt-get update && \
 # Stage 2: ROS2 Humble 安装
 FROM base AS ros-installer
 
+
 # 配置基础工具链
 RUN --mount=type=cache,target=/var/cache/apt \
     apt-get update && \
@@ -112,7 +113,7 @@ RUN --mount=type=cache,target=/var/cache/apt \
     && rosdep update --include-eol-distros \
     && apt-get clean \
     && rm -rf /var/lib/apt/lists/*
-
+ if [ ! -d "/opt/ros/humble" ]; then echo "ROS安装失败"; exit 1; fi
 # 升级setuptools并安装Python依赖
 RUN python3 -m pip install --upgrade --force-reinstall --target=/usr/lib/python3/dist-packages setuptools==65.7.0 \
     && python3 -m pip install -U --no-cache-dir \
@@ -137,6 +138,9 @@ COPY --from=ros-installer /etc/apt/sources.list.d/ros2.list /etc/apt/sources.lis
 COPY --from=ros-installer /etc/apt/sources.list.d/cuda.list /etc/apt/sources.list.d/
 COPY --from=ros-installer /usr/share/keyrings/ros-archive-keyring.gpg /usr/share/keyrings/
 COPY --from=ros-installer /usr/share/keyrings/cuda-archive-keyring.gpg /usr/share/keyrings/
+COPY --from=ros-installer /opt/ros/humble /opt/ros/humble
+RUN ls -l /opt/ros/humble && \
+    if [ ! -f "/opt/ros/humble/setup.sh" ]; then echo "ROS目录复制失败"; exit 1; fi
 
 
 # 安装核心构建工具链（强化开发依赖）
@@ -185,11 +189,10 @@ ENV CMAKE_ARGS="-DCMAKE_BUILD_TYPE=Release \
                 -DCMAKE_EXPORT_COMPILE_COMMANDS=ON"
 
 # 启用分层编译缓存
-RUN --mount=type=cache,target=/var/cache/apt \
-    --mount=type=cache,target=/root/.cache/ccache \
+RUN --mount=type=cache,target=/root/.cache/ccache \
+    ls /opt/ros/humble/setup.sh && \
     . /opt/ros/humble/setup.sh && \
     cd /isaac_ws && \
-    rosdep install --from-paths src --ignore-src -y --skip-keys "isaac_ros_test" && \
     colcon build \
         --symlink-install \
         --parallel-workers $(($(nproc) * 3)) \
