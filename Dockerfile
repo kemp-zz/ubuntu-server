@@ -28,14 +28,17 @@ COPY --from=ros-installer /opt/ros/humble /opt/ros/humble
 COPY --from=ros-installer /usr/share/keyrings/ros-archive-keyring.gpg /usr/share/keyrings/
 COPY --from=ros-installer /etc/apt/sources.list.d/ros2.list /etc/apt/sources.list.d/
 
-# 安装核心依赖（移除非必要的GXF库）
+# 安装核心依赖
 RUN apt-get update && \
     apt-get install -y --no-install-recommends \
+    build-essential cmake git \
     curl \
-    git cmake build-essential python3-rosdep python3-venv \
+    python3-rosdep python3-venv \
     libopencv-dev libeigen3-dev && \
     apt-get clean && \
-    rm -rf /var/lib/apt/lists/*
+    rm -rf /var/lib/apt/lists/* \
+           /var/cache/apt/archives/* \
+           /tmp/* && \
 
 # 配置rosdep源（仅保留官方源）
 RUN mkdir -p /etc/ros/rosdep/sources.list.d && \
