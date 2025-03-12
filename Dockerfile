@@ -34,7 +34,7 @@ RUN apt-get update && \
     python3-colcon-common-extensions \
     && rm -rf /var/lib/apt/lists/*
     
-RUN python3 -m pip install -U "vcstool>=2025.4.0" --no-cache-dir
+RUN python3 -m pip install -U "vcstool>=0.3.0" --no-cache-dir
 
 
 # ============== 阶段2：Isaac ROS Common安装 ==============
