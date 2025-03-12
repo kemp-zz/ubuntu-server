@@ -1,11 +1,14 @@
 # Stage 1: 基础镜像
+# Stage 1: 基础镜像
 FROM nvidia/cuda:12.8.0-base-ubuntu22.04 AS base
 
+# 新增Python警告抑制（来自colcon问题#454）
 ENV DEBIAN_FRONTEND=noninteractive \
     LANG=en_US.UTF-8 \
-    TZ=UTC
+    TZ=UTC \
+    PYTHONWARNINGS=ignore:::setuptools.command.install,ignore:::setuptools.command.easy_install,ignore:::pkg_resources,ignore:::setuptools.command.develop
 
-# 时区与locale配置（使用官方UTC时区）
+# 时区与locale配置
 RUN apt-get update && \
     apt-get install -y locales && \
     ln -fs /usr/share/zoneinfo/$TZ /etc/localtime && \
@@ -16,24 +19,104 @@ RUN apt-get update && \
 # Stage 2: ROS2 Humble 安装
 FROM base AS ros-installer
 
-# 配置官方ROS源
-RUN apt-get update && \
+# 配置官方ROS源（带APT缓存）
+RUN --mount=type=cache,target=/var/cache/apt \
+    apt-get update && \
     apt-get install -y curl gnupg2 lsb-release && \
     curl -sSL https://raw.githubusercontent.com/ros/rosdistro/master/ros.key -o /usr/share/keyrings/ros-archive-keyring.gpg && \
     echo "deb [arch=$(dpkg --print-architecture) signed-by=/usr/share/keyrings/ros-archive-keyring.gpg] http://packages.ros.org/ros2/ubuntu $(lsb_release -cs) main" > /etc/apt/sources.list.d/ros2.list
 
-# 安装ROS核心组件
-RUN apt-get update && \
+# 安装ROS核心组件（合并新包列表）
+RUN --mount=type=cache,target=/var/cache/apt \
+    apt-get update && \
     apt-get install -y \
     ros-humble-desktop \
     ros-humble-ros-base \
     ros-humble-navigation2 \
     ros-humble-nav2-bringup \
-    python3-rosdep && \
-    rosdep init && \
-    rosdep update --include-eol-distros && \
-    apt-get clean && \
-    rm -rf /var/lib/apt/lists/*
+    # 新增基础开发工具 ↓
+    devscripts \
+    dh-make \
+    fakeroot \
+    python3-bloom \
+    python3-colcon-common-extensions \
+    python3-pip \
+    python3-rosinstall-generator \
+    python3-vcstool \
+    quilt \
+    # 新增ROS组件 ↓
+    ros-humble-angles \
+    ros-humble-apriltag \
+    ros-humble-behaviortree-cpp-v3 \
+    ros-humble-bondcpp \
+    ros-humble-camera-calibration-parsers \
+    ros-humble-camera-info-manager \
+    ros-humble-compressed-image-transport \
+    ros-humble-compressed-depth-image-transport \
+    ros-humble-cv-bridge \
+    ros-humble-demo-nodes-cpp \
+    ros-humble-demo-nodes-py \
+    ros-humble-diagnostics \
+    ros-humble-diagnostic-aggregator \
+    ros-humble-diagnostic-updater \
+    ros-humble-example-interfaces \
+    ros-humble-foxglove-bridge \
+    ros-humble-image-geometry \
+    ros-humble-image-pipeline \
+    ros-humble-image-transport \
+    ros-humble-image-transport-plugins \
+    ros-humble-launch-xml \
+    ros-humble-launch-yaml \
+    ros-humble-launch-testing \
+    ros-humble-launch-testing-ament-cmake \
+    ros-humble-nav2-msgs \
+    ros-humble-nav2-mppi-controller \
+    ros-humble-nav2-graceful-controller \
+    ros-humble-ompl \
+    ros-humble-resource-retriever \
+    ros-humble-rmw-cyclonedds-cpp \
+    ros-humble-rmw-fastrtps-cpp \
+    ros-humble-rosbag2 \
+    ros-humble-rosbag2-compression-zstd \
+    ros-humble-rosbag2-cpp \
+    ros-humble-rosbag2-py \
+    ros-humble-rosbag2-storage-mcap \
+    ros-humble-rosbridge-suite \
+    ros-humble-rosx-introspection \
+    ros-humble-rqt-graph \
+    ros-humble-rqt-image-view \
+    ros-humble-rqt-reconfigure \
+    ros-humble-rqt-robot-monitor \
+    ros-humble-rviz2 \
+    ros-humble-rviz-common \
+    ros-humble-rviz-default-plugins \
+    ros-humble-sensor-msgs \
+    ros-humble-slam-toolbox \
+    ros-humble-v4l2-camera \
+    ros-humble-vision-opencv \
+    ros-humble-vision-msgs \
+    ros-humble-vision-msgs-rviz-plugins \
+    && rosdep init \
+    && rosdep update --include-eol-distros \
+    && apt-get clean \
+    && rm -rf /var/lib/apt/lists/*
+
+# 升级setuptools并安装Python依赖
+RUN python3 -m pip install --upgrade --force-reinstall --target=/usr/lib/python3/dist-packages setuptools==65.7.0 \
+    && python3 -m pip install -U --no-cache-dir \
+    flake8-blind-except \
+    flake8-builtins \
+    flake8-class-newline \
+    flake8-comprehensions \
+    flake8-deprecated \
+    flake8-docstrings \
+    flake8-import-order \
+    flake8-quotes \
+    matplotlib \
+    pandas \
+    rosbags \
+    boto3
+
 
 # Stage 3: Isaac ROS 构建环境
 FROM base AS isaac-builder
