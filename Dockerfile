@@ -58,10 +58,7 @@ RUN --mount=type=cache,target=/var/cache/apt \
     python3-vcstool \
     quilt \
     # 新增ROS组件 ↓
-    libpcl-dev \
-    libopencv-dev \
-    libopencv-contrib-dev \
-    libeigen3-dev \
+    libssl-dev \    
     libboost-all-dev \
     ros-humble-angles \
     ros-humble-apriltag \
