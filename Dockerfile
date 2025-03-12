@@ -43,12 +43,12 @@ RUN --mount=type=cache,target=/var/cache/apt \
     apt-get update && \
     apt-get install -y --no-install-recommends \
         ros-${ROS_DISTRO}-ros-base \
-        python3-colcon-common-extensions \  # 修正包名[3](@ref)
+        python3-colcon-common-extensions \ 
         ros-${ROS_DISTRO}-rcl-logging-spdlog \
         ros-${ROS_DISTRO}-ament-cmake-auto \
         ros-${ROS_DISTRO}-rclcpp \
         libspdlog-dev \
-        python3-rosdep && \  # 修复rosdep缺失问题[3](@ref)
+        python3-rosdep && \  
     ln -sf /usr/bin/python3 /usr/bin/python && \
     pip3 install --upgrade setuptools wheel && \
     rosdep init || true && \
