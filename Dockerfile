@@ -1,319 +1,209 @@
-# 使用 NVIDIA CUDA 12.8 基础镜像
-FROM nvidia/cuda:12.8.0-base-ubuntu22.04 AS base
+# Use the ROS2 Humble base on Ubuntu 22.04
+FROM ros:humble-ros-base-jammy
 
-# Store list of packages (must be first)
-RUN mkdir -p /opt/nvidia/isaac_ros_dev_base && dpkg-query -W | sort > /opt/nvidia/isaac_ros_dev_base/ros2_humble-start-packages.csv
+# Use Bash with better error handling
+SHELL ["/bin/bash", "-o", "pipefail", "-o", "errexit", "-c"]
 
-# disable terminal interaction for apt
-ENV DEBIAN_FRONTEND=noninteractive
-ENV SHELL=/bin/bash
-SHELL ["/bin/bash", "-c"]
+###########################
+# 1.) Bring system up to the latest ROS2 desktop (Humble)
+###########################
+RUN apt-get -y update
+RUN apt-get -y upgrade
+RUN apt-get -y install ros-humble-desktop
 
-RUN --mount=type=cache,target=/var/cache/apt \
-    apt-get update && \
-    apt-get install -y --no-install-recommends \
-        locales \
-        curl \
-        ca-certificates && \
-    locale-gen en_US en_US.UTF-8 && \
-    update-locale LC_ALL=en_US.UTF-8 LANG=en_US.UTF-8 && \
-    apt-get clean && \
-    rm -rf /var/lib/apt/lists/*
-# Avoid setup.py and easy_install deprecation warnings caused by colcon and setuptools
-# https://github.com/colcon/colcon-core/issues/454
-ENV PYTHONWARNINGS=ignore:::setuptools.command.install,ignore:::setuptools.command.easy_install,ignore:::pkg_resources,ignore:::setuptools.command.develop
-RUN echo "Warning: Using the PYTHONWARNINGS environment variable to silence setup.py and easy_install deprecation warnings caused by colcon"
+###########################
+# 2.) Temporarily remove ROS2 apt repository
+###########################
+RUN mv /etc/apt/sources.list.d/ros2-latest.list /root/
+RUN apt-get update
 
-# Add ROS 2 apt repository
-RUN --mount=type=cache,target=/var/cache/apt \
-    curl -sSL https://raw.githubusercontent.com/ros/rosdistro/master/ros.key -o /usr/share/keyrings/ros-archive-keyring.gpg \
-    && echo "deb [arch=$(dpkg --print-architecture) signed-by=/usr/share/keyrings/ros-archive-keyring.gpg] http://packages.ros.org/ros2/ubuntu $(source /etc/os-release && echo $UBUNTU_CODENAME) main" | tee /etc/apt/sources.list.d/ros2.list > /dev/null \
-    && apt-get update
+###########################
+# 3.) Comment out the catkin conflict in dpkg status
+###########################
+RUN sed -i -e 's|^Conflicts: catkin|#Conflicts: catkin|' /var/lib/dpkg/status
+RUN apt-get install -f
 
-# ROS fundamentals
-RUN --mount=type=cache,target=/var/cache/apt \
-apt-get update && apt-get install -y \
-        devscripts \
-        dh-make \
-        fakeroot \
-        libxtensor-dev \
-        python3-bloom \
-        python3-colcon-common-extensions \
-        python3-pip \
-        python3-pybind11 \
-        python3-pytest-cov \
-        python3-rosdep \
-        python3-rosinstall-generator \
-        python3-vcstool \
-        quilt
+###########################
+# 4.) Force-install these Python packages
+###########################
+RUN apt-get download python3-catkin-pkg
+RUN apt-get download python3-rospkg
+RUN apt-get download python3-rosdistro
+RUN dpkg --force-overwrite -i python3-catkin-pkg*.deb
+RUN dpkg --force-overwrite -i python3-rospkg*.deb
+RUN dpkg --force-overwrite -i python3-rosdistro*.deb
+RUN apt-get install -f
 
-# Upgrade system setuptools
-RUN python3 -m pip install --upgrade --force-reinstall --target=/usr/lib/python3/dist-packages setuptools==65.7.0
+###########################
+# 5.) Install partial ROS1 environment from Ubuntu (ros-desktop-dev)
+#    This is effectively a "Melodic-ish" snapshot on Ubuntu 22.04
+###########################
+RUN apt-get -y install ros-desktop-dev
 
-# ROS Python fundamentals
-RUN python3 -m pip install -U \
-        flake8-blind-except \
-        flake8-builtins \
-        flake8-class-newline \
-        flake8-comprehensions \
-        flake8-deprecated \
-        flake8-docstrings \
-        flake8-import-order \
-        flake8-quotes \
-        matplotlib \
-        pandas \
-        rosbags \
-        boto3 \
-        setuptools==65.7.0
-
-# Install ROS 2 Humble
-RUN --mount=type=cache,target=/var/cache/apt \
-apt-get update && apt-get install -y \
-    ros-humble-ros-base \
-    ros-humble-angles \
-    ros-humble-apriltag \
-    ros-humble-behaviortree-cpp-v3 \
-    ros-humble-bondcpp \
-    ros-humble-camera-calibration-parsers \
-    ros-humble-camera-info-manager \
-    ros-humble-compressed-image-transport \
-    ros-humble-compressed-depth-image-transport \
-    ros-humble-cv-bridge \
-    ros-humble-demo-nodes-cpp \
-    ros-humble-demo-nodes-py \
-    ros-humble-diagnostics \
-    ros-humble-diagnostic-aggregator \
-    ros-humble-diagnostic-updater \
-    ros-humble-example-interfaces \
-    ros-humble-foxglove-bridge \
-    ros-humble-image-geometry \
-    ros-humble-image-pipeline \
-    ros-humble-image-transport \
-    ros-humble-image-transport-plugins \
-    ros-humble-launch-xml \
-    ros-humble-launch-yaml \
-    ros-humble-launch-testing \
-    ros-humble-launch-testing-ament-cmake \
-    ros-humble-nav2-bringup \
-    ros-humble-nav2-msgs \
-    ros-humble-nav2-mppi-controller \
-    ros-humble-nav2-graceful-controller \
-    ros-humble-navigation2 \
-    ros-humble-ompl \
-    ros-humble-resource-retriever \
-    ros-humble-rmw-cyclonedds-cpp \
-    ros-humble-rmw-fastrtps-cpp \
-    ros-humble-rosbag2 \
-    ros-humble-rosbag2-compression-zstd \
-    ros-humble-rosbag2-cpp \
-    ros-humble-rosbag2-py \
-    ros-humble-rosbag2-storage-mcap \
-    ros-humble-rosbridge-suite \
-    ros-humble-rosx-introspection \
-    ros-humble-rqt-graph \
-    ros-humble-rqt-image-view \
-    ros-humble-rqt-reconfigure \
-    ros-humble-rqt-robot-monitor \
-    ros-humble-rviz2 \
-    ros-humble-rviz-common \
-    ros-humble-rviz-default-plugins \
-    ros-humble-sensor-msgs \
-    ros-humble-slam-toolbox \
-    ros-humble-v4l2-camera \
-    ros-humble-vision-opencv \
-    ros-humble-vision-msgs \
-    ros-humble-vision-msgs-rviz-plugins
-
-# Setup rosdep
-RUN curl -sSL https://raw.githubusercontent.com/NVIDIA-ISAAC-ROS/isaac_ros_common/main/rosdep/extra_rosdeps.yaml \
-    -o /etc/ros/rosdep/sources.list.d/nvidia-isaac.yaml
-
-# 后续保持原有 RUN 命令不变
-RUN --mount=type=cache,target=/var/cache/apt \
-    rosdep init \
-    && echo "yaml file:///etc/ros/rosdep/sources.list.d/nvidia-isaac.yaml" | tee /etc/ros/rosdep/sources.list.d/00-nvidia-isaac.list \
-    && rosdep update
-####### -- Install updated packages over installed debians
-
-# Install negotiated from source
-RUN --mount=type=cache,target=/var/cache/apt \
-    mkdir -p ${ROS_ROOT}/src && cd ${ROS_ROOT}/src \
-    && git clone https://github.com/osrf/negotiated && cd negotiated && git checkout master \
-    && source ${ROS_ROOT}/setup.bash \
-    && cd negotiated_interfaces && bloom-generate rosdebian && fakeroot debian/rules binary \
-    && cd ../ && apt-get install -y ./*.deb && rm ./*.deb \
-    && cd negotiated && bloom-generate rosdebian && fakeroot debian/rules binary \
-    && cd ../ && apt-get install -y ./*.deb && rm ./*.deb
-
-# Install image_proc from 55bf2a38 with backported resize node fix
-# https://github.com/ros-perception/image_pipeline/pull/786/commits/969d6c763df99b42844742946f7a70c605a72a15
-# Revert breaking QoS changes in https://github.com/ros-perception/image_pipeline/pull/814
-RUN --mount=type=cache,target=/var/cache/apt \
-    mkdir -p ${ROS_ROOT}/src && cd ${ROS_ROOT}/src \
-    && git clone https://github.com/ros-perception/image_pipeline.git && cd image_pipeline && git checkout 55bf2a38c327b829c3da444f963a6c66bfe0598f \
-    && git config user.email "builder@nvidia.com" && git config user.name "NVIDIA Builder" \
-    && git remote add fork https://github.com/schornakj/image_pipeline.git && git fetch fork && git cherry-pick 969d6c763df99b42844742946f7a70c605a72a15 \
-    && source ${ROS_ROOT}/setup.bash \
-    && cd image_proc && bloom-generate rosdebian && fakeroot debian/rules binary \
-    && cd ../ && apt-get install -y --allow-downgrades ./*.deb \
-    && echo "image_pipeline (image_proc) https://github.com/ros-perception/image_pipeline/pull/786/commits/969d6c763df99b42844742946f7a70c605a72a15 on 55bf2a38" >> ${ROS_ROOT}/VERSION \
-    && cd ../ && rm -Rf src build log
-
-
-
-# Install Moveit 2 ROS packages
-RUN --mount=type=cache,target=/var/cache/apt \
-apt-get update && apt-get install -y \
-    ros-humble-ament-cmake \
-    ros-humble-ament-cmake-gtest \
-    ros-humble-control-msgs \
-    ros-humble-controller-manager \
-    ros-humble-geometric-shapes \
-    ros-humble-gripper-controllers \
-    ros-humble-interactive-markers \
-    ros-humble-joint-state-broadcaster \
-    ros-humble-joint-state-publisher \
-    ros-humble-joint-trajectory-controller \
-    ros-humble-joy \
-    ros-humble-launch-param-builder \
-    ros-humble-moveit \
-    ros-humble-moveit-common \
-    ros-humble-moveit-configs-utils \
-    ros-humble-moveit-core \
-    ros-humble-moveit-msgs \
-    ros-humble-moveit-ros-perception \
-    ros-humble-moveit-ros-planning \
-    ros-humble-moveit-ros-planning-interface \
-    ros-humble-moveit-servo \
-    ros-humble-moveit-visual-tools \
-    ros-humble-pluginlib \
-    ros-humble-py-binding-tools \
-    ros-humble-robot-state-publisher \
-    ros-humble-ros2-control \
-    ros-humble-rviz-visual-tools \
-    ros-humble-rviz2 \
-    ros-humble-srdfdom \
-    ros-humble-tf2-eigen \
-    ros-humble-tf2-geometry-msgs \
-    ros-humble-tf2-ros \
-    ros-humble-topic-based-ros2-control \
-    ros-humble-ur \
-    ros-humble-ur-bringup \
-    ros-humble-ur-calibration \
-    ros-humble-ur-client-library \
-    ros-humble-ur-controllers \
-    ros-humble-ur-description \
-    ros-humble-ur-moveit-config \
-    ros-humble-ur-robot-driver \
-    ros-humble-ur-msgs \
-    ros-humble-xacro
-
-# Install various moveit_resources packages from source.
-RUN --mount=type=cache,target=/var/cache/apt \
-    mkdir -p ${ROS_ROOT}/src && cd ${ROS_ROOT}/src \
-    && git clone https://github.com/ros-planning/moveit_resources.git -b humble \
-    && cd moveit_resources && source ${ROS_ROOT}/setup.bash \
-    && cd fanuc_description && bloom-generate rosdebian && fakeroot debian/rules binary \
-    && cd .. && apt-get install -y ./*.deb && rm *.deb \
-    && cd fanuc_moveit_config && bloom-generate rosdebian && fakeroot debian/rules binary \
-    && cd .. && apt-get install -y ./*.deb && rm *.deb \
-    && cd panda_description && bloom-generate rosdebian && fakeroot debian/rules binary \
-    && cd .. && apt-get install -y ./*.deb && rm *.deb \
-    && cd panda_moveit_config && bloom-generate rosdebian && fakeroot debian/rules binary \
-    && cd .. && apt-get install -y ./*.deb && rm *.deb \
-    && cd pr2_description && bloom-generate rosdebian && fakeroot debian/rules binary \
-    && cd .. && apt-get install -y ./*.deb && rm *.deb \
-    && cd moveit_resources && bloom-generate rosdebian && fakeroot debian/rules binary \
-    && cd .. && apt-get install -y ./*.deb && rm *.deb
-
-# Install MoveIt task constructor from source.  The "demo" package depends on moveit_resources_panda_moveit_config,
-# installed from source above.
-RUN --mount=type=cache,target=/var/cache/apt \
-    mkdir -p ${ROS_ROOT}/src && cd ${ROS_ROOT}/src \
-    && git clone https://github.com/ros-planning/moveit_task_constructor.git -b humble \
-    && cd moveit_task_constructor && source ${ROS_ROOT}/setup.bash \
-    && cd msgs && bloom-generate rosdebian && fakeroot debian/rules binary \
-    && cd ../ && apt-get install -y ./*.deb && rm ./*.deb \
-    && cd rviz_marker_tools && bloom-generate rosdebian && fakeroot debian/rules binary \
-    && cd ../ && apt-get install -y ./*.deb && rm ./*.deb \
-    && cd core && bloom-generate rosdebian && fakeroot debian/rules binary DEB_BUILD_OPTIONS=nocheck \
-    && cd ../ && apt-get install -y ./*.deb && rm ./*.deb \
-    && cd capabilities && bloom-generate rosdebian && fakeroot debian/rules binary DEB_BUILD_OPTIONS=nocheck \
-    && cd ../ && apt-get install -y ./*.deb && rm ./*.deb \
-    && cd visualization && bloom-generate rosdebian && fakeroot debian/rules binary DEB_BUILD_OPTIONS=nocheck \
-    && cd ../ && apt-get install -y ./*.deb && rm ./*.deb \
-    && cd demo && bloom-generate rosdebian && fakeroot debian/rules binary DEB_BUILD_OPTIONS=nocheck \
-    && cd ../ && apt-get install -y ./*.deb && rm ./*.deb
-
-# MoveIt 2's hybrid planning package depends on moveit_resources_panda_moveit_config, installed from source above.
-RUN --mount=type=cache,target=/var/cache/apt \
-apt-get update && apt-get install -y \
-    ros-humble-moveit-hybrid-planning
-
-# Install moveit2_tutorials from source (depends on moveit_hybrid_planning).
-RUN --mount=type=cache,target=/var/cache/apt \
-    mkdir -p ${ROS_ROOT}/src && cd ${ROS_ROOT}/src \
-    && git clone https://github.com/ros-planning/moveit2_tutorials.git -b humble \
-    && cd moveit2_tutorials && source ${ROS_ROOT}/setup.bash \
-    && bloom-generate rosdebian && fakeroot debian/rules binary \
-    && cd ../ && apt-get install -y ./*.deb && rm ./*.deb
-
-# Install paho-mqtt for isaac_ros_mission_client
-RUN python3 -m pip install -U \
-        paho-mqtt==1.6.1
-
-# Install cuda-python for isaac_ros_pynitros
-RUN python3 -m pip install \
-        cuda-python
-RUN mkdir -p /tmp/ros-humble-cuda-python-placeholder && \
-    wget -O /tmp/ros-humble-cuda-python-placeholder/control \
-    https://raw.githubusercontent.com/NVIDIA-ISAAC-ROS/isaac_ros_dev/main/rosdep/ros-humble-cuda-python-placeholder/control && \
-    wget -O /tmp/ros-humble-cuda-python-placeholder/changelog \
-    https://raw.githubusercontent.com/NVIDIA-ISAAC-ROS/isaac_ros_dev/main/rosdep/ros-humble-cuda-python-placeholder/changelog
-
-# 构建并安装占位包
-RUN --mount=type=cache,target=/var/cache/apt \
-    cd /tmp/ros-humble-cuda-python-placeholder && \
-    mkdir -p debian && \
-    ln -s control debian/control && \
-    ln -s changelog debian/changelog && \
-    dpkg-buildpackage -us -uc -b && \
-    apt-get install -y ../ros-humble-cuda-python-placeholder_1.0.0_all.deb && \
-    rm -rf ../ros-humble-cuda-python-placeholder*
-
-# Patch gtest to make it work with CXX 17
-RUN sudo sed -i '917i #ifdef GTEST_INTERNAL_NEED_REDUNDANT_CONSTEXPR_DECL' /usr/src/googletest/googletest/include/gtest/internal/gtest-internal.h \
-    && sudo sed -i '920i #endif' /usr/src/googletest/googletest/include/gtest/internal/gtest-internal.h \
-    && sudo sed -i '2392i #if defined(GTEST_INTERNAL_CPLUSPLUS_LANG) && \\\n    GTEST_INTERNAL_CPLUSPLUS_LANG < 201703L\n#define GTEST_INTERNAL_NEED_REDUNDANT_CONSTEXPR_DECL 1\n#endif' \
-    /usr/src/googletest/googletest/include/gtest/internal/gtest-port.h
-
-# Install MCAP CLI
-ARG TARGETPLATFORM
-ARG MCAP_VERSION=v0.0.51
-RUN if [ "$TARGETPLATFORM" = "linux/amd64" ]; then \
-        wget https://github.com/foxglove/mcap/releases/download/releases%2Fmcap-cli%2F${MCAP_VERSION}/mcap-linux-amd64 && \
-        chmod +x mcap-linux-amd64 && \
-        mv mcap-linux-amd64 /opt/ros/humble/bin/mcap; \
-    elif [ "$TARGETPLATFORM" = "linux/arm64" ]; then \
-        wget https://github.com/foxglove/mcap/releases/download/releases%2Fmcap-cli%2F${MCAP_VERSION}/mcap-linux-arm64 && \
-        chmod +x mcap-linux-arm64 && \
-        mv mcap-linux-arm64 /opt/ros/humble/bin/mcap; \
-    else \
-        echo "Unknown architecture, can't install MCAP CLI" && \
-        exit -1; \
+# Fix ARM64 pkgconfig path issue
+RUN if [[ $(uname -m) = "arm64" || $(uname -m) = "aarch64" ]]; then \
+      cp /usr/lib/x86_64-linux-gnu/pkgconfig/* /usr/lib/aarch64-linux-gnu/pkgconfig/; \
     fi
 
-# Install custom vcstool with --delay flag to be robust against
-# GitHub rate-limiting (nvbugs/4872446)
-RUN mkdir -p /opt/ros/humble && cd /opt/ros/humble \
-    && git clone https://github.com/andrewbest-tri/vcstool.git -b andrewbest/delay \
-    && echo 'source /opt/ros/humble/vcstool/setup.sh' | tee --append /etc/bash.bashrc
+###########################
+# 6.) Restore the ROS2 apt repos and define build args
+###########################
+RUN mv /root/ros2-latest.list /etc/apt/sources.list.d/
+RUN apt-get -y update
 
-# Make sure that the workspace is always sourced
-RUN echo "source /opt/ros/${ROS_DISTRO}/setup.bash" | sudo tee --append /etc/bash.bashrc
+ARG ADD_ros_tutorials=1
+ARG ADD_grid_map=0
+ARG ADD_example_custom_msgs=0
 
-# Colcon auto complete
-RUN echo "source /usr/share/colcon_argcomplete/hook/colcon-argcomplete.bash" | sudo tee --append /etc/bash.bashrc
+RUN echo "ADD_ros_tutorials         = '$ADD_ros_tutorials'"
+RUN echo "ADD_grid_map              = '$ADD_grid_map'"
+RUN echo "ADD_example_custom_msgs   = '$ADD_example_custom_msgs'"
 
-# Store list of packages (must be last)
-RUN mkdir -p /opt/nvidia/isaac_ros_dev_base && dpkg-query -W | sort > /opt/nvidia/isaac_ros_dev_base/ros2_humble-end-packages.csv
+###########################
+# 6.1) Add additional ros_tutorials messages and services
+###########################
+RUN if [[ "$ADD_ros_tutorials" = "1" ]]; then \
+      git clone https://github.com/ros/ros_tutorials.git; \
+      cd ros_tutorials; \
+      git checkout melodic-devel; \
+      # Patch the code to use boost::placeholders::_1
+      sed -i 's/\b_1\b/boost::placeholders::_1/g' roscpp_tutorials/listener_with_userdata/listener_with_userdata.cpp; \
+      unset ROS_DISTRO; \
+      time colcon build --cmake-args -DCMAKE_BUILD_TYPE=Release; \
+    fi
+
+# unit test (optional)
+RUN if [[ "$ADD_ros_tutorials" = "1" ]]; then \
+      cd ros_tutorials; \
+      unset ROS_DISTRO; \
+      colcon test --event-handlers console_direct+; \
+      colcon test-result; \
+    fi
+
+
+###########################
+# 6.2) (Optional) Build grid_map from melodic-devel branches
+###########################
+# Navigation partial
+RUN if [[ "$ADD_grid_map" = "1" ]]; then \
+      apt-get -y install libsdl1.2-dev libsdl-image1.2-dev; \
+      git clone https://github.com/ros-planning/navigation.git; \
+      cd navigation; \
+      git checkout melodic-devel; \
+      unset ROS_DISTRO; \
+      time colcon build --cmake-args -DCMAKE_BUILD_TYPE=Release \
+        --packages-select map_server voxel_grid costmap_2d; \
+    fi
+
+# Filters
+RUN if [[ "$ADD_grid_map" = "1" ]]; then \
+      git clone https://github.com/ros/filters.git; \
+      cd filters; \
+      git checkout melodic-devel; \
+      unset ROS_DISTRO; \
+      time colcon build --cmake-args -DCMAKE_BUILD_TYPE=Release; \
+    fi
+
+# Grid_map
+RUN if [[ "$ADD_grid_map" = "1" ]]; then \
+      apt-get -y install libpcl-ros-dev libcv-bridge-dev; \
+      source navigation/install/setup.bash; \
+      source filters/install/setup.bash; \
+      git clone https://github.com/ANYbotics/grid_map.git; \
+      cd grid_map; \
+      git checkout 1.6.4; \
+      unset ROS_DISTRO; \
+      grep -r c++11 | grep CMakeLists | cut -f 1 -d ':' \
+        | xargs sed -i -e 's|std=c++11|std=c++17|g'; \
+      time colcon build --cmake-args -DCMAKE_BUILD_TYPE=Release \
+        --packages-select grid_map_msgs grid_map_core grid_map_octomap grid_map_sdf \
+                         grid_map_costmap_2d grid_map_cv grid_map_ros grid_map_loader; \
+    fi
+
+############################
+# 6.3) Custom messages example
+############################
+RUN if [[ "$ADD_example_custom_msgs" = "1" ]]; then \
+      git clone https://github.com/TommyChangUMD/custom_msgs.git; \
+      # Compile ROS1 (melodic-ish)
+      cd /custom_msgs/custom_msgs_ros1; \
+      unset ROS_DISTRO; \
+      time colcon build --cmake-args -DCMAKE_BUILD_TYPE=Release; \
+      # Compile ROS2 side
+      cd /custom_msgs/custom_msgs_ros2; \
+      source /opt/ros/humble/setup.bash; \
+      time colcon build --cmake-args -DCMAKE_BUILD_TYPE=Release; \
+    fi
+
+###########################
+# 7.) Compile ros1_bridge for Melodic ↔ Humble
+###########################
+RUN \
+    source /opt/ros/humble/setup.bash; \
+    \
+    if [[ "$ADD_ros_tutorials" = "1" ]]; then \
+      source ros_tutorials/install/setup.bash; \
+      apt-get -y install ros-humble-example-interfaces; \
+      source /opt/ros/humble/setup.bash; \
+    fi; \
+    if [[ "$ADD_grid_map" = "1" ]]; then \
+      source grid_map/install/setup.bash; \
+      apt-get -y install ros-humble-grid-map; \
+      source /opt/ros/humble/setup.bash; \
+    fi; \
+    if [[ "$ADD_example_custom_msgs" = "1" ]]; then \
+      source /custom_msgs/custom_msgs_ros1/install/setup.bash; \
+      source /custom_msgs/custom_msgs_ros2/install/setup.bash; \
+    fi; \
+    \
+    mkdir -p /ros-humble-ros1-bridge/src; \
+    cd /ros-humble-ros1-bridge/src; \
+    git clone https://github.com/smith-doug/ros1_bridge.git; \
+    cd ros1_bridge/; \
+    git checkout action_bridge_humble; \
+    cd ../..; \
+    MEMG=$(printf "%.0f" $(free -g | awk '/^Mem:/{print $2}')); \
+    NPROC=$(nproc); MIN=$((MEMG<NPROC ? MEMG : NPROC)); \
+    echo "Please wait... running $MIN concurrent jobs to build ros1_bridge"; \
+    time MAKEFLAGS="-j $MIN" colcon build --event-handlers console_direct+ \
+      --cmake-args -DCMAKE_BUILD_TYPE=Release
+
+###########################
+# 8.) Clean up
+###########################
+RUN apt-get -y clean all; apt-get -y update
+
+###########################
+# 9.) Pack all ROS1 dependent libraries
+###########################
+RUN if [[ $(uname -m) = "arm64" || $(uname -m) = "aarch64" ]]; then \
+      cp /usr/lib/x86_64-linux-gnu/pkgconfig/* /usr/lib/aarch64-linux-gnu/pkgconfig/; \
+    fi
+
+RUN ROS1_LIBS="libxmlrpcpp.so"; \
+    ROS1_LIBS="$ROS1_LIBS librostime.so"; \
+    ROS1_LIBS="$ROS1_LIBS libroscpp.so"; \
+    ROS1_LIBS="$ROS1_LIBS libroscpp_serialization.so"; \
+    ROS1_LIBS="$ROS1_LIBS librosconsole.so"; \
+    ROS1_LIBS="$ROS1_LIBS librosconsole_log4cxx.so"; \
+    ROS1_LIBS="$ROS1_LIBS librosconsole_backend_interface.so"; \
+    ROS1_LIBS="$ROS1_LIBS liblog4cxx.so"; \
+    ROS1_LIBS="$ROS1_LIBS libcpp_common.so"; \
+    ROS1_LIBS="$ROS1_LIBS libb64.so"; \
+    ROS1_LIBS="$ROS1_LIBS libaprutil-1.so"; \
+    ROS1_LIBS="$ROS1_LIBS libapr-1.so"; \
+    ROS1_LIBS="$ROS1_LIBS libactionlib.so.1d"; \
+    cd /ros-humble-ros1-bridge/install/ros1_bridge/lib; \
+    for soFile in $ROS1_LIBS; do \
+      soFilePath=$(ldd libros1_bridge.so | grep $soFile | awk '{print $3;}'); \
+      cp $soFilePath ./; \
+    done
+
+###########################
+# 10.) Output ros1_bridge tarball by default
+###########################
+RUN tar czf /ros-humble-ros1-bridge.tgz \
+    --exclude '*/build/*' --exclude '*/src/*' /ros-humble-ros1-bridge
+
+ENTRYPOINT []
+CMD cat /ros-humble-ros1-bridge.tgz; sync
