@@ -1,7 +1,11 @@
-# 使用官方 Ubuntu 18.04 镜像
+# -------------------------------
+# 基础镜像
+# -------------------------------
 FROM ubuntu:18.04
 
+# -------------------------------
 # 安装基础工具链
+# -------------------------------
 RUN apt-get update && \
     apt-get install -y --no-install-recommends \
         ca-certificates \
@@ -13,53 +17,52 @@ RUN apt-get update && \
     && rm -rf /var/lib/apt/lists/*
 
 # -------------------------------
-# 下载并解压 SDK（关键步骤）
+# 下载并解压 SDK（仅处理 Ubuntu18.04）
 # -------------------------------
-# 1. 下载 ZIP 包
+# 1. 下载 ZIP 包（外层压缩）
 RUN wget -O AstraSDK.zip "https://dl.orbbec3d.com/dist/astra/v2.1.3/AstraSDK-v2.1.3-Ubuntu-x86_64.zip"
 
-# 2. 第一次解压（得到 .tar.gz 文件）
-RUN unzip AstraSDK.zip && \
+# 2. 第一次解压：解压 ZIP 得到 Ubuntu18.04 的 .tar.gz 文件
+RUN unzip AstraSDK.zip "AstraSDK-v2.1.3-94bca0f52e-20210608T062039Z-Ubuntu18.04-x86_64.tar.gz" && \
     rm AstraSDK.zip
 
-# 3. 第二次解压（最终文件）
-RUN tar -xzf AstraSDK-v2.1.3-94bca0f52e-20210608T062039Z-Ubuntu18.04-x86_64.tar.gz && \
-    rm AstraSDK-v2.1.3-94bca0f52e-20210608T062039Z-Ubuntu18.04-x86_64.tar.gz
+# 3. 第二次解压：仅解压 Ubuntu18.04 的 SDK 到固定路径
+RUN tar -xzf AstraSDK-v2.1.3-94bca0f52e-20210608T062039Z-Ubuntu18.04-x86_64.tar.gz -C /opt && \
+    mv /opt/AstraSDK* /opt/AstraSDK && \
+    rm AstraSDK*.tar.gz
 
 # -------------------------------
 # 配置 udev 规则
 # -------------------------------
-# 创建目标目录（避免路径错误）
-RUN mkdir -p /etc/udev/rules.d
-
-# 写入规则（覆盖所有设备）
-RUN echo 'SUBSYSTEM=="usb", ATTR{idVendor}=="2bc5", MODE="0666", GROUP="video"\n\
-SUBSYSTEM=="usb", ATTR{idVendor}=="2bc5", ATTR{idProduct}=="0505", MODE="0666"\n\
-SUBSYSTEM=="usb", ATTR{idVendor}=="2bc5", ATTR{idProduct}=="060d", MODE="0666"\n\
-SUBSYSTEM=="usb", ATTR{idVendor}=="2bc5", ATTR{idProduct}=="0407", MODE="0666"' \
+RUN echo 'SUBSYSTEM="usb", ATTR{idVendor}="2bc5", MODE="0666", GROUP="video"\n\
+SUBSYSTEM="usb", ATTR{idVendor}="2bc5", ATTR{idProduct}="0505", MODE="0666"\n\
+SUBSYSTEM="usb", ATTR{idVendor}="2bc5", ATTR{idProduct}="060d", MODE="0666"\n\
+SUBSYSTEM="usb", ATTR{idVendor}="2bc5", ATTR{idProduct}="0407", MODE="0666"' \
 > /etc/udev/rules.d/99-orbbec.rules
 
-WORKDIR /AstraSDK*/install
+# -------------------------------
+# 安装 SDK
+# -------------------------------
+WORKDIR /opt/AstraSDK/install
 
-# 验证文件结构
-RUN ls -l && echo "SDK_PATH: $(pwd)"
+# 验证文件存在性（关键调试步骤）
+RUN ls -l && \
+    echo "INSTALLER PATH: $(pwd)/install.sh"
 
-# 安装依赖（关键）
-RUN apt-get update && \
-    apt-get install -y libusb-1.0-0-dev udev && \
-    rm -rf /var/lib/apt/lists/*
-
-# 执行安装（带错误捕获）
+# 执行安装脚本
 RUN chmod +x install.sh && \
     ./install.sh && \
     udevadm control --reload-rules && \
     udevadm trigger
+
 # -------------------------------
 # 清理中间文件
 # -------------------------------
 WORKDIR /
-RUN rm -rf /AstraSDK*
+RUN rm -rf /opt/AstraSDK*.tar.gz
 
+# -------------------------------
 # 设置运行时环境变量
+# -------------------------------
 ENV LD_LIBRARY_PATH=/usr/local/lib/astra
 CMD ["/bin/bash"]
