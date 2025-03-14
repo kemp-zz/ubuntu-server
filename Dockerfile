@@ -5,7 +5,8 @@ RUN apt-get update && \
     apt-get install -y --no-install-recommends \
     ca-certificates \         
     wget \               
-    unzip \               
+    unzip \   
+    udev \
     libusb-1.0-0-dev \      
     libgl1-mesa-glx \       
     && rm -rf /var/lib/apt/lists/*
