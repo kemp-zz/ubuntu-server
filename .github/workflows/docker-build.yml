@@ -2,43 +2,42 @@ name: Docker Build
 
 on:
   push:
-    branches: [ main ]
-  workflow_dispatch:
-    inputs:
-      add_ros_tutorials:
-        description: 'Disable ROS tutorials (0=disable, 1=enable)'
-        default: '0'
-      add_grid_map: 
-        description: 'Enable grid-map support (0=disable, 1=enable)'
-        default: '0'
-      add_example_custom_msgs:
-        description: 'Enable custom messages (0=disable, 1=enable)'
-        default: '0'
+    branches: [main]
+    paths:
+      - 'Dockerfile'  # 仅当Dockerfile变更时触发构建[6,8](@ref)
+  workflow_dispatch:  # 保留手动触发（无需参数）
 
 env:
-  IMAGE_NAME: fskemp/ubuntu  # 移除 CUDA_VERSION 变量
+  IMAGE_NAME: fskemp/ubuntu
+  CACHE_KEY: ${{ github.sha }}  # 唯一缓存键[1,6](@ref)
 
 jobs:
   build-push:
     runs-on: ubuntu-latest
     steps:
       - name: Checkout code
-        uses: actions/checkout@v3
+        uses: actions/checkout@v4  # 升级到最新版本[8](@ref)
 
       - name: Setup Buildx
-        uses: docker/setup-buildx-action@v2
+        uses: docker/setup-buildx-action@v3
         with:
           driver-opts: |
             image=moby/buildkit:master
 
       - name: Login to DockerHub
-        uses: docker/login-action@v2
+        uses: docker/login-action@v3
         with:
           username: ${{ secrets.DOCKERHUB_USERNAME }}
           password: ${{ secrets.DOCKERHUB_TOKEN }}
 
+      - name: Cache Docker layers  # 新增缓存优化[1,6](@ref)
+        uses: actions/cache@v3
+        with:
+          path: /tmp/.buildx-cache
+          key: ${{ env.CACHE_KEY }}
+
       - name: Build and Push
-        uses: docker/build-push-action@v4
+        uses: docker/build-push-action@v5
         with:
           context: .
           file: ./Dockerfile
@@ -47,9 +46,6 @@ jobs:
           tags: |
             ${{ env.IMAGE_NAME }}:latest
             ${{ env.IMAGE_NAME }}:${{ github.sha }}
-          build-args: |
-            ADD_ros_tutorials=${{ github.event.inputs.add_ros_tutorials || '0' }}
-            ADD_grid_map=${{ github.event.inputs.add_grid_map || '0' }}
-            ADD_example_custom_msgs=${{ github.event.inputs.add_example_custom_msgs || '0' }}
-          cache-from: type=gha
-          cache-to: type=gha,mode=max
+          cache-from: type=local,src=/tmp/.buildx-cache
+          cache-to: type=local,dest=/tmp/.buildx-cache,mode=max
+          outputs: type=image,name=${{ env.IMAGE_NAME }},push=true
