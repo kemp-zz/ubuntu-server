@@ -1,5 +1,4 @@
-# 使用官方 LTS 核心镜像
-FROM ubuntu:bionic-20230208
+FROM ubuntu:18.04 
 
 # 安装基础工具链（国际源）
 RUN apt-get update && \
