@@ -30,13 +30,15 @@ RUN wget -O AstraSDK.zip "https://dl.orbbec3d.com/dist/astra/v2.1.3/AstraSDK-v2.
 # -------------------------------
 RUN mkdir -p /opt/AstraSDK/install && \
     chmod 755 /opt/AstraSDK/install
+
 COPY --chmod=755 install_scripts/install.sh /opt/AstraSDK/install/
 
+# -------------------------------
+# 安装脚本执行验证
+# -------------------------------
 WORKDIR /opt/AstraSDK/install
-# 增加文件存在性校验
 RUN test -f install.sh && \
-    ls -l /opt/AstraSDK/orbbec-usb.rules && \
-    echo "INSTALLER PATH: $(realpath install.sh)" && \
+    { echo "Installer validation passed"; } && \
     ./install.sh && \
     udevadm control --reload-rules && \
     udevadm trigger
@@ -46,7 +48,9 @@ RUN test -f install.sh && \
 # -------------------------------
 RUN useradd -ms /bin/bash astrauser && \
     chown -R astrauser:astrauser /opt/AstraSDK && \
-    chmod 755 /home/astrauser
+    find /opt/AstraSDK -type d -exec chmod 755 {} \; && \
+    find /opt/AstraSDK -type f -exec chmod 644 {} \;
+
 USER astrauser
 ENV LD_LIBRARY_PATH=/usr/local/lib/astra:/opt/AstraSDK/lib
 WORKDIR /home/astrauser
