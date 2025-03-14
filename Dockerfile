@@ -22,9 +22,9 @@ RUN wget https://dl.orbbec3d.com/dist/astra/v2.1.3/AstraSDK-v2.1.3-Ubuntu-x86_64
 RUN mkdir -p /etc/udev/rules.d
 
 # 写入 udev 规则
-RUN echo 'SUBSYSTEM="usb", ATTR{idVendor}="2bc5", MODE="0666", GROUP="video"
-SUBSYSTEM="usb", ATTR{idVendor}="2bc5", ATTR{idProduct}="0505", MODE="0666"
-SUBSYSTEM="usb", ATTR{idVendor}="2bc5", ATTR{idProduct}="060d", MODE="0666"
+RUN echo 'SUBSYSTEM="usb", ATTR{idVendor}="2bc5", MODE="0666", GROUP="video"\n\
+SUBSYSTEM="usb", ATTR{idVendor}="2bc5", ATTR{idProduct}="0505", MODE="0666"\n\
+SUBSYSTEM="usb", ATTR{idVendor}="2bc5", ATTR{idProduct}="060d", MODE="0666"\n\
 SUBSYSTEM="usb", ATTR{idVendor}="2bc5", ATTR{idProduct}="0407", MODE="0666"' \
 > /etc/udev/rules.d/99-orbbec.rules
 
