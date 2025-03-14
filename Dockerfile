@@ -39,21 +39,21 @@ SUBSYSTEM=="usb", ATTR{idVendor}=="2bc5", ATTR{idProduct}=="060d", MODE="0666"\n
 SUBSYSTEM=="usb", ATTR{idVendor}=="2bc5", ATTR{idProduct}=="0407", MODE="0666"' \
 > /etc/udev/rules.d/99-orbbec.rules
 
-# -------------------------------
-# 安装 SDK
-# -------------------------------
-# 确认解压路径（重要！）
-WORKDIR /AstraSDK-v2.1.3-94bca0f52e-20210608T062039Z-Ubuntu18.04-x86_64/install
+WORKDIR /AstraSDK*/install
 
-# 检查文件是否存在（调试用）
-RUN ls -l
+# 验证文件结构
+RUN ls -l && echo "SDK_PATH: $(pwd)"
 
-# 安装 SDK
+# 安装依赖（关键）
+RUN apt-get update && \
+    apt-get install -y libusb-1.0-0-dev udev && \
+    rm -rf /var/lib/apt/lists/*
+
+# 执行安装（带错误捕获）
 RUN chmod +x install.sh && \
     ./install.sh && \
     udevadm control --reload-rules && \
     udevadm trigger
-
 # -------------------------------
 # 清理中间文件
 # -------------------------------
