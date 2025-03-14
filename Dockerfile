@@ -24,7 +24,8 @@ RUN wget -O AstraSDK.zip "https://dl.orbbec3d.com/dist/astra/v2.1.3/AstraSDK-v2.
     tar -xzf AstraSDK*.tar.gz -C /opt && \
     mv /opt/AstraSDK* /opt/AstraSDK && \
     rm -rf AstraSDK.zip AstraSDK*.tar.gz
-
+# 确保 install.sh 存放在构建上下文中的 install_scripts/ 子目录
+COPY --chmod=755 install_scripts/install.sh /opt/AstraSDK/install/
 # -------------------------------
 # 安装流程强化（增加预验证）
 # -------------------------------
