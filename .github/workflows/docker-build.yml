@@ -30,11 +30,6 @@ jobs:
           username: ${{ secrets.DOCKERHUB_USERNAME }}
           password: ${{ secrets.DOCKERHUB_TOKEN }}
 
-      - name: Cache Docker layers  # 新增缓存优化[1,6](@ref)
-        uses: actions/cache@v3
-        with:
-          path: /tmp/.buildx-cache
-          key: ${{ env.CACHE_KEY }}
 
       - name: Build and Push
         uses: docker/build-push-action@v5
