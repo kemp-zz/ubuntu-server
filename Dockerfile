@@ -18,15 +18,14 @@ RUN wget https://dl.orbbec3d.com/dist/astra/v2.1.3/AstraSDK-v2.1.3-Ubuntu-x86_64
     unzip AstraSDK-v2.1.3-Ubuntu-x86_64.zip && \
     tar -xzf AstraSDK-v2.1.3-94bca0f52e-20210608T062039Z-Ubuntu18.04-x86_64.tar.gz
 
-# 修正 udev 规则（覆盖全设备）
-RUN echo 'SUBSYSTEM=="usb", ATTR{idVendor}=="2bc5", MODE="0666", GROUP="video"\n\
-SUBSYSTEM=="usb", ATTR{idVendor}=="2bc5", ATTR{idProduct}=="0505", MODE="0666"\n\
-SUBSYSTEM=="usb", ATTR{idVendor}=="2bc5", ATTR{idProduct}=="060d", MODE="0666"\n\
-SUBSYSTEM=="usb", ATTR{idVendor}=="2bc5", ATTR{idProduct}=="0407", MODE="0666"' \
-    > /etc/udev/rules.d/99-orbbec.rules
+RUN printf 'SUBSYSTEM=="usb", ATTR{idVendor}="2bc5", MODE="0666", GROUP="video"\n\
+SUBSYSTEM=="usb", ATTR{idVendor}="2bc5", ATTR{idProduct}="0505", MODE="0666"\n\
+SUBSYSTEM=="usb", ATTR{idVendor}="2bc5", ATTR{idProduct}="060d", MODE="0666"\n\
+SUBSYSTEM=="usb", ATTR{idVendor}="2bc5", ATTR{idProduct}="0407", MODE="0666"\n' \
+> /etc/udev/rules.d/99-orbbec.rules
 
-# 安装 SDK
-WORKDIR AstraSDK-v2.1.3-94bca0f52e-20210608T062039Z-Ubuntu18.04-x86_64/install
+# 安装SDK（绝对路径）
+WORKDIR /AstraSDK-v2.1.3-94bca0f52e-20210608T062039Z-Ubuntu18.04-x86_64/install
 RUN chmod +x install.sh && \
     ./install.sh && \
     udevadm control --reload-rules && \
