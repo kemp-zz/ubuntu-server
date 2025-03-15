@@ -38,8 +38,8 @@ RUN apt-get update && \
         libpcl-dev \
         libopencv-dev \
         libeigen3-dev \
-        libcudnn9-cuda-12 \      # 更新为CUDA 12专用包
-        libcudnn9-dev-cuda-12 \  # 补充开发包
+        libcudnn9-cuda-12 \ 
+        libcudnn9-dev-cuda-12 \ 
         libcublas-12-8 \
         libcusparse-12-8 \
     && rm -rf /var/lib/apt/lists/*
@@ -56,7 +56,7 @@ RUN cd /ros_ws && \
         --cmake-args \
             -DCMAKE_BUILD_TYPE=Release \
             -DNVBLX_WITH_CUDA=ON \
-            -DCMAKE_CUDA_ARCHITECTURES=80  # 根据实际GPU架构调整
+            -DCMAKE_CUDA_ARCHITECTURES=80 
 
 # 配置运行时环境
 RUN echo "source /opt/ros/$ROS_DISTRO/setup.bash" >> ~/.bashrc && \
