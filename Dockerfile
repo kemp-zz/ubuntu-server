@@ -7,13 +7,18 @@ ENV DEBIAN_FRONTEND=noninteractive \
     NVIDIA_VISIBLE_DEVICES=all
 
 # 配置NVIDIA CUDA官方仓库（关键修复步骤）
-RUN apt-get update && apt-get install -y --no-install-recommends ca-certificates && \
+RUN apt-get update && \
+    apt-get install -y --no-install-recommends \
+        ca-certificates \
+        curl \
+        gnupg2 && \
     mkdir -p /usr/share/keyrings && \
-    curl -fsSL --retry 3 --retry-delay 2 https://nvidia.github.io/libnvidia-container/gpgkey | \
-    gpg --batch --dearmor -o /usr/share/keyrings/nvidia-container-toolkit-keyring.gpg && \
-    curl -fsSL --retry 3 --retry-delay 2 https://nvidia.github.io/libnvidia-container/stable/deb/nvidia-container-toolkit.list | \
-    sed 's#deb https://#deb [signed-by=/usr/share/keyrings/nvidia-container-toolkit-keyring.gpg] https://#g' | \
-    tee /etc/apt/sources.list.d/nvidia-container-toolkit.list
+    curl -fsSL --retry 3 --retry-delay 2 --max-time 30 \
+        https://nvidia.github.io/nvidia-container-runtime/gpgkey | \
+        gpg --batch --dearmor -o /usr/share/keyrings/nvidia-container-toolkit-keyring.gpg && \
+    echo "deb [signed-by=/usr/share/keyrings/nvidia-container-toolkit-keyring.gpg] \
+        https://nvidia.github.io/libnvidia-container/stable/ubuntu22.04/$(uname -m) /" | \
+        tee /etc/apt/sources.list.d/nvidia-container-toolkit.list
 
 # 安装ROS2核心组件（2025-Q2稳定版）
 RUN apt-get update && \
