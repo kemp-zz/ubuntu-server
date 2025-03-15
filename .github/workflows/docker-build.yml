@@ -3,17 +3,18 @@ name: Docker Build and Publish to GitHub Packages
 on:
   push:
     branches: [ "main" ]
+  workflow_dispatch:  # 新增手动触发事件[1](@ref)
 
 env:
-  REGISTRY: ghcr.io  # 使用 GitHub Container Registry
-  IMAGE_NAME: ${{ github.repository }}  # 镜像名称与仓库同名
+  REGISTRY: ghcr.io
+  IMAGE_NAME: ${{ github.repository }}
 
 jobs:
   build-and-push:
     runs-on: ubuntu-latest
     permissions:
       contents: read
-      packages: write  # 允许推送镜像到 GitHub Packages
+      packages: write
 
     steps:
       - name: Checkout code
@@ -26,16 +27,14 @@ jobs:
         uses: docker/login-action@v3
         with:
           registry: ${{ env.REGISTRY }}
-          username: ${{ github.actor }}  # 使用 GitHub 账户身份
-          password: ${{ secrets.GITHUB_TOKEN }}  # 自动生成的 token
+          username: ${{ github.actor }}
+          password: ${{ secrets.GITHUB_TOKEN }}
 
       - name: Extract metadata for Docker tags
         id: meta
         uses: docker/metadata-action@v5
         with:
           images: ${{ env.REGISTRY }}/${{ env.IMAGE_NAME }}
-          tags: |
-            type=sha,format=long  # 自动生成基于 commit SHA 的标签
 
       - name: Build and push Docker image
         uses: docker/build-push-action@v5
@@ -43,4 +42,3 @@ jobs:
           context: .
           push: true
           tags: ${{ steps.meta.outputs.tags }}
-          labels: ${{ steps.meta.outputs.labels }}
