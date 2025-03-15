@@ -1,44 +1,55 @@
-name: Docker Build and Publish to GitHub Packages
+name:  Docker build
 
 on:
+  workflow_dispatch:  # 支持手动触发
   push:
-    branches: [ "main" ]
-  workflow_dispatch:  # 新增手动触发事件[1](@ref)
+    tags:
+      - "v*"  # 通过tag触发构建（例如v1.2.3）
 
 env:
-  REGISTRY: ghcr.io
-  IMAGE_NAME: ${{ github.repository }}
+  IMAGE_NAME: isaac_ros_nvblox
+  DOCKER_REGISTRY: your-dockerhub-username  # 替换为您的DockerHub账号
 
 jobs:
   build-and-push:
     runs-on: ubuntu-latest
-    permissions:
-      contents: read
-      packages: write
-
     steps:
-      - name: Checkout code
-        uses: actions/checkout@v4
+      # 步骤1：检出代码（确保包含Dockerfile和nvidia-isaac.yaml）
+      - name: Checkout repository
+        uses: actions/checkout@v3  # 网页2的关键操作，确保所有文件被拉取
 
+      # 步骤2：设置跨平台构建环境
       - name: Set up Docker Buildx
-        uses: docker/setup-buildx-action@v3
-
-      - name: Login to GitHub Container Registry
-        uses: docker/login-action@v3
+        uses: docker/setup-buildx-action@v2  # 网页2的跨平台构建方案
         with:
-          registry: ${{ env.REGISTRY }}
-          username: ${{ github.actor }}
-          password: ${{ secrets.GITHUB_TOKEN }}
+          platforms: linux/amd64, linux/arm64  # 支持x86和ARM架构
 
-      - name: Extract metadata for Docker tags
-        id: meta
-        uses: docker/metadata-action@v5
+      # 步骤3：登录DockerHub
+      - name: Login to DockerHub
+        uses: docker/login-action@v2
         with:
-          images: ${{ env.REGISTRY }}/${{ env.IMAGE_NAME }}
+          username: ${{ secrets.DOCKERHUB_USERNAME }}
+          password: ${{ secrets.DOCKERHUB_TOKEN }}  # 建议使用Token而非密码
 
-      - name: Build and push Docker image
-        uses: docker/build-push-action@v5
+      # 步骤4：动态生成镜像标签
+      - name: Generate image tags
+        id: tags
+        run: |
+          if [[ "$GITHUB_REF" == refs/tags/* ]]; then
+            TAG=${GITHUB_REF#refs/tags/}
+          else
+            TAG=latest
+          fi
+          echo "tag=$TAG" >> $GITHUB_OUTPUT
+
+      # 步骤5：构建并推送镜像（核心步骤）
+      - name: Build and push
+        uses: docker/build-push-action@v4
         with:
-          context: .
+          context: .  # 网页2的关键配置，设置构建上下文为当前目录
+          file: ./Dockerfile  # 确保Dockerfile路径正确
+          platforms: ${{ steps.buildx.outputs.platforms }}
           push: true
-          tags: ${{ steps.meta.outputs.tags }}
+          tags: |
+            ${{ env.DOCKER_REGISTRY }}/${{ env.IMAGE_NAME }}:${{ steps.tags.outputs.tag }}
+            ${{ env.DOCKER_REGISTRY }}/${{ env.IMAGE_NAME }}:latest
