@@ -1,74 +1,78 @@
 FROM nvidia/cuda:12.8.0-base-ubuntu22.04 AS base
 
-# 环境变量配置（适配ROS2 Humble）
-ENV DEBIAN_FRONTEND=noninteractive \
-    LANG=en_US.UTF-8 \
+# 设置环境变量
+ENV LANG=en_US.UTF-8 \
     ROS_DISTRO=humble \
-    NVIDIA_VISIBLE_DEVICES=all
+    DEBIAN_FRONTEND=noninteractive \
+    ISAAC_ROS_WS=/workspaces/isaac_ros-dev
 
-# 配置NVIDIA CUDA官方仓库（关键修复步骤）
-RUN apt-get update && \
-    apt-get install -y --no-install-recommends \
-        ca-certificates \
-        curl \
-        gnupg2 && \
-    mkdir -p /usr/share/keyrings && \
-    curl -fsSL --retry 3 --retry-delay 2 --max-time 30 \
-        https://nvidia.github.io/nvidia-container-runtime/gpgkey | \
-        gpg --batch --dearmor -o /usr/share/keyrings/nvidia-container-toolkit-keyring.gpg && \
-    echo "deb [signed-by=/usr/share/keyrings/nvidia-container-toolkit-keyring.gpg] \
-        https://nvidia.github.io/libnvidia-container/stable/ubuntu22.04/$(uname -m) /" | \
-        tee /etc/apt/sources.list.d/nvidia-container-toolkit.list
-
-# 安装ROS2核心组件（2025-Q2稳定版）
-RUN apt-get update && \
-    apt-get install -y --no-install-recommends \
-        curl \
-        gnupg2 \
-        lsb-release \
-        software-properties-common && \
-    curl -sSL https://raw.githubusercontent.com/ros/rosdistro/master/ros.key -o /usr/share/keyrings/ros-archive-keyring.gpg && \
-    echo "deb [arch=$(dpkg --print-architecture) signed-by=/usr/share/keyrings/ros-archive-keyring.gpg] http://packages.ros.org/ros2/ubuntu $(lsb_release -cs) main" | tee /etc/apt/sources.list.d/ros2.list > /dev/null
-
-# 安装完整版ROS2及编译工具
-RUN apt-get update && \
-    apt-get install -y \
-        ros-${ROS_DISTRO}-desktop \
-        python3-colcon-common-extensions \
-        python3-rosdep \
-        ros-dev-tools && \
-    rosdep init && \
-    rosdep update --include-eol-distros
-
-# 安装nvblox依赖（CUDA 12.8适配版）
-RUN apt-get update && \
-    apt-get install -y --no-install-recommends \
-        libpcl-dev \
-        libopencv-dev \
-        libeigen3-dev \
-        libcudnn9-cuda-12 \ 
-        libcudnn9-dev-cuda-12 \ 
-        libcublas-12-8 \
-        libcusparse-12-8 \
+# 安装基础依赖
+RUN apt-get update && apt-get install -y --no-install-recommends \
+    curl \
+    gnupg2 \
+    lsb-release \
+    software-properties-common \
     && rm -rf /var/lib/apt/lists/*
 
-# 构建nvblox工作空间
-RUN mkdir -p /ros_ws/src && \
-    git clone -b ros2 https://github.com/ethz-asl/nvblox.git /ros_ws/src/nvblox
+# 设置ROS 2仓库
+RUN curl -sSL https://raw.githubusercontent.com/ros/rosdistro/master/ros.key -o /usr/share/keyrings/ros-archive-keyring.gpg && \
+    echo "deb [arch=$(dpkg --print-architecture) signed-by=/usr/share/keyrings/ros-archive-keyring.gpg] http://packages.ros.org/ros2/ubuntu $(lsb_release -cs) main" | tee /etc/apt/sources.list.d/ros2.list > /dev/null
 
-# 配置构建参数（启用CUDA加速）
-RUN cd /ros_ws && \
-    . /opt/ros/${ROS_DISTRO}/setup.sh && \
-    rosdep install --from-paths src --ignore-src -y --rosdistro ${ROS_DISTRO} && \
-    colcon build \
-        --cmake-args \
-            -DCMAKE_BUILD_TYPE=Release \
-            -DNVBLX_WITH_CUDA=ON \
-            -DCMAKE_CUDA_ARCHITECTURES=80 
+# 安装ROS 2核心组件
+RUN apt-get update && apt-get install -y --no-install-recommends \
+    ros-${ROS_DISTRO}-desktop \
+    python3-colcon-common-extensions \
+    python3-rosdep \
+    python3-pip \
+    && rm -rf /var/lib/apt/lists/*
 
-# 配置运行时环境
-RUN echo "source /opt/ros/$ROS_DISTRO/setup.bash" >> ~/.bashrc && \
-    echo "source /ros_ws/install/setup.bash" >> ~/.bashrc
+# 初始化rosdep
+RUN rosdep init && \
+    rosdep update
 
-# 启动命令（支持实时点云处理）
-CMD ["bash", "-c", "source ~/.bashrc && ros2 launch nvblox_ros nvblox.launch.py"]
+# 创建工作空间
+WORKDIR ${ISAAC_ROS_WS}/src
+RUN git clone -b release-3.1 https://github.com/NVIDIA-ISAAC-ROS/isaac_ros_common.git
+
+# 配置NVIDIA rosdep源
+COPY nvidia-isaac.yaml /etc/ros/rosdep/sources.list.d/nvidia-isaac.yaml
+RUN echo "yaml file:///etc/ros/rosdep/sources.list.d/nvidia-isaac.yaml" > /etc/ros/rosdep/sources.list.d/00-nvidia-isaac.list && \
+    rosdep update
+
+# 安装NVIDIA核心库
+RUN apt-key adv --fetch-key https://repo.download.nvidia.com/jetson/jetson-ota-public.asc && \
+    add-apt-repository "deb http://repo.download.nvidia.com/jetson/x86_64/ $(lsb_release -cs) r36.3 main" && \
+    apt-get update && apt-get install -y --no-install-recommends \
+    libnvvpi3 \
+    vpi3-dev \
+    && rm -rf /var/lib/apt/lists/*
+
+# 安装CV-CUDA
+RUN wget https://github.com/CVCUDA/CV-CUDA/releases/download/v0.5.0-beta/nvcv-lib-0.5.0_beta-cuda12-x86_64-linux.deb && \
+    dpkg -i nvcv-lib-0.5.0_beta-cuda12-x86_64-linux.deb && \
+    wget https://github.com/CVCUDA/CV-CUDA/releases/download/v0.5.0-beta/nvcv-dev-0.5.0_beta-cuda12-x86_64-linux.deb && \
+    dpkg -i nvcv-dev-0.5.0_beta-cuda12-x86_64-linux.deb && \
+    rm *.deb
+
+# 安装PyTorch
+RUN pip3 install --no-cache-dir --extra-index-url https://download.pytorch.org/whl/cu121 \
+    torch \
+    torchvision \
+    torchaudio
+
+# 克隆Nvblox仓库
+WORKDIR ${ISAAC_ROS_WS}/src
+RUN git clone -b release-3.1 https://github.com/NVIDIA-ISAAC-ROS/isaac_ros_nvblox.git
+
+# 安装依赖并构建
+WORKDIR ${ISAAC_ROS_WS}
+RUN rosdep install --from-paths src --ignore-src -r -y && \
+    colcon build --symlink-install
+
+# 设置环境变量
+ENV LD_LIBRARY_PATH=/usr/local/cuda/lib64:${LD_LIBRARY_PATH} \
+    PATH=/usr/local/cuda/bin:${PATH}
+
+# 设置默认工作目录
+WORKDIR ${ISAAC_ROS_WS}
+CMD ["/bin/bash"]
