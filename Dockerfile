@@ -1,89 +1,122 @@
-# 使用NVIDIA官方CUDA基础镜像
-FROM nvidia/cuda:12.8.0-base-ubuntu22.04 AS base
+FROM nvidia/cuda:12.8.0-devel-ubuntu22.04 AS base
+ENV TZ=Asia/Shanghai \
+    LANG=C.UTF-8 \
+    LC_ALL=C.UTF-8
+   
+RUN ln -snf /usr/share/zoneinfo/$TZ /etc/localtime && echo $TZ > /etc/timezone
 
-# 设置环境变量
-ENV LANG=en_US.UTF-8 \
-    ROS_DISTRO=humble \
-    DEBIAN_FRONTEND=noninteractive \
-    ISAAC_ROS_WS=/workspaces/isaac_ros-dev
-
-# 安装基础工具链
-RUN apt-get update && \
-    apt-get install -y --no-install-recommends \
-    ca-certificates \
+# 安装基础工具和ROS2依赖（新增colcon和udev）
+RUN apt-get update && apt-get install -y --no-install-recommends \
     curl \
     gnupg2 \
     lsb-release \
-    software-properties-common \
+    git \
     wget \
-    && rm -rf /var/lib/apt/lists/*
-
-# 配置ROS官方仓库
-RUN curl -sSL https://raw.githubusercontent.com/ros/rosdistro/master/ros.key -o /usr/share/keyrings/ros-archive-keyring.gpg && \
-    echo "deb [arch=$(dpkg --print-architecture) signed-by=/usr/share/keyrings/ros-archive-keyring.gpg] http://packages.ros.org/ros2/ubuntu $(lsb_release -cs) main" | tee /etc/apt/sources.list.d/ros2.list > /dev/null
-
-# 安装ROS核心组件
-RUN apt-get update && \
-    apt-get install -y --no-install-recommends \
-    ros-${ROS_DISTRO}-desktop \
-    python3-colcon-common-extensions \
-    python3-rosdep \
+    build-essential \
     python3-pip \
+    libx11-dev \
+    usbutils \
+    udev \
+    libgl1-mesa-dev \
+    libgtk-3-dev \    
     && rm -rf /var/lib/apt/lists/*
 
-# 初始化rosdep数据库
-RUN rosdep init && \
-    rosdep update
+FROM base AS ros2
+RUN curl -sSL https://raw.githubusercontent.com/ros/rosdistro/master/ros.key -o /usr/share/keyrings/ros-archive-keyring.gpg
+RUN echo "deb [arch=$(dpkg --print-architecture) signed-by=/usr/share/keyrings/ros-archive-keyring.gpg] http://packages.ros.org/ros2/ubuntu $(lsb_release -cs) main" > /etc/apt/sources.list.d/ros2.list
 
-# 创建工作空间目录
-WORKDIR ${ISAAC_ROS_WS}/src
+# 安装ROS2核心组件
+RUN apt-get update && apt-get install -y --no-install-recommends \
+    ros-humble-desktop \
+    libgflags-dev \
+    ros-humble-image-geometry \
+    ros-humble-camera-info-manager \
+    ros-humble-image-transport \
+    ros-humble-image-publisher \
+    libgoogle-glog-dev \
+    libusb-1.0-0-dev \
+    libeigen3-dev \
+    nlohmann-json3-dev \
+    python3-colcon-common-extensions \
+    && rm -rf /var/lib/apt/lists/*
 
-# 克隆NVIDIA官方仓库
-RUN git clone -b release-3.1 https://github.com/NVIDIA-ISAAC-ROS/isaac_ros_common.git
+# Orbbec设备规则
+RUN mkdir -p /tmp/orbbec-udev \
+    && cd /tmp/orbbec-udev \
+    && curl -sSLO https://raw.githubusercontent.com/orbbec/OrbbecSDK_ROS2/main/orbbec_camera/scripts/99-obsensor-libusb.rules \
+    && mkdir -p /etc/udev/rules.d \
+    && cp 99-obsensor-libusb.rules /etc/udev/rules.d/ \
+    && rm -rf /tmp/orbbec-udev
 
-# 配置rosdep源
-COPY nvidia-isaac.yaml /etc/ros/rosdep/sources.list.d/
-RUN echo "yaml file:///etc/ros/rosdep/sources.list.d/nvidia-isaac.yaml" > /etc/ros/rosdep/sources.list.d/00-nvidia-isaac.list && \
-    rosdep update
+# 创建工作空间（路径改为/ros2_ws）
+RUN mkdir -p ~/ros2_ws/src
 
-# 安装NVIDIA核心库
-RUN mkdir -p /tmp/keys && \
-    wget -P /tmp/keys https://repo.download.nvidia.com/jetson/jetson-ota-public.asc && \
-    apt-key add /tmp/keys/jetson-ota-public.asc && \
-    add-apt-repository "deb http://repo.download.nvidia.com/jetson/x86_64/ $(lsb_release -cs) r36.3 main" && \
-    apt-get update && \
-    apt-get install -y --no-install-recommends \
-    libnvvpi3 \
-    vpi3-dev \
-    && rm -rf /var/lib/apt/lists/* /tmp/keys
+# 安装libuvc
+WORKDIR ~/ros2_ws/src
+RUN git clone https://github.com/libuvc/libuvc \
+    && cd libuvc \
+    && mkdir build \
+    && cd build \
+    && cmake .. \
+    && make -j4 \
+    && make install \
+    && ldconfig
 
-# 安装CV-CUDA（下载到/tmp）
-RUN wget -P /tmp https://github.com/CVCUDA/CV-CUDA/releases/download/v0.5.0-beta/nvcv-lib-0.5.0_beta-cuda12-x86_64-linux.deb && \
-    dpkg -i /tmp/nvcv-lib-0.5.0_beta-cuda12-x86_64-linux.deb && \
-    wget -P /tmp https://github.com/CVCUDA/CV-CUDA/releases/download/v0.5.0-beta/nvcv-dev-0.5.0_beta-cuda12-x86_64-linux.deb && \
-    dpkg -i /tmp/nvcv-dev-0.5.0_beta-cuda12-x86_64-linux.deb && \
-    rm /tmp/*.deb
+# 克隆相机驱动
+WORKDIR ~/ros2_ws/src
+RUN git clone --depth 1 https://github.com/orbbec/ros2_astra_camera.git
 
-# 安装PyTorch官方包
-RUN pip3 install --no-cache-dir --extra-index-url https://download.pytorch.org/whl/cu121 \
-    torch \
-    torchvision \
-    torchaudio
+# 构建配置
+WORKDIR ~/ros2_ws
+RUN ["/bin/bash", "-c", "export PYTHONPATH=\"/usr/lib/python3/dist-packages:$PYTHONPATH\" \
+    && python3 -c \"import em; print(f'Active empy: {em.__file__}')\" \
+    && source /opt/ros/humble/setup.bash \
+    && colcon build --event-handlers console_direct+ --cmake-args -DCMAKE_BUILD_TYPE=Release"]
+    
+FROM ros2 AS open3d
 
-# 克隆Nvblox仓库
-WORKDIR ${ISAAC_ROS_WS}/src
-RUN git clone -b release-3.1 https://github.com/NVIDIA-ISAAC-ROS/isaac_ros_nvblox.git
+# 添加Kitware APT源并安装CMake 3.31.6
+RUN wget -O - https://apt.kitware.com/keys/kitware-archive-latest.asc 2>/dev/null | gpg --dearmor - > /usr/share/keyrings/kitware-archive-keyring.gpg \
+    && echo "deb [signed-by=/usr/share/keyrings/kitware-archive-keyring.gpg] https://apt.kitware.com/ubuntu/ jammy main" > /etc/apt/sources.list.d/kitware.list \
+    && apt-get update \
+    && apt-get install -y --no-install-recommends cmake=3.31.6-0kitware1ubuntu22.04.1
 
-# 构建工作空间
-WORKDIR ${ISAAC_ROS_WS}
-RUN rosdep install --from-paths src --ignore-src -r -y && \
-    colcon build --symlink-install && \
-    rm -rf /var/lib/apt/lists/*
+# 安装额外依赖
+RUN apt-get install -y --no-install-recommends \
+    libglfw3-dev \
+    libglew-dev \
+    libjsoncpp-dev \
+    libtbb-dev \
+    libomp-dev \
+    libc++-dev \
+    libc++abi-dev \
+    libc++1 \
+    libc++abi1 \
+    cuda-compat-12-8 \
+    nano
+  
 
-# 配置CUDA环境
-ENV LD_LIBRARY_PATH=/usr/local/cuda/lib64:${LD_LIBRARY_PATH} \
-    PATH=/usr/local/cuda/bin:${PATH}
+RUN git clone --depth 1 https://github.com/isl-org/Open3D.git \
+    && cd Open3D \
+    && mkdir build \
+    && cd build \
+    && cmake .. \
+        -DBUILD_SHARED_LIBS=ON \
+        -DBUILD_CUDA_MODULE=ON \
+        -DBUILD_GUI=ON \
+        -DCMAKE_CUDA_ARCHITECTURES="61" \
+        -DGLFW_USE_WAYLAND=OFF \
+        -DCUDA_SEPARABLE_COMPILATION=ON \
+        -DCUDA_TOOLKIT_ROOT_DIR=/usr/local/cuda \
+        -DCMAKE_BUILD_TYPE=Release \
+        -DCMAKE_CUDA_COMPILER=/usr/local/cuda/bin/nvcc \
+    && make -j$(nproc) \
+    && make install \
+    && cd / \
+    && rm -rf Open3D
 
-# 设置默认工作目录
-WORKDIR ${ISAAC_ROS_WS}
-CMD ["/bin/bash"]
+
+
+# 设置工作空间并启动shell
+WORKDIR ~/ros2_ws
+CMD ["bash"]
