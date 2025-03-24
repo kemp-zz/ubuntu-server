@@ -3,7 +3,7 @@ name: Docker Build
 on:
   push:
     branches: [ main ]
-    tags: [ 'v*' ]  # 版本标签触发镜像发布
+    tags: [ 'v*' ]
 
 env:
   REGISTRY: ghcr.io
