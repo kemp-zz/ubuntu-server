@@ -17,6 +17,11 @@ jobs:
     - name: Checkout
       uses: actions/checkout@v4
 
+    - name: Clean Disk
+      run: |
+        docker system prune -a --volumes
+        git clean -dfx
+
     - name: Setup Buildx
       uses: docker/setup-buildx-action@v3
       with:
