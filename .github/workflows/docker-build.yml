@@ -17,6 +17,18 @@ jobs:
     - name: Checkout
       uses: actions/checkout@v4
 
+    - name: Clean Workspace
+      run: |
+        rm -rf /home/runner/work/_temp/*
+        rm -rf /home/runner/work/_work/*
+
+    - name: Clean System Cache
+      run: |
+        sudo apt-get clean
+        sudo rm -rf /var/lib/apt/lists/*
+        sudo rm -rf /tmp/*
+        sudo rm -rf /var/tmp/*
+
     - name: Setup Docker
       run: |
         sudo systemctl start docker
