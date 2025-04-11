@@ -1,9 +1,7 @@
 # 基础镜像（CUDA 11.8 + Ubuntu 22.04）
 FROM nvidia/cuda:11.8.0-devel-ubuntu22.04
 
-# 元数据
-LABEL maintainer="Your Name <your.email@example.com>"
-LABEL org.opencontainers.image.description="ROS 2 Humble + CUDA 11.8 + JupyterLab Development Container"
+
 
 # 构建参数（支持多平台配置）
 ARG GRAPHICS_PLATFORM=opensource
@@ -24,27 +22,18 @@ ENV DEBIAN_FRONTEND=noninteractive \
     OCCUPANCY_CONFIG_PATH=${WORKSPACE}/nerf_config/occupancy_config.yaml \
     PYTORCH_CUDA_ALLOC_CONF=expandable_segments:True \
     TORCH_EXTENSIONS_DIR=${WORKSPACE}/torch_extensions \
-    TORCH_CUDA_ARCH_LIST="6.1" \      
-    TCNN_CUDA_ARCHITECTURES="61" \    
-    CUDA_HOME=/usr/local/cuda-11.8 \  
+    TORCH_CUDA_ARCH_LIST="6.1" \
+    TCNN_CUDA_ARCHITECTURES="61" \
+    CUDA_HOME=/usr/local/cuda-11.8 \
     PYTHONPATH=${WORKSPACE}:${PYTHONPATH:-}
-    
-RUN apt-key adv --keyserver keyserver.ubuntu.com --recv-keys 3bf863cc \
-    && echo "deb https://developer.download.nvidia.com/compute/cuda/repos/ubuntu2204/x86_64 /" > /etc/apt/sources.list.d/cuda.list \
-    && apt-get update
 
-# 安装tiny-cuda-nn
-RUN git clone https://github.com/NVlabs/tiny-cuda-nn.git /tmp/tcnn \
-    && cd /tmp/tcnn/bindings/torch \
-    && /bin/bash -c "source ~/myenv/bin/activate \
-        && export TCNN_CUDA_ARCHITECTURES=${TCNN_CUDA_ARCHITECTURES} \
-        && export CUDA_HOME=${CUDA_HOME} \
-        && python setup.py install" \
-    && rm -rf /tmp/tcnn
+# 下载 NVIDIA CUDA 公钥到指定目录
+RUN wget https://developer.download.nvidia.com/compute/cuda/repos/ubuntu2204/x86_64/cuda-archive-keyring.gpg -O /usr/share/keyrings/cuda-archive-keyring.gpg
 
+# 添加 CUDA 源，并使用 Signed-By 指定密钥
+RUN echo "deb [signed-by=/usr/share/keyrings/cuda-archive-keyring.gpg] https://developer.download.nvidia.com/compute/cuda/repos/ubuntu2204/x86_64/ /" > /etc/apt/sources.list.d/cuda.list
 
-# 第一阶段：基础系统配置
-RUN apt-get install -y --no-install-recommends \
+RUN apt-get update　&&　apt-get install -y --no-install-recommends \
     lsb-release \
     build-essential \         
     cuda-nvcc-11-8=11.8.89-1 \ 
