@@ -32,8 +32,7 @@ jobs:
         sudo rm -rf /opt/az/lib/python3.10/site-packages  # Azure CLI Python 依赖
         sudo rm -rf /opt/ghc  # Haskell 工具链[6](@ref)
 
-        # 临时文件清理
-        find . -type f -size +100M -delete  # 删除工作目录大文件[5](@ref)
+
 
     - name: Post-Clean Disk Usage
       run: |
