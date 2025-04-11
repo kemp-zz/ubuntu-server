@@ -20,11 +20,25 @@ jobs:
     - name: Analyze Disk Usage
       run: |   
         df -h /  
-  
-        sudo du -h -d 1 / | sort -hr | head -n 10
-        ls -lh $RUNNER_TEMP $GITHUB_WORKSPACE
-        sudo du -h --max-depth=1 /usr 2>/dev/null | sort -hr
-        ls -lh /opt/* | awk '{print $9 ": " $5}'
+         sudo du -h /usr/local/* -d 0 2>/dev/null | sort -hr | head -n10
+
+
+        sudo rm -rf /usr/local/lib/android_sdk/emulator   
+        sudo rm -rf /usr/local/share/powershell/modules 
+        # 分析各应用占用
+        ls -lh /opt | awk '{printf "%s: %s\n", $9, $5}'
+
+
+        sudo rm -rf /opt/hostedtoolcache/CodeQL        
+        sudo rm -rf /opt/az/lib/python3.10/site-packages 
+    - name: Setup Python
+      uses: actions/setup-python@v4
+      with:
+        cache: 'pip'  
+
+    - name: Clean workspace
+      run: |      
+        find . -type f -size +100M -delete
 
     - name: Setup Docker
       run: |
