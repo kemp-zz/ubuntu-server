@@ -3,40 +3,18 @@ name: Docker Build
 on: [push, workflow_dispatch]
 
 env:
-  REGISTRY: ghcr.io
-  IMAGE_NAME: ${{ github.repository }}
+  DOCKERHUB_USERNAME: fskemp
+  REPOSITORY_NAME: ubuntu
 
 jobs:
   build:
     runs-on: ubuntu-latest
     permissions:
       contents: read
-      packages: write
 
     steps:
     - name: Checkout
       uses: actions/checkout@v4
-
-
-    - name: Clean Unnecessary Files
-      run: |
-        echo "▂▂▂▂▂▂▂▂ 深度清理 ▂▂▂▂▂▂▂▂"
-        # 系统级工具链清理
-        sudo rm -rf /usr/local/lib/android_sdk/emulator
-        sudo rm -rf /usr/local/share/powershell/modules
-        sudo rm -rf /usr/share/dotnet  # .NET SDK 清理[6](@ref)
-        sudo rm -rf /usr/local/lib/android  # Android SDK 清理[6](@ref)
-
-        # 托管工具缓存清理
-        sudo rm -rf /opt/hostedtoolcache/CodeQL  # CodeQL 工具链[6](@ref)
-        sudo rm -rf /opt/az/lib/python3.10/site-packages  # Azure CLI Python 依赖
-        sudo rm -rf /opt/ghc  # Haskell 工具链[6](@ref)
-
-
-    - name: Post-Clean Disk Usage
-      run: |
-        echo "▂▂▂▂▂▂▂▂ 删除后磁盘使用情况 ▂▂▂▂▂▂▂▂"
-        df -h /
 
 
     - name: Setup Docker
@@ -49,14 +27,11 @@ jobs:
         docker system prune -a --volumes --force
         docker system df -v
 
- 
-
-    - name: Login to GHCR
+    - name: Login to Docker Hub
       uses: docker/login-action@v3
       with:
-        registry: ${{ env.REGISTRY }}
-        username: ${{ github.actor }}
-        password: ${{ secrets.GITHUB_TOKEN }}
+        username: ${{ env.DOCKERHUB_USERNAME }}
+        password: ${{ secrets.DOCKERHUB_TOKEN }}
 
     - name: Build and Push
       uses: docker/build-push-action@v5
@@ -65,5 +40,5 @@ jobs:
         platforms: linux/amd64
         push: ${{ github.event_name != 'pull_request' }}
         tags: |
-          ${{ env.REGISTRY }}/${{ env.IMAGE_NAME }}:latest
-          ${{ env.REGISTRY }}/${{ env.IMAGE_NAME }}:${{ github.sha }}
+          ${{ env.DOCKERHUB_USERNAME }}/${{ env.REPOSITORY_NAME }}:latest
+          ${{ env.DOCKERHUB_USERNAME }}/${{ env.REPOSITORY_NAME }}:${{ github.sha }}
