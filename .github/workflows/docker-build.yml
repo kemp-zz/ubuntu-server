@@ -17,6 +17,11 @@ jobs:
     - name: Checkout
       uses: actions/checkout@v4
 
+    - name: Setup Docker
+      run: |
+        sudo systemctl start docker
+        sudo systemctl enable docker
+
     - name: Clean Docker Resources
       run: |
         docker system prune -a --volumes --force
