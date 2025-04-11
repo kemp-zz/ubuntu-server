@@ -23,6 +23,7 @@ jobs:
   
         sudo du -h -d 1 / | sort -hr | head -n 10
         ls -lh $RUNNER_TEMP $GITHUB_WORKSPACE
+        sudo du -h --max-depth=1 /usr 2>/dev/null | sort -hr
 
     - name: Setup Docker
       run: |
