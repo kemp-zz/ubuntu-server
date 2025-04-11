@@ -1,96 +1,86 @@
-# 使用 NVIDIA CUDA 11.8 开发环境作为基础镜像
-FROM nvidia/cuda:11.8.0-devel-ubuntu22.04
+# 使用NVIDIA CUDA基础镜像
+FROM nvidia/cuda:11.8.0-base-ubuntu22.04
 
-LABEL org.opencontainers.image.source="https://github.com/SimonSchwaiger/ros-ml-container"
-
-# 构建参数
-ARG GRAPHICS_PLATFORM=opensource
-ARG PYTHONVER=3.10
-ARG ROS_DISTRO=humble
-ARG IGNITION_VERSION=fortress
-ARG ROS2_WS=/opt/ros2_ws
-
-# 环境配置
+# 设置环境变量
 ENV DEBIAN_FRONTEND=noninteractive \
-    LANG=C.UTF-8 \
-    LC_ALL=C.UTF-8 \
-    ROS2_WS=${ROS2_WS} \
-    NVIDIA_VISIBLE_DEVICES=all \
-    NVIDIA_DRIVER_CAPABILITIES=all
+    ROS_DISTRO=humble \
+    TCNN_CUDA_ARCHITECTURES=61 \
+    SHELL=/bin/bash \
+    PYTHONVER=3.10
 
-# 安装基础图形库（NVIDIA 镜像已包含驱动）
+# 安装基础系统工具
 RUN apt-get update && apt-get install -y --no-install-recommends \
-    libgl1-mesa-glx libgl1-mesa-dri mesa-utils && \
-    rm -rf /var/lib/apt/lists/*
-
-# 时区配置
-RUN ln -sf /usr/share/zoneinfo/Etc/UTC /etc/localtime && \
-    apt-get update && apt-get install -y tzdata && rm -rf /var/lib/apt/lists/*
-
-# 安装 ROS 构建依赖
-RUN apt-get update && apt-get install -y --no-install-recommends \
-    bash-completion \
+    software-properties-common \
+    wget \
+    curl \
+    gnupg2 \
+    lsb-release \
     build-essential \
     cmake \
     git \
-    python3-flake8 \
-    python3-pip \
-    python3-pytest \
-    software-properties-common \
-    wget \
-    && rm -rf /var/lib/apt/lists/*
+    ninja-build
 
-# 配置 ROS 软件源
-RUN wget -qO- https://raw.githubusercontent.com/ros/rosdistro/master/ros.key | apt-key add - && \
-    echo "deb [arch=$(dpkg --print-architecture)] http://packages.ros.org/ros2/ubuntu jammy main" > /etc/apt/sources.list.d/ros2-latest.list
+# 设置ROS2仓库
+RUN curl -sSL https://raw.githubusercontent.com/ros/rosdistro/master/ros.key -o /usr/share/keyrings/ros-archive-keyring.gpg && \
+    echo "deb [arch=$(dpkg --print-architecture) signed-by=/usr/share/keyrings/ros-archive-keyring.gpg] http://packages.ros.org/ros2/ubuntu $(lsb_release -cs) main" > /etc/apt/sources.list.d/ros2.list
 
-# 安装 ROS 开发工具
+# 安装ROS2核心组件
 RUN apt-get update && apt-get install -y --no-install-recommends \
-    python3-colcon-common-extensions \
-    python3-rosdep \
+    ros-$ROS_DISTRO-ros-base \
+    ros-$ROS_DISTRO-rosbridge-server \
     ros-dev-tools \
-    && rosdep init && rosdep update
+    python3-colcon-common-extensions \
+    python3-rosdep
 
-# 安装指定 ROS 发行版
-RUN apt-get update && apt-get install -y --no-install-recommends \
-    ros-${ROS_DISTRO}-ros-base \
-    ros-${ROS_DISTRO}-rqt* \
-    ros-${ROS_DISTRO}-rosbridge-server \
-    && rm -rf /var/lib/apt/lists/*
+# 初始化rosdep
+RUN rosdep init && rosdep update
 
-# 配置 Python 环境
-RUN apt-get update && apt-get install -y --no-install-recommends \
-    python${PYTHONVER} \
-    python${PYTHONVER}-dev \
-    python${PYTHONVER}-venv \
-    && update-alternatives --install /usr/bin/python3 python3 /usr/bin/python${PYTHONVER} 1
+# 安装Python工具链
+RUN add-apt-repository -y ppa:deadsnakes/ppa && \
+    apt-get update && apt-get install -y \
+    python$PYTHONVER \
+    python$PYTHONVER-dev \
+    python3-pip \
+    python3-venv
 
-# 创建 Python 虚拟环境
-RUN python3 -m venv /opt/venv && \
-    /opt/venv/bin/pip install --upgrade pip setuptools
+# 创建Python虚拟环境
+RUN python$PYTHONVER -m venv /opt/venv
+ENV PATH="/opt/venv/bin:$PATH"
 
-# 安装 Python 依赖
-ADD requirements.txt .
-RUN /opt/venv/bin/pip install -r requirements.txt && \
-    /opt/venv/bin/pip install launchpadlib rosinstall_generator empy catkin_tools
+# 安装Python依赖
+RUN pip install --upgrade pip setuptools && \
+    pip install \
+    jupyterlab \
+    numpy==1.24.4 \
+    torch==2.1.2+cu118 \
+    torchvision==0.16.2+cu118 \
+    rosinstall_generator \
+    rosinstall \
+    empy \
+    catkin_tools
 
-# 创建工作空间并初始化
-RUN mkdir -p ${ROS2_WS}/src
-WORKDIR ${ROS2_WS}
+# 安装TinyCUDA-NN
+RUN pip install git+https://github.com/NVlabs/tiny-cuda-nn/#subdirectory=bindings/torch
 
-# 初始化工作区（可选：添加示例包）
-RUN touch ${ROS2_WS}/src/COLCON_IGNORE  # 防止空目录导致构建错误
+# 安装图形相关依赖
+RUN apt-get install -y --no-install-recommends \
+    libgl1-mesa-glx \
+    libgl1-mesa-dri \
+    libx11-6 \
+    libxext6 \
+    libxrender1 \
+    ffmpeg \
+    freeglut3-dev
 
-# 清理构建文件（根据实际需求调整）
-# RUN rm -rf ${ROS2_WS}/src  # 如果不需要保留空目录
+# 配置JupyterLab
+RUN mkdir -p /root/.jupyter/lab/workspaces && \
+    echo "c.ServerApp.ip = '0.0.0.0'" >> /root/.jupyter/jupyter_server_config.py && \
+    echo "c.ServerApp.allow_root = True" >> /root/.jupyter/jupyter_server_config.py
 
-# 配置 Shell 环境
-RUN echo "source /opt/ros/${ROS_DISTRO}/setup.bash" >> ~/.bashrc && \
-    echo "source ${ROS2_WS}/install/local_setup.bash" >> ~/.bashrc && \
-    echo "source /opt/venv/bin/activate" >> ~/.bashrc
+# 设置ROS环境
+RUN echo "source /opt/ros/$ROS_DISTRO/setup.bash" >> /root/.bashrc
 
-# 设置入口点
+# 启动脚本
 COPY entrypoint.sh /entrypoint.sh
 RUN chmod +x /entrypoint.sh
 ENTRYPOINT ["/entrypoint.sh"]
-CMD ["bash"]
