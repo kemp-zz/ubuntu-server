@@ -9,36 +9,26 @@ LABEL org.opencontainers.image.description="ROS 2 Humble + CUDA 11.8 + JupyterLa
 ARG GRAPHICS_PLATFORM=opensource
 ARG PYTHONVER=3.10
 ARG ROS_DISTRO=humble
-ARG IGNITION_VERSION=fortress
-# Workspace
 ARG ROS2_WS=/opt/ros2_ws
 
-#############################################################
-##########          REAL BUILD STARTS HERE         ##########
+# 环境变量
+ENV DEBIAN_FRONTEND=noninteractive \
+    LANG=C.UTF-8 \
+    LC_ALL=C.UTF-8 \
+    SHELL=/bin/bash \
+    ROS_DISTRO=${ROS_DISTRO} \
+    ROS2_WS=${ROS2_WS} \
+    WORKSPACE=/nerf_ws \
+    MODEL_CONFIG_PATH=${WORKSPACE}/nerf_config/model_config.yaml \
+    TRAINER_CONFIG_PATH=${WORKSPACE}/nerf_config/trainer_config.yaml \
+    OCCUPANCY_CONFIG_PATH=${WORKSPACE}/nerf_config/occupancy_config.yaml \
+    PYTORCH_CUDA_ALLOC_CONF=expandable_segments:True \
+    TORCH_EXTENSIONS_DIR=${WORKSPACE}/torch_extensions \
+    TORCH_CUDA_ARCH_LIST="8.6" \
+    PYTHONPATH=${WORKSPACE}:${PYTHONPATH:-}
 
-# Default platform = opensource gpu acceleration
-# Default python version is 3.10
-# ROS Version
-# Workspace
-
-# Env variables
-ENV DEBIAN_FRONTEND=noninteractive
-ENV LANG C.UTF-8
-ENV LC_ALL C.UTF-8
-ENV ROS_DISTRO ${ROS_DISTRO}
-ENV IGNITION_VERSION ${IGNITION_VERSION}
-ENV ROS2_WS ${ROS2_WS}
-ENV WORKSPACE=/nerf_ws
-ENV MODEL_CONFIG_PATH=${WORKSPACE}/nerf_config/model_config.yaml
-ENV TRAINER_CONFIG_PATH=${WORKSPACE}/nerf_config/trainer_config.yaml
-ENV OCCUPANCY_CONFIG_PATH=${WORKSPACE}/nerf_config/occupancy_config.yaml
-ENV PYTORCH_CUDA_ALLOC_CONF=expandable_segments:True
-ENV TORCH_EXTENSIONS_DIR=${WORKSPACE}/torch_extensions
-ENV TORCH_CUDA_ARCH_LIST="8.6"
-ENV PYTHONPATH=${WORKSPACE}:${PYTHONPATH:-}
-
-# Install basics
-RUN apt-get update && apt-get install -q -y --no-install-recommends \
+# 第一阶段：基础系统配置
+RUN apt-get update && apt-get install -y --no-install-recommends \
     lsb-release \
     && rm -rf /var/lib/apt/lists/*
 
@@ -47,12 +37,12 @@ RUN apt-key adv --keyserver hkp://keyserver.ubuntu.com:80 --recv-keys C1CF6E31E6
     && echo "deb http://packages.ros.org/ros2/ubuntu jammy main" > /etc/apt/sources.list.d/ros2-latest.list
 
 # Mesa for GUI
-RUN apt-get update && apt-get install -q -y --no-install-recommends \
+RUN apt-get update && apt-get install -y --no-install-recommends \
     libgl1-mesa-glx libgl1-mesa-dri \
     && rm -rf /var/lib/apt/lists/*
 
 # Install more dependencies including flake8
-RUN apt-get update && apt-get install -q -y --no-install-recommends \
+RUN apt-get update && apt-get install -y --no-install-recommends \
     bash-completion \
     dirmngr \
     gnupg2 \
@@ -107,7 +97,7 @@ RUN colcon mixin add default \
     colcon metadata update
 
 # More ROS-related and general packages
-RUN apt-get update && apt-get install -y ros-$ROS_DISTRO-ros-base ros-dev-tools ros-$ROS_DISTRO-rqt* ros-$ROS_DISTRO-rosbridge-server
+RUN apt-get update && apt-get install -y ros-${ROS_DISTRO}-ros-base ros-dev-tools ros-${ROS_DISTRO}-rqt* ros-${ROS_DISTRO}-rosbridge-server
 
 # Python Version Setup using deadsnakes (more control over versions)
 RUN apt-get update && apt-get install -y software-properties-common \
@@ -157,9 +147,12 @@ RUN git clone https://github.com/NVlabs/tiny-cuda-nn.git /tmp/tcnn \
     && python setup.py install" \
     && rm -rf /tmp/tcnn
 
-# Workspace creation and ROS package copying
+# Workspace creation
 RUN mkdir -p ${ROS2_WS}/src
-COPY ./src ${ROS2_WS}/src
+
+# Clone astra camera driver
+WORKDIR ${ROS2_WS}/src
+RUN git clone https://github.com/orbbec/ros2_astra_camera.git
 
 # Setup and compile the ROS workspace
 RUN /bin/bash -c "source /opt/ros/$ROS_DISTRO/setup.bash \
@@ -185,6 +178,7 @@ ENV SHELL=/bin/bash
 # Add entrypoint script
 COPY entrypoint.sh /entrypoint.sh
 RUN chmod +x /entrypoint.sh
+
 ENTRYPOINT [ "/entrypoint.sh" ]
 
 # Command to run
