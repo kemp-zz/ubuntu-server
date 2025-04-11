@@ -1,8 +1,13 @@
-# Default platform = opensource gpu acceleration
+# 基础镜像（CUDA 11.8 + Ubuntu 22.04）
+FROM nvidia/cuda:11.8.0-devel-ubuntu22.04
+
+# 元数据
+LABEL maintainer="Your Name <your.email@example.com>"
+LABEL org.opencontainers.image.description="ROS 2 Humble + CUDA 11.8 + JupyterLab Development Container"
+
+# 构建参数（支持多平台配置）
 ARG GRAPHICS_PLATFORM=opensource
-# Default python version is 3.8
 ARG PYTHONVER=3.10
-# ROS Version
 ARG ROS_DISTRO=humble
 ARG IGNITION_VERSION=fortress
 # Workspace
@@ -11,35 +16,52 @@ ARG ROS2_WS=/opt/ros2_ws
 #############################################################
 ##########          REAL BUILD STARTS HERE         ##########
 
-## Build container from specified source
-FROM ros_ml_container:baseimage
-LABEL org.opencontainers.image.source="https://github.com/SimonSchwaiger/ros-ml-container"
+# Default platform = opensource gpu acceleration
+# Default python version is 3.10
+# ROS Version
+# Workspace
 
-ENV DEBIAN_FRONTEND="noninteractive"
+# Env variables
+ENV DEBIAN_FRONTEND=noninteractive
+ENV LANG C.UTF-8
+ENV LC_ALL C.UTF-8
+ENV ROS_DISTRO ${ROS_DISTRO}
+ENV IGNITION_VERSION ${IGNITION_VERSION}
+ENV ROS2_WS ${ROS2_WS}
+ENV WORKSPACE=/nerf_ws
+ENV MODEL_CONFIG_PATH=${WORKSPACE}/nerf_config/model_config.yaml
+ENV TRAINER_CONFIG_PATH=${WORKSPACE}/nerf_config/trainer_config.yaml
+ENV OCCUPANCY_CONFIG_PATH=${WORKSPACE}/nerf_config/occupancy_config.yaml
+ENV PYTORCH_CUDA_ALLOC_CONF=expandable_segments:True
+ENV TORCH_EXTENSIONS_DIR=${WORKSPACE}/torch_extensions
+ENV TORCH_CUDA_ARCH_LIST="8.6"
+ENV PYTHONPATH=${WORKSPACE}:${PYTHONPATH:-}
 
-# Install mesa for GUI
+# Install basics
 RUN apt-get update && apt-get install -q -y --no-install-recommends \
-    libgl1-mesa-glx libgl1-mesa-dri
+    lsb-release \
+    && rm -rf /var/lib/apt/lists/*
 
-ARG ROS2_WS
-ENV ROS2_WS $ROS2_WS
+# Add ROS 2 apt repo and key
+RUN apt-key adv --keyserver hkp://keyserver.ubuntu.com:80 --recv-keys C1CF6E31E6BADE8868B172B4F42ED6FBAB17C654 \
+    && echo "deb http://packages.ros.org/ros2/ubuntu jammy main" > /etc/apt/sources.list.d/ros2-latest.list
 
-## Recreate ROS humble devel image
-# ------------------------
-# https://github.com/osrf/docker_images/blob/master/ros2/source/devel/Dockerfile
-# setup timezone
-RUN echo 'Etc/UTC' > /etc/timezone && \
-    ln -s /usr/share/zoneinfo/Etc/UTC /etc/localtime && \
-    apt-get update && \
-    apt-get install -q -y --no-install-recommends tzdata && \
-    rm -rf /var/lib/apt/lists/*
+# Mesa for GUI
+RUN apt-get update && apt-get install -q -y --no-install-recommends \
+    libgl1-mesa-glx libgl1-mesa-dri \
+    && rm -rf /var/lib/apt/lists/*
 
-# install packages
+# Install more dependencies including flake8
 RUN apt-get update && apt-get install -q -y --no-install-recommends \
     bash-completion \
     dirmngr \
     gnupg2 \
-    lsb-release \
+    software-properties-common \
+    build-essential \
+    cmake \
+    git \
+    wget \
+    curl \
     python3-flake8 \
     python3-flake8-blind-except \
     python3-flake8-builtins \
@@ -52,22 +74,15 @@ RUN apt-get update && apt-get install -q -y --no-install-recommends \
     python3-pip \
     python3-pytest-repeat \
     python3-pytest-rerunfailures \
+    python3-venv \
     && rm -rf /var/lib/apt/lists/*
 
-# setup sources.list
-RUN echo "deb http://packages.ros.org/ros2/ubuntu jammy main" > /etc/apt/sources.list.d/ros2-latest.list
+# Python setup and upgrade
+RUN update-alternatives --install /usr/bin/python3 python3 /usr/bin/python${PYTHONVER} 1 \
+    && python3 -m pip install --upgrade pip wheel setuptools
 
-# setup keys
-RUN apt-key adv --keyserver hkp://keyserver.ubuntu.com:80 --recv-keys C1CF6E31E6BADE8868B172B4F42ED6FBAB17C654
-
-# setup environment
-ENV LANG C.UTF-8
-ENV LC_ALL C.UTF-8
-
-# install bootstrap tools
+# Basic ROS setup
 RUN apt-get update && apt-get install --no-install-recommends -y \
-    build-essential \
-    git \
     python3-colcon-common-extensions \
     python3-colcon-mixin \
     python3-rosdep \
@@ -75,21 +90,15 @@ RUN apt-get update && apt-get install --no-install-recommends -y \
     python3-vcstool \
     && rm -rf /var/lib/apt/lists/*
 
-# install python packages
+# More pip packages
 RUN pip3 install -U \
     argcomplete pytest
-# add pytest here manually as a workaround for intel-based builds
 
-# This is a workaround for pytest not found causing builds to fail
-# Following RUN statements tests for regression of https://github.com/ros2/ros2/issues/722
-RUN pip3 freeze | grep pytest \
-    && python3 -m pytest --version
-
-# bootstrap rosdep
+# ROS Dep initialization
 RUN rosdep init \
     && rosdep update
 
-# setup colcon mixin and metadata
+# Setting up colcon mixin and metadata
 RUN colcon mixin add default \
       https://raw.githubusercontent.com/colcon/colcon-mixin-repository/master/index.yaml && \
     colcon mixin update && \
@@ -97,73 +106,32 @@ RUN colcon mixin add default \
       https://raw.githubusercontent.com/colcon/colcon-metadata-repository/master/index.yaml && \
     colcon metadata update
 
-# clone source
-RUN mkdir -p $ROS2_WS/src
-WORKDIR $ROS2_WS
-
-# build source
-RUN colcon \
-    build \
-    --cmake-args \
-      -DSECURITY=ON --no-warn-unused-cli \
-    --symlink-install
-
-# setup bashrc
-RUN cp /etc/skel/.bashrc ~/
-
-WORKDIR /
-## Official ROS image recreated
-# ------------------------
-
-# Set ROS and ignition versions and install them
-ARG ROS_DISTRO
-ARG IGNITION_VERSION
-ENV ROS_DISTRO ${ROS_DISTRO}
-ENV IGNITION_VERSION ${IGNITION_VERSION}
-
-# Fully install ros2 instead of bootstrapping it and install rqt for debugging and rosbridge for web-based visualisation
+# More ROS-related and general packages
 RUN apt-get update && apt-get install -y ros-$ROS_DISTRO-ros-base ros-dev-tools ros-$ROS_DISTRO-rqt* ros-$ROS_DISTRO-rosbridge-server
 
-# Install ignition gazebo
-#RUN apt-get install -y ros-$ROS_DISTRO-ros-ign ignition-$IGNITION_VERSION
-
-# Update os and ros packages due to fix buggy opengl
-RUN apt-get update && apt-get upgrade -y
-
-# install python3, pip and venv
-# you can change your preferred python version here and it will be installed from the deadsnakes ppa
-# some tensorflow implementations (such as gym baselines 2) will require python 3.7
-# Forward PYTHONVER argument to the current container
-ARG PYTHONVER
-ARG GRAPHICS_PLATFORM
-
+# Python Version Setup using deadsnakes (more control over versions)
 RUN apt-get update && apt-get install -y software-properties-common \
     && add-apt-repository -y ppa:deadsnakes/ppa \
-    && apt-get update && apt-get install -y python$PYTHONVER python$PYTHONVER-dev python$PYTHONVER-tk
+    && apt-get update && apt-get install -y python${PYTHONVER} python${PYTHONVER}-dev python${PYTHONVER}-tk
 
+# More tools
 RUN apt-get update && apt-get install -y --no-install-recommends \
-    python3-pip \
-    python3-venv \
     cmake \
     libopenmpi-dev \
     zlib1g-dev \
-    imagemagick
+    imagemagick \
+    && rm -rf /var/lib/apt/lists/*
 
 RUN pip3 install virtualenv
 
-# Create virtualenv using the correct python interpreter
-# Intel is an edgecase here, since they offer a custom interpreter in the intel distribution for python
-RUN if [ "$GRAPHICS_PLATFORM" = "intel" ]; then \
-    virtualenv -p /opt/intel/oneapi/intelpython/latest/bin/python ~/myenv; else \
-    virtualenv -p /usr/bin/python$PYTHONVER ~/myenv; fi
+# Setup virtualenv using deadsnakes's Python
+RUN virtualenv -p /usr/bin/python${PYTHONVER} ~/myenv
 
-# Upgrade to latest pip
+# Activate the virtualenv and upgrade pip
 RUN /bin/bash -c "source ~/myenv/bin/activate \
     && pip3 install --upgrade pip"
 
-# Install ros python prerequisites
-# Pytest is explicitly installed to handle the intel edgecase
-# Netifaces, pymongo and Pillow are installed for rosbridge
+# Install ROS python dependencies within the virtualenv
 RUN /bin/bash -c "source ~/myenv/bin/activate \
     && pip3 install launchpadlib \
     rosinstall_generator \
@@ -177,38 +145,47 @@ RUN /bin/bash -c "source ~/myenv/bin/activate \
     netifaces pymongo Pillow \
     && pip3 install --upgrade setuptools"
 
-# Install required python packages
-ADD ./requirements.txt .
-
+# NeRF related stuff + JupyterLab
 RUN /bin/bash -c "source ~/myenv/bin/activate \
-    && pip3 install -r requirements.txt"
+    && pip3 install jupyterlab nerfstudio pypose --extra-index-url https://download.pytorch.org/whl/cu118 --trusted-host download.pytorch.org \
+    torch==2.1.2+cu118 torchvision==0.16.2+cu118"
 
-# Copy ROS packages for compilation in container
-COPY ./src $ROS2_WS/src
+# Tiny CUDA NN
+RUN git clone https://github.com/NVlabs/tiny-cuda-nn.git /tmp/tcnn \
+    && cd /tmp/tcnn/bindings/torch \
+    && /bin/bash -c "source ~/myenv/bin/activate \
+    && python setup.py install" \
+    && rm -rf /tmp/tcnn
 
-# Install ros dependencies
-RUN apt-get update && rosdep update && rosdep install --from-paths $ROS2_WS/src -i -y --rosdistro $ROS_DISTRO
+# Workspace creation and ROS package copying
+RUN mkdir -p ${ROS2_WS}/src
+COPY ./src ${ROS2_WS}/src
 
-# Compile workspace
+# Setup and compile the ROS workspace
+RUN /bin/bash -c "source /opt/ros/$ROS_DISTRO/setup.bash \
+    && rosdep update \
+    && rosdep install --from-paths $ROS2_WS/src -i -y --rosdistro $ROS_DISTRO"
+
+# colcon build
 RUN /bin/bash -c "source /opt/ros/$ROS_DISTRO/setup.bash \
     && cd $ROS2_WS \
     && colcon build --symlink-install"
 
-# Remove src folder used for compilation, since the real src folder will be mounted at runtime
-RUN rm -rf $ROS2_WS/src
-
 # Cleanup
 RUN rm -rf /var/lib/apt/lists/*
 
-# Add ROS and venv sourcing to bashrc for interactive debugging
+# Add sourcing to bashrc (make sure to source venv, then ROS)
+RUN echo "source ~/myenv/bin/activate" >> ~/.bashrc
 RUN echo "source /opt/ros/$ROS_DISTRO/setup.bash" >> ~/.bashrc
 RUN echo "source $ROS2_WS/install/local_setup.bash" >> ~/.bashrc
-RUN echo "source ~/myenv/bin/activate" >> ~/.bashrc
 
-# Set shell env variable for jupyterlab (this fixes autocompletion in web-based shell)
+# Set SHELL env variable (fixes autocompletion in web-based shell)
 ENV SHELL=/bin/bash
 
-# Add entrypoint
-ADD entrypoint.sh /entrypoint.sh
+# Add entrypoint script
+COPY entrypoint.sh /entrypoint.sh
 RUN chmod +x /entrypoint.sh
 ENTRYPOINT [ "/entrypoint.sh" ]
+
+# Command to run
+CMD ["jupyter-lab", "--ip=0.0.0.0", "--port=8888", "--no-browser", "--allow-root"]
