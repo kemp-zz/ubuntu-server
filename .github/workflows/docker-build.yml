@@ -17,17 +17,12 @@ jobs:
     - name: Checkout
       uses: actions/checkout@v4
 
-    - name: Clean Workspace
-      run: |
-        rm -rf /home/runner/work/_temp/*
-        rm -rf /home/runner/work/_work/*
-
-    - name: Clean System Cache
-      run: |
-        sudo apt-get clean
-        sudo rm -rf /var/lib/apt/lists/*
-        sudo rm -rf /tmp/*
-        sudo rm -rf /var/tmp/*
+    - name: Analyze Disk Usage
+      run: |   
+        df -h /  
+  
+        sudo du -h -d 1 / | sort -hr | head -n 10
+        ls -lh $RUNNER_TEMP $GITHUB_WORKSPACE
 
     - name: Setup Docker
       run: |
