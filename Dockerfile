@@ -1,203 +1,99 @@
-# 基础镜像（CUDA 11.8 + Ubuntu 22.04）
+# 使用 NVIDIA CUDA 11.8 开发环境作为基础镜像
 FROM nvidia/cuda:11.8.0-devel-ubuntu22.04
 
+LABEL org.opencontainers.image.source="https://github.com/SimonSchwaiger/ros-ml-container"
 
-
-# 构建参数（支持多平台配置）
+# 构建参数
 ARG GRAPHICS_PLATFORM=opensource
 ARG PYTHONVER=3.10
 ARG ROS_DISTRO=humble
+ARG IGNITION_VERSION=fortress
 ARG ROS2_WS=/opt/ros2_ws
 
-# 环境变量
+# 环境配置
 ENV DEBIAN_FRONTEND=noninteractive \
     LANG=C.UTF-8 \
     LC_ALL=C.UTF-8 \
-    SHELL=/bin/bash \
-    ROS_DISTRO=${ROS_DISTRO} \
     ROS2_WS=${ROS2_WS} \
-    WORKSPACE=/nerf_ws \
-    MODEL_CONFIG_PATH=${WORKSPACE}/nerf_config/model_config.yaml \
-    TRAINER_CONFIG_PATH=${WORKSPACE}/nerf_config/trainer_config.yaml \
-    OCCUPANCY_CONFIG_PATH=${WORKSPACE}/nerf_config/occupancy_config.yaml \
-    PYTORCH_CUDA_ALLOC_CONF=expandable_segments:True \
-    TORCH_EXTENSIONS_DIR=${WORKSPACE}/torch_extensions \
-    TORCH_CUDA_ARCH_LIST="6.1" \
-    TCNN_CUDA_ARCHITECTURES="61" \
-    CUDA_HOME=/usr/local/cuda-11.8 \
-    PYTHONPATH=${WORKSPACE}:${PYTHONPATH:-}
+    NVIDIA_VISIBLE_DEVICES=all \
+    NVIDIA_DRIVER_CAPABILITIES=all
 
-# 完整修正流程
-# 1. 安装 wget 并配置 CUDA 源
-RUN apt-get update && apt-get install -y wget \
-    && wget https://developer.download.nvidia.com/compute/cuda/repos/ubuntu2204/x86_64/cuda-archive-keyring.gpg -O /usr/share/keyrings/cuda-archive-keyring.gpg \
-    && echo "deb [signed-by=/usr/share/keyrings/cuda-archive-keyring.gpg] https://developer.download.nvidia.com/compute/cuda/repos/ubuntu2204/x86_64/ /" > /etc/apt/sources.list.d/cuda.list
-
-# 2. 添加 NVIDIA 机器学习仓库（包含 cuDNN）
+# 安装基础图形库（NVIDIA 镜像已包含驱动）
 RUN apt-get update && apt-get install -y --no-install-recommends \
-    gnupg2 \
-    && wget https://developer.download.nvidia.com/compute/cuda/repos/ubuntu2204/x86_64/cuda-keyring_1.1-1_all.deb \
-    && dpkg -i cuda-keyring_1.1-1_all.deb \
-    && apt-key add /usr/share/keyrings/cuda-archive-keyring.gpg
+    libgl1-mesa-glx libgl1-mesa-dri mesa-utils && \
+    rm -rf /var/lib/apt/lists/*
 
-# 3. 安装 CUDA 工具链和 cuDNN
-RUN apt-get update && apt-get install -y --no-install-recommends \
-    lsb-release \
-    build-essential \
-    cuda-nvcc-11-8 \
-    libcudnn8-dev \
-    && rm -rf /var/lib/apt/lists/*   
+# 时区配置
+RUN ln -sf /usr/share/zoneinfo/Etc/UTC /etc/localtime && \
+    apt-get update && apt-get install -y tzdata && rm -rf /var/lib/apt/lists/*
 
-# Add ROS 2 apt repo and key
-RUN apt-key adv --keyserver hkp://keyserver.ubuntu.com:80 --recv-keys C1CF6E31E6BADE8868B172B4F42ED6FBAB17C654 \
-    && echo "deb http://packages.ros.org/ros2/ubuntu jammy main" > /etc/apt/sources.list.d/ros2-latest.list
-
-# Mesa for GUI
-RUN apt-get update && apt-get install -y --no-install-recommends \
-    libgl1-mesa-glx libgl1-mesa-dri \
-    && rm -rf /var/lib/apt/lists/*
-
-# Install more dependencies including flake8
+# 安装 ROS 构建依赖
 RUN apt-get update && apt-get install -y --no-install-recommends \
     bash-completion \
-    dirmngr \
-    gnupg2 \
-    software-properties-common \
     build-essential \
     cmake \
     git \
-    wget \
-    curl \
     python3-flake8 \
-    python3-flake8-blind-except \
-    python3-flake8-builtins \
-    python3-flake8-class-newline \
-    python3-flake8-comprehensions \
-    python3-flake8-deprecated \
-    python3-flake8-docstrings \
-    python3-flake8-import-order \
-    python3-flake8-quotes \
     python3-pip \
-    python3-pytest-repeat \
-    python3-pytest-rerunfailures \
-    python3-venv \
+    python3-pytest \
+    software-properties-common \
+    wget \
     && rm -rf /var/lib/apt/lists/*
 
-# Python setup and upgrade
-RUN update-alternatives --install /usr/bin/python3 python3 /usr/bin/python${PYTHONVER} 1 \
-    && python3 -m pip install --upgrade pip wheel setuptools
+# 配置 ROS 软件源
+RUN wget -qO- https://raw.githubusercontent.com/ros/rosdistro/master/ros.key | apt-key add - && \
+    echo "deb [arch=$(dpkg --print-architecture)] http://packages.ros.org/ros2/ubuntu jammy main" > /etc/apt/sources.list.d/ros2-latest.list
 
-# Basic ROS setup
-RUN apt-get update && apt-get install --no-install-recommends -y \
-    python3-colcon-common-extensions \
-    python3-colcon-mixin \
-    python3-rosdep \
-    python3-setuptools \
-    python3-vcstool \
-    && rm -rf /var/lib/apt/lists/*
-
-# More pip packages
-RUN pip3 install -U \
-    argcomplete pytest
-
-# ROS Dep initialization
-RUN rosdep init \
-    && rosdep update
-
-# Setting up colcon mixin and metadata
-RUN colcon mixin add default \
-      https://raw.githubusercontent.com/colcon/colcon-mixin-repository/master/index.yaml && \
-    colcon mixin update && \
-    colcon metadata add default \
-      https://raw.githubusercontent.com/colcon/colcon-metadata-repository/master/index.yaml && \
-    colcon metadata update
-
-# More ROS-related and general packages
-RUN apt-get update && apt-get install -y ros-${ROS_DISTRO}-ros-base ros-dev-tools ros-${ROS_DISTRO}-rqt* ros-${ROS_DISTRO}-rosbridge-server
-
-# Python Version Setup using deadsnakes (more control over versions)
-RUN apt-get update && apt-get install -y software-properties-common \
-    && add-apt-repository -y ppa:deadsnakes/ppa \
-    && apt-get update && apt-get install -y python${PYTHONVER} python${PYTHONVER}-dev python${PYTHONVER}-tk
-
-# More tools
+# 安装 ROS 开发工具
 RUN apt-get update && apt-get install -y --no-install-recommends \
-    cmake \
-    libopenmpi-dev \
-    zlib1g-dev \
-    imagemagick \
+    python3-colcon-common-extensions \
+    python3-rosdep \
+    ros-dev-tools \
+    && rosdep init && rosdep update
+
+# 安装指定 ROS 发行版
+RUN apt-get update && apt-get install -y --no-install-recommends \
+    ros-${ROS_DISTRO}-ros-base \
+    ros-${ROS_DISTRO}-rqt* \
+    ros-${ROS_DISTRO}-rosbridge-server \
     && rm -rf /var/lib/apt/lists/*
 
-RUN pip3 install virtualenv
+# 配置 Python 环境
+RUN apt-get update && apt-get install -y --no-install-recommends \
+    python${PYTHONVER} \
+    python${PYTHONVER}-dev \
+    python${PYTHONVER}-venv \
+    && update-alternatives --install /usr/bin/python3 python3 /usr/bin/python${PYTHONVER} 1
 
-# Setup virtualenv using deadsnakes's Python
-RUN virtualenv -p /usr/bin/python${PYTHONVER} ~/myenv
+# 创建 Python 虚拟环境
+RUN python3 -m venv /opt/venv && \
+    /opt/venv/bin/pip install --upgrade pip setuptools
 
-# Activate the virtualenv and upgrade pip
-RUN /bin/bash -c "source ~/myenv/bin/activate \
-    && pip3 install --upgrade pip"
+# 安装 Python 依赖
+ADD requirements.txt .
+RUN /opt/venv/bin/pip install -r requirements.txt && \
+    /opt/venv/bin/pip install launchpadlib rosinstall_generator empy catkin_tools
 
-# Install ROS python dependencies within the virtualenv
-RUN /bin/bash -c "source ~/myenv/bin/activate \
-    && pip3 install launchpadlib \
-    rosinstall_generator \
-    rosinstall \
-    empy \
-    catkin_tools \
-    lark \
-    lxml \
-    pytest \
-    numpy \
-    netifaces pymongo Pillow \
-    && pip3 install --upgrade setuptools"
-
-# NeRF related stuff + JupyterLab
-RUN /bin/bash -c "source ~/myenv/bin/activate \
-    && pip3 install jupyterlab nerfstudio pypose --extra-index-url https://download.pytorch.org/whl/cu118 --trusted-host download.pytorch.org \
-    torch==2.1.2+cu118 torchvision==0.16.2+cu118"
-
-# Tiny CUDA NN
-RUN git clone https://github.com/NVlabs/tiny-cuda-nn.git /tmp/tcnn \
-    && cd /tmp/tcnn/bindings/torch \
-    && /bin/bash -c "source ~/myenv/bin/activate \
-        && export TCNN_CUDA_ARCHITECTURES=${TCNN_CUDA_ARCHITECTURES} \  
-        && export CUDA_HOME=${CUDA_HOME} \                             
-        && python setup.py install" \
-    && rm -rf /tmp/tcnn
-
-# Workspace creation
+# 创建工作空间
 RUN mkdir -p ${ROS2_WS}/src
+WORKDIR ${ROS2_WS}
 
-# Clone astra camera driver
-WORKDIR ${ROS2_WS}/src
-RUN git clone https://github.com/orbbec/ros2_astra_camera.git
+# 编译 ROS 包
+COPY ./src ${ROS2_WS}/src
+RUN rosdep install --from-paths src --ignore-src -y && \
+    . /opt/ros/${ROS_DISTRO}/setup.sh && \
+    colcon build --symlink-install
 
-# Setup and compile the ROS workspace
-RUN /bin/bash -c "source /opt/ros/$ROS_DISTRO/setup.bash \
-    && rosdep update \
-    && rosdep install --from-paths $ROS2_WS/src -i -y --rosdistro $ROS_DISTRO"
+# 清理构建文件
+RUN rm -rf ${ROS2_WS}/src
 
-# colcon build
-RUN /bin/bash -c "source /opt/ros/$ROS_DISTRO/setup.bash \
-    && cd $ROS2_WS \
-    && colcon build --symlink-install"
+# 配置 Shell 环境
+RUN echo "source /opt/ros/${ROS_DISTRO}/setup.bash" >> ~/.bashrc && \
+    echo "source ${ROS2_WS}/install/local_setup.bash" >> ~/.bashrc && \
+    echo "source /opt/venv/bin/activate" >> ~/.bashrc
 
-# Cleanup
-RUN rm -rf /var/lib/apt/lists/*
-
-# Add sourcing to bashrc (make sure to source venv, then ROS)
-RUN echo "source ~/myenv/bin/activate" >> ~/.bashrc
-RUN echo "source /opt/ros/$ROS_DISTRO/setup.bash" >> ~/.bashrc
-RUN echo "source $ROS2_WS/install/local_setup.bash" >> ~/.bashrc
-
-# Set SHELL env variable (fixes autocompletion in web-based shell)
-ENV SHELL=/bin/bash
-
-# Add entrypoint script
+# 设置入口点
 COPY entrypoint.sh /entrypoint.sh
 RUN chmod +x /entrypoint.sh
-
-ENTRYPOINT [ "/entrypoint.sh" ]
-
-# Command to run
-CMD ["jupyter-lab", "--ip=0.0.0.0", "--port=8888", "--no-browser", "--allow-root"]
+ENTRYPOINT ["/entrypoint.sh"]
+CMD ["bash"]
