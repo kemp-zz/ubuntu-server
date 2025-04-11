@@ -29,9 +29,19 @@ ENV DEBIAN_FRONTEND=noninteractive \
     CUDA_HOME=/usr/local/cuda-11.8 \  
     PYTHONPATH=${WORKSPACE}:${PYTHONPATH:-}
     
-RUN apt-key adv --fetch-keys https://developer.download.nvidia.com/compute/cuda/repos/ubuntu2204/x86_64/3bf863cc.pub \
+RUN apt-key adv --keyserver keyserver.ubuntu.com --recv-keys 3bf863cc \
     && echo "deb https://developer.download.nvidia.com/compute/cuda/repos/ubuntu2204/x86_64 /" > /etc/apt/sources.list.d/cuda.list \
     && apt-get update
+
+# 安装tiny-cuda-nn
+RUN git clone https://github.com/NVlabs/tiny-cuda-nn.git /tmp/tcnn \
+    && cd /tmp/tcnn/bindings/torch \
+    && /bin/bash -c "source ~/myenv/bin/activate \
+        && export TCNN_CUDA_ARCHITECTURES=${TCNN_CUDA_ARCHITECTURES} \
+        && export CUDA_HOME=${CUDA_HOME} \
+        && python setup.py install" \
+    && rm -rf /tmp/tcnn
+
 
 # 第一阶段：基础系统配置
 RUN apt-get install -y --no-install-recommends \
