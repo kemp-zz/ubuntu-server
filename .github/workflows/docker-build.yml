@@ -17,10 +17,6 @@ jobs:
     - name: Checkout
       uses: actions/checkout@v4
 
-    - name: Analyze Disk Usage
-      run: |   
-        echo "▂▂▂▂▂▂▂▂ 删除前磁盘使用情况 ▂▂▂▂▂▂▂▂"
-        df -h /
 
     - name: Clean Unnecessary Files
       run: |
@@ -39,35 +35,20 @@ jobs:
         # 临时文件清理
         find . -type f -size +100M -delete  # 删除工作目录大文件[5](@ref)
 
-    - name: Clean Docker Resources
-      run: |
-        echo "▂▂▂▂▂▂▂▂ Docker 资源回收 ▂▂▂▂▂▂▂▂"
-        docker system prune -a --volumes --force  # 清理所有未使用资源[1,7](@ref)
-        docker builder prune --all --force  # 删除构建缓存[1](@ref)
-        docker system df -v  # 显示详细空间使用[7](@ref)
-
     - name: Post-Clean Disk Usage
       run: |
         echo "▂▂▂▂▂▂▂▂ 删除后磁盘使用情况 ▂▂▂▂▂▂▂▂"
         df -h /
-        echo "▂▂▂▂▂▂▂▂ 剩余大目录 ▂▂▂▂▂▂▂▂"
-        sudo du -h /usr/local/* -d 0 2>/dev/null | sort -hr | head -n10
 
-    - name: Free Disk Space
-      uses: jlumbroso/free-disk-space@main
-      with:
-        # 增强版磁盘空间释放
-        dotnet: false  # 已手动清理
-        android: false  # 已手动清理
-        google-cloud: true  # 额外清理 GCP 工具链
+
 
     - name: Setup Docker
       run: |
         sudo systemctl start docker
         sudo systemctl enable docker
-        sudo chmod 666 /var/run/docker.sock  # 修复权限问题[6](@ref)
+        sudo chmod 666 /var/run/docker.sock  
 
-    # 后续构建步骤保持不变...
+
 
     - name: Setup Docker
       run: |
