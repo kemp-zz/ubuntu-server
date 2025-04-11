@@ -59,8 +59,7 @@ jobs:
         docker system prune -a --volumes --force
         docker system df -v
 
-    - name: Free Disk Space
-      uses: jlumbroso/free-disk-space@main
+
 
     - name: Setup Buildx
       uses: docker/setup-buildx-action@v3
