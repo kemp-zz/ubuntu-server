@@ -50,6 +50,7 @@ ENV PATH="/opt/venv/bin:$PATH"
 # 安装Python依赖
 RUN pip install --upgrade pip setuptools && \
     pip install \
+    --extra-index-url https://download.pytorch.org/whl/cu118 \
     jupyterlab \
     nerfstudio \
     pypose \
@@ -58,7 +59,6 @@ RUN pip install --upgrade pip setuptools && \
     rosinstall \
     empy \
     catkin_tools \
-    --extra-index-url https://download.pytorch.org/whl/cu118 \
     torch==2.1.2+cu118 \
     torchvision==0.16.2+cu118 \
     tcnn @ git+https://github.com/NVlabs/tiny-cuda-nn@master#subdirectory=bindings/torch
