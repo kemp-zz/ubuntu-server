@@ -74,18 +74,15 @@ ADD requirements.txt .
 RUN /opt/venv/bin/pip install -r requirements.txt && \
     /opt/venv/bin/pip install launchpadlib rosinstall_generator empy catkin_tools
 
-# 创建工作空间
+# 创建工作空间并初始化
 RUN mkdir -p ${ROS2_WS}/src
 WORKDIR ${ROS2_WS}
 
-# 编译 ROS 包
-COPY ./src ${ROS2_WS}/src
-RUN rosdep install --from-paths src --ignore-src -y && \
-    . /opt/ros/${ROS_DISTRO}/setup.sh && \
-    colcon build --symlink-install
+# 初始化工作区（可选：添加示例包）
+RUN touch ${ROS2_WS}/src/COLCON_IGNORE  # 防止空目录导致构建错误
 
-# 清理构建文件
-RUN rm -rf ${ROS2_WS}/src
+# 清理构建文件（根据实际需求调整）
+# RUN rm -rf ${ROS2_WS}/src  # 如果不需要保留空目录
 
 # 配置 Shell 环境
 RUN echo "source /opt/ros/${ROS_DISTRO}/setup.bash" >> ~/.bashrc && \
