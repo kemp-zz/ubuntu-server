@@ -24,7 +24,8 @@ ENV DEBIAN_FRONTEND=noninteractive \
     OCCUPANCY_CONFIG_PATH=${WORKSPACE}/nerf_config/occupancy_config.yaml \
     PYTORCH_CUDA_ALLOC_CONF=expandable_segments:True \
     TORCH_EXTENSIONS_DIR=${WORKSPACE}/torch_extensions \
-    TORCH_CUDA_ARCH_LIST="8.6" \
+    TORCH_CUDA_ARCH_LIST="6.1" \
+    ENV TCNN_CUDA_ARCHITECTURES="61" \
     PYTHONPATH=${WORKSPACE}:${PYTHONPATH:-}
 
 # 第一阶段：基础系统配置
