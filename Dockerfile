@@ -48,20 +48,8 @@ RUN python$PYTHONVER -m venv /opt/venv
 ENV PATH="/opt/venv/bin:$PATH"
 
 # 安装Python依赖
-RUN pip install --upgrade pip setuptools && \
-    pip install \
-    --extra-index-url https://download.pytorch.org/whl/cu118 \
-    jupyterlab \
-    nerfstudio \
-    pypose \
-    numpy==1.24.4 \
-    rosinstall_generator \
-    rosinstall \
-    empy \
-    catkin_tools \
-    torch==2.1.2+cu118 \
-    torchvision==0.16.2+cu118 \
-    tcnn @ git+https://github.com/NVlabs/tiny-cuda-nn@master#subdirectory=bindings/torch
+# 安装Python依赖（单行写法）
+RUN pip install --upgrade pip setuptools && pip install --extra-index-url https://download.pytorch.org/whl/cu118 jupyterlab nerfstudio pypose numpy==1.24.4 rosinstall_generator rosinstall empy catkin_tools torch==2.1.2+cu118 torchvision==0.16.2+cu118 "tcnn @ git+https://github.com/NVlabs/tiny-cuda-nn@master#subdirectory=bindings/torch"
 # 安装图形相关依赖
 RUN apt-get install -y --no-install-recommends \
     libgl1-mesa-glx \
