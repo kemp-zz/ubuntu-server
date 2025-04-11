@@ -19,26 +19,55 @@ jobs:
 
     - name: Analyze Disk Usage
       run: |   
-        df -h /  
-         sudo du -h /usr/local/* -d 0 2>/dev/null | sort -hr | head -n10
+        echo "▂▂▂▂▂▂▂▂ 删除前磁盘使用情况 ▂▂▂▂▂▂▂▂"
+        df -h /
 
+    - name: Clean Unnecessary Files
+      run: |
+        echo "▂▂▂▂▂▂▂▂ 深度清理 ▂▂▂▂▂▂▂▂"
+        # 系统级工具链清理
+        sudo rm -rf /usr/local/lib/android_sdk/emulator
+        sudo rm -rf /usr/local/share/powershell/modules
+        sudo rm -rf /usr/share/dotnet  # .NET SDK 清理[6](@ref)
+        sudo rm -rf /usr/local/lib/android  # Android SDK 清理[6](@ref)
 
-        sudo rm -rf /usr/local/lib/android_sdk/emulator   
-        sudo rm -rf /usr/local/share/powershell/modules 
-        # 分析各应用占用
-        ls -lh /opt | awk '{printf "%s: %s\n", $9, $5}'
+        # 托管工具缓存清理
+        sudo rm -rf /opt/hostedtoolcache/CodeQL  # CodeQL 工具链[6](@ref)
+        sudo rm -rf /opt/az/lib/python3.10/site-packages  # Azure CLI Python 依赖
+        sudo rm -rf /opt/ghc  # Haskell 工具链[6](@ref)
 
+        # 临时文件清理
+        find . -type f -size +100M -delete  # 删除工作目录大文件[5](@ref)
 
-        sudo rm -rf /opt/hostedtoolcache/CodeQL        
-        sudo rm -rf /opt/az/lib/python3.10/site-packages 
-    - name: Setup Python
-      uses: actions/setup-python@v4
+    - name: Clean Docker Resources
+      run: |
+        echo "▂▂▂▂▂▂▂▂ Docker 资源回收 ▂▂▂▂▂▂▂▂"
+        docker system prune -a --volumes --force  # 清理所有未使用资源[1,7](@ref)
+        docker builder prune --all --force  # 删除构建缓存[1](@ref)
+        docker system df -v  # 显示详细空间使用[7](@ref)
+
+    - name: Post-Clean Disk Usage
+      run: |
+        echo "▂▂▂▂▂▂▂▂ 删除后磁盘使用情况 ▂▂▂▂▂▂▂▂"
+        df -h /
+        echo "▂▂▂▂▂▂▂▂ 剩余大目录 ▂▂▂▂▂▂▂▂"
+        sudo du -h /usr/local/* -d 0 2>/dev/null | sort -hr | head -n10
+
+    - name: Free Disk Space
+      uses: jlumbroso/free-disk-space@main
       with:
-        cache: 'pip'  
+        # 增强版磁盘空间释放
+        dotnet: false  # 已手动清理
+        android: false  # 已手动清理
+        google-cloud: true  # 额外清理 GCP 工具链
 
-    - name: Clean workspace
-      run: |      
-        find . -type f -size +100M -delete
+    - name: Setup Docker
+      run: |
+        sudo systemctl start docker
+        sudo systemctl enable docker
+        sudo chmod 666 /var/run/docker.sock  # 修复权限问题[6](@ref)
+
+    # 后续构建步骤保持不变...
 
     - name: Setup Docker
       run: |
