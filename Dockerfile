@@ -24,12 +24,16 @@ ENV DEBIAN_FRONTEND=noninteractive \
     OCCUPANCY_CONFIG_PATH=${WORKSPACE}/nerf_config/occupancy_config.yaml \
     PYTORCH_CUDA_ALLOC_CONF=expandable_segments:True \
     TORCH_EXTENSIONS_DIR=${WORKSPACE}/torch_extensions \
-    TORCH_CUDA_ARCH_LIST="6.1" \
+    TORCH_CUDA_ARCH_LIST="6.1" \      
+    TCNN_CUDA_ARCHITECTURES="61" \    
+    CUDA_HOME=/usr/local/cuda-11.8 \  
     PYTHONPATH=${WORKSPACE}:${PYTHONPATH:-}
 
 # 第一阶段：基础系统配置
 RUN apt-get update && apt-get install -y --no-install-recommends \
     lsb-release \
+    cuda-nvcc-11-8 \               
+    libcudnn8-dev=8.9.4.*-1+cuda11.8 \
     && rm -rf /var/lib/apt/lists/*
 
 # Add ROS 2 apt repo and key
@@ -144,7 +148,9 @@ RUN /bin/bash -c "source ~/myenv/bin/activate \
 RUN git clone https://github.com/NVlabs/tiny-cuda-nn.git /tmp/tcnn \
     && cd /tmp/tcnn/bindings/torch \
     && /bin/bash -c "source ~/myenv/bin/activate \
-    && python setup.py install" \
+        && TCNN_CUDA_ARCHITECTURES=$TCNN_CUDA_ARCHITECTURES \ 
+        CUDA_HOME=$CUDA_HOME \                                 
+        python setup.py install" \
     && rm -rf /tmp/tcnn
 
 # Workspace creation
