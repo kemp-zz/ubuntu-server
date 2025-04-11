@@ -28,12 +28,18 @@ ENV DEBIAN_FRONTEND=noninteractive \
     TCNN_CUDA_ARCHITECTURES="61" \    
     CUDA_HOME=/usr/local/cuda-11.8 \  
     PYTHONPATH=${WORKSPACE}:${PYTHONPATH:-}
+    
+RUN apt-key adv --fetch-keys https://developer.download.nvidia.com/compute/cuda/repos/ubuntu2204/x86_64/3bf863cc.pub \
+    && echo "deb https://developer.download.nvidia.com/compute/cuda/repos/ubuntu2204/x86_64 /" > /etc/apt/sources.list.d/cuda.list \
+    && echo "deb https://developer.download.nvidia.com/compute/cuda/repos/ubuntu2204/x86_64 /" > /etc/apt/sources.list.d/cuda-11-8-local.list \
+    && apt-get update
 
 # 第一阶段：基础系统配置
-RUN apt-get update && apt-get install -y --no-install-recommends \
+RUN apt-get install -y --no-install-recommends \
     lsb-release \
-    cuda-nvcc-11-8 \               
-    libcudnn8-dev=8.9.4.*-1+cuda11.8 \
+    build-essential \         
+    cuda-nvcc-11-8=11.8.89-1 \ 
+    libcudnn8-dev=8.9.4.25-1+cuda11.8 \ 
     && rm -rf /var/lib/apt/lists/*
 
 # Add ROS 2 apt repo and key
@@ -148,9 +154,9 @@ RUN /bin/bash -c "source ~/myenv/bin/activate \
 RUN git clone https://github.com/NVlabs/tiny-cuda-nn.git /tmp/tcnn \
     && cd /tmp/tcnn/bindings/torch \
     && /bin/bash -c "source ~/myenv/bin/activate \
-        && TCNN_CUDA_ARCHITECTURES=$TCNN_CUDA_ARCHITECTURES \ 
-        CUDA_HOME=$CUDA_HOME \                                 
-        python setup.py install" \
+        && export TCNN_CUDA_ARCHITECTURES=${TCNN_CUDA_ARCHITECTURES} \  
+        && export CUDA_HOME=${CUDA_HOME} \                             
+        && python setup.py install" \
     && rm -rf /tmp/tcnn
 
 # Workspace creation
