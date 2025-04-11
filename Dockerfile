@@ -27,19 +27,26 @@ ENV DEBIAN_FRONTEND=noninteractive \
     CUDA_HOME=/usr/local/cuda-11.8 \
     PYTHONPATH=${WORKSPACE}:${PYTHONPATH:-}
 
-# 安装基础工具链 + CUDA组件 (修正空格和依赖)
+# 完整修正流程
+# 1. 安装 wget 并配置 CUDA 源
+RUN apt-get update && apt-get install -y wget \
+    && wget https://developer.download.nvidia.com/compute/cuda/repos/ubuntu2204/x86_64/cuda-archive-keyring.gpg -O /usr/share/keyrings/cuda-archive-keyring.gpg \
+    && echo "deb [signed-by=/usr/share/keyrings/cuda-archive-keyring.gpg] https://developer.download.nvidia.com/compute/cuda/repos/ubuntu2204/x86_64/ /" > /etc/apt/sources.list.d/cuda.list
+
+# 2. 添加 NVIDIA 机器学习仓库（包含 cuDNN）
+RUN apt-get update && apt-get install -y --no-install-recommends \
+    gnupg2 \
+    && wget https://developer.download.nvidia.com/compute/cuda/repos/ubuntu2204/x86_64/cuda-keyring_1.1-1_all.deb \
+    && dpkg -i cuda-keyring_1.1-1_all.deb \
+    && apt-key add /usr/share/keyrings/cuda-archive-keyring.gpg
+
+# 3. 安装 CUDA 工具链和 cuDNN
 RUN apt-get update && apt-get install -y --no-install-recommends \
     lsb-release \
     build-essential \
-    wget \
-    cuda-nvcc-11-8=11.8.89-1 \
-    libcudnn8-dev=8.9.4.25-1+cuda11.8 \
-    && rm -rf /var/lib/apt/lists/*
-    
-RUN wget https://developer.download.nvidia.com/compute/cuda/repos/ubuntu2204/x86_64/cuda-archive-keyring.gpg -O /usr/share/keyrings/cuda-archive-keyring.gpg
-
-# 添加 CUDA 源，并使用 Signed-By 指定密钥
-RUN echo "deb [signed-by=/usr/share/keyrings/cuda-archive-keyring.gpg] https://developer.download.nvidia.com/compute/cuda/repos/ubuntu2204/x86_64/ /" > /etc/apt/sources.list.d/cuda.list   
+    cuda-nvcc-11-8 \
+    libcudnn8-dev \
+    && rm -rf /var/lib/apt/lists/*   
 
 # Add ROS 2 apt repo and key
 RUN apt-key adv --keyserver hkp://keyserver.ubuntu.com:80 --recv-keys C1CF6E31E6BADE8868B172B4F42ED6FBAB17C654 \
