@@ -25,7 +25,6 @@ ENV DEBIAN_FRONTEND=noninteractive \
     PYTORCH_CUDA_ALLOC_CONF=expandable_segments:True \
     TORCH_EXTENSIONS_DIR=${WORKSPACE}/torch_extensions \
     TORCH_CUDA_ARCH_LIST="6.1" \
-    TCNN_CUDA_ARCHITECTURES="61" \
     PYTHONPATH=${WORKSPACE}:${PYTHONPATH:-}
 
 # 第一阶段：基础系统配置
