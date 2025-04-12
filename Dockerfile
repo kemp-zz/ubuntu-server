@@ -117,10 +117,11 @@ RUN cd ${WORKSPACE}/src/ros2_astra_camera/astra_camera/scripts && \
     chmod +x install.sh && \
     ./install.sh
 
-# 构建ROS工作空间
+
 RUN /bin/bash -c "source /opt/ros/${ROS_DISTRO}/setup.bash && \
     cd /root/ros2_ws && \
-    rosdep install --from-paths src --ignore-src -y --rosdistro ${ROS_DISTRO} && \ 
+    export PATH=/usr/bin:$PATH && \
+    rosdep install --from-paths src --ignore-src -y --rosdistro ${ROS_DISTRO} && \
     colcon build --event-handlers console_direct+ --cmake-args -DCMAKE_BUILD_TYPE=Release"
 
 # 配置JupyterLab
