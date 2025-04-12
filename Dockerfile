@@ -112,7 +112,7 @@ RUN cd ${WORKSPACE}/src/ros2_astra_camera/astra_camera/scripts && \
 RUN /bin/bash -c "source /opt/ros/${ROS_DISTRO}/setup.bash && \
     cd ${WORKSPACE} && \
     rosdep install --from-paths src --ignore-src -y --rosdistro ${ROS_DISTRO} && \
-    unset VIRTUAL_ENV && \  # 清除虚拟环境变量
+    unset VIRTUAL_ENV && \ 
     export PATH=\"/usr/bin:/bin:${VENV_PATH}/bin\" && \  
     export PYTHONPATH=\"/usr/lib/python3/dist-packages\" && \ 
     colcon build \
