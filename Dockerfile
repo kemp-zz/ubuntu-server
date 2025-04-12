@@ -4,7 +4,7 @@ FROM nvidia/cuda:11.8.0-base-ubuntu22.04
 # 设置环境变量
 ENV DEBIAN_FRONTEND=noninteractive \
     ROS_DISTRO=humble \
-    TCNN_CUDA_ARCHITECTURES=61 \  # RTX 1070对应计算能力6.1
+    TCNN_CUDA_ARCHITECTURES=61 \
     SHELL=/bin/bash \
     PYTHONVER=3.10 \
     PATH="/opt/venv/bin:$PATH"
@@ -20,14 +20,14 @@ RUN apt-get update && apt-get install -y --no-install-recommends \
     cmake \
     git \
     ninja-build \
-    zlib1g-dev \                # tcnn编译必需
-    libtcmalloc-minimal4 \       # 内存优化
-    libgl1-mesa-glx \           # OpenGL支持
+    zlib1g-dev \              
+    libtcmalloc-minimal4 \      
+    libgl1-mesa-glx \         
     libgl1-mesa-dri \
     libx11-6 \
     libxext6 \
     libxrender1 \
-    ffmpeg \                    # 视频处理
+    ffmpeg \                   
     freeglut3-dev && \
     rm -rf /var/lib/apt/lists/*
 
