@@ -1,32 +1,26 @@
 #!/bin/bash
 
-# 重载udev规则并触发设备事件
-echo "正在应用USB设备规则..."
-if udevadm control --reload-rules && udevadm trigger; then
-    echo "设备规则加载成功"
-else
-    echo "警告：设备规则加载失败，相机可能无法正常工作" >&2
+# 激活Python虚拟环境（路径改为/opt/venv）
+source /opt/venv/bin/activate
+
+# 加载ROS环境
+source /opt/ros/$ROS_DISTRO/setup.bash
+
+# 加载自定义ROS工作空间（根据实际需要选择是否启用）
+if [ -f "${ROS2_WS}/install/local_setup.bash" ]; then
+    source ${ROS2_WS}/install/local_setup.bash
 fi
 
-# 等待设备初始化完成
-sleep 0.5
-
-# 激活ROS环境
-source "/opt/ros/humble/setup.bash"
-
-# 加载工作空间环境
-if [ -f "/root/ros2_ws/install/setup.bash" ]; then
-    source "/root/ros2_ws/install/setup.bash"
-fi
-
-# 启动ROS桥接服务
-echo "启动ROS桥接服务..."
-ros2 launch rosbridge_server rosbridge_websocket_launch.xml &
+# 设置Turtlebot3型号（根据实际需求保留）
+# export TURTLEBOT3_MODEL=burger
 
 # 启动JupyterLab服务
-echo "启动JupyterLab服务..."
-jupyter-lab --ip=0.0.0.0 --port=8888 --no-browser --allow-root --NotebookApp.token='' &
+JUPYTER_CMD="jupyter-lab --ip 0.0.0.0 --port=8888 --no-browser --allow-root --NotebookApp.token='' --NotebookApp.password=''"
+nohup ${JUPYTER_CMD} > /var/log/jupyter.log 2>&1 &
 
-# 保持容器运行并进入交互模式
+# 启动rosbridge（根据实际需要选择是否启用）
+# nohup ros2 launch rosbridge_server rosbridge_websocket_launch.xml > /var/log/rosbridge.log 2>&1 &
+
+
 echo "容器初始化完成，进入交互终端..."
 exec /bin/bash
