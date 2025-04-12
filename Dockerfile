@@ -64,22 +64,23 @@ RUN apt-get update && apt-get install -y --no-install-recommends \
     rosdep init && \
     rosdep update
 
-# 创建Python虚拟环境（与系统Python隔离）
+# 创建Python虚拟环境（使用指定Python版本）
 RUN apt-get update && apt-get install -y \
     python${PYTHONVER}-venv \
     python3-pip && \
     python${PYTHONVER} -m venv ${VENV_PATH} && \
-    ln -s /usr/bin/python3 /usr/bin/python
+    ln -s ${VENV_PATH}/bin/python${PYTHONVER} /usr/local/bin/ros_python && \
+    ln -s ${VENV_PATH}/bin/pip /usr/local/bin/ros_pip
 
-# 安装PyTorch到虚拟环境（使用虚拟环境的pip）
-RUN ${VENV_PATH}/bin/pip install --upgrade pip setuptools wheel && \
-    ${VENV_PATH}/bin/pip install --extra-index-url https://download.pytorch.org/whl/cu118 \
+# 安装PyTorch到虚拟环境
+RUN ros_pip install --upgrade pip setuptools wheel && \
+    ros_pip install --extra-index-url https://download.pytorch.org/whl/cu118 \
     torch==2.1.2+cu118 \
     torchvision==0.16.2+cu118 \
     torchaudio==2.1.2+cu118
 
 # 安装其他Python依赖到虚拟环境
-RUN ${VENV_PATH}/bin/pip install \
+RUN ros_pip install \
     jupyterlab \
     nerfstudio \
     pypose \
@@ -102,32 +103,29 @@ RUN git clone --depth 1 https://github.com/libuvc/libuvc.git && \
 RUN mkdir -p ${WORKSPACE}/src && \
     git clone https://github.com/orbbec/ros2_astra_camera.git ${WORKSPACE}/src/ros2_astra_camera
 
-# 安装udev规则（使用系统Python）
+# 安装udev规则
 RUN cd ${WORKSPACE}/src/ros2_astra_camera/astra_camera/scripts && \
     chmod +x install.sh && \
     ./install.sh
 
-
-# 修改构建命令，添加更严格的环境隔离
+# 修改构建命令强制使用虚拟环境Python
 RUN /bin/bash -c "source /opt/ros/${ROS_DISTRO}/setup.bash && \
     cd ${WORKSPACE} && \
     rosdep install --from-paths src --ignore-src -y --rosdistro ${ROS_DISTRO} && \
-    unset VIRTUAL_ENV && \ 
-    export PATH=\"/usr/bin:/bin:${VENV_PATH}/bin\" && \  
-    export PYTHONPATH=\"/usr/lib/python3/dist-packages\" && \ 
+    export PYTHON_EXECUTABLE=${VENV_PATH}/bin/python3 && \
+    export PYTHONPATH=\"${VENV_PATH}/lib/python${PYTHONVER}/site-packages:/opt/ros/${ROS_DISTRO}/lib/python${PYTHONVER}/site-packages\" && \
     colcon build \
     --event-handlers console_direct+ \
     --cmake-args \
-    -DPYTHON_EXECUTABLE=/usr/bin/python3 \
+    -DPYTHON_EXECUTABLE=${VENV_PATH}/bin/python3 \
     -DCMAKE_BUILD_TYPE=Release"
 
-# 配置环境变量隔离
+# 配置环境变量
 ENV PATH="${VENV_PATH}/bin:${PATH}"
+ENV PYTHONPATH="${VENV_PATH}/lib/python${PYTHONVER}/site-packages:/opt/ros/${ROS_DISTRO}/lib/python${PYTHONVER}/site-packages"
 RUN echo "source /opt/ros/${ROS_DISTRO}/setup.bash" >> /root/.bashrc && \
     echo "source ${WORKSPACE}/install/setup.bash" >> /root/.bashrc && \
-    echo "export PYTHONPATH=\"${VENV_PATH}/lib/python${PYTHONVER}/site-packages:\${PYTHONPATH}\"" >> /root/.bashrc
-
-# 剩余配置保持不变...
+    echo "export PYTHONPATH=\"${VENV_PATH}/lib/python${PYTHONVER}/site-packages:/opt/ros/${ROS_DISTRO}/lib/python${PYTHONVER}/site-packages\"" >> /root/.bashrc
 
 # 设置入口脚本
 COPY entrypoint.sh /entrypoint.sh
