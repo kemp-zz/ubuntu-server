@@ -96,7 +96,7 @@ RUN pip install --extra-index-url https://download.pytorch.org/whl/cu118 \
 
 # 编译安装libuvc
 WORKDIR /root
-RUN git clone --depth 1 --branch v0.0.6 https://github.com/libuvc/libuvc.git && \
+RUN git clone --depth 1 - https://github.com/libuvc/libuvc.git && \
     mkdir libuvc/build && cd libuvc/build && \
     cmake .. -DCMAKE_BUILD_TYPE=Release && \
     make -j$(nproc) && \
@@ -113,10 +113,10 @@ RUN cd ${WORKSPACE}/src/ros2_astra_camera/astra_camera/scripts && \
     ./install.sh
 
 # 构建ROS工作空间
-RUN . /opt/ros/${ROS_DISTRO}/setup.bash && \
-    cd ${WORKSPACE} && \
+RUN /bin/bash -c "source /opt/ros/${ROS_DISTRO}/setup.bash && \
+    cd /root/ros2_ws && \
     rosdep install --from-paths src --ignore-src -y && \
-    colcon build --event-handlers console_direct+ --cmake-args -DCMAKE_BUILD_TYPE=Release
+    colcon build --event-handlers console_direct+ --cmake-args -DCMAKE_BUILD_TYPE=Release"
 
 # 配置JupyterLab
 RUN mkdir -p /root/.jupyter && \
