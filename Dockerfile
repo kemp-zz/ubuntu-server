@@ -105,7 +105,7 @@ RUN git clone --depth 1 --branch v0.0.6 https://github.com/libuvc/libuvc.git && 
 
 # 准备ROS工作空间
 RUN mkdir -p ${WORKSPACE}/src && \
-    git clone --branch humble https://github.com/orbbec/ros2_astra_camera.git ${WORKSPACE}/src/ros2_astra_camera
+    git clone  https://github.com/orbbec/ros2_astra_camera.git ${WORKSPACE}/src/ros2_astra_camera
 
 # 安装udev规则
 RUN cd ${WORKSPACE}/src/ros2_astra_camera/astra_camera/scripts && \
