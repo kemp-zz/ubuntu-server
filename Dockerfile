@@ -43,12 +43,12 @@ RUN curl -sSL https://raw.githubusercontent.com/ros/rosdistro/master/ros.key -o 
 
 # 安装ROS2核心组件（新增相机相关组件）
 RUN apt-get update && apt-get install -y --no-install-recommends \
-    ros-$ROS_DISTRO-ros-base \
-    ros-$ROS_DISTRO-rosbridge-server \
-    ros-$ROS_DISTRO-image-geometry \
-    ros-$ROS_DISTRO-camera-info-manager \
-    ros-$ROS_DISTRO-image-transport \
-    ros-$ROS_DISTRO-image-publisher \
+    ros-humble-ros-base \
+    ros-humble-rosbridge-server \
+    ros-humble-image-geometry \
+    ros-humble-camera-info-manager \
+    ros-humble-image-transport \
+    ros-humble-image-publisher \
     ros-dev-tools \
     python3-colcon-common-extensions \
     python3-rosdep && \
@@ -97,7 +97,7 @@ RUN cd /root/ros2_ws/src/ros2_astra_camera/astra_camera/scripts && \
 
 # 构建ROS2工作空间
 RUN cd /root/ros2_ws && \
-    . /opt/ros/$ROS_DISTRO/setup.bash && \
+    . /opt/ros/humble/setup.bash && \
     rosdep install --from-paths src --ignore-src -y && \
     colcon build --event-handlers console_direct+ --cmake-args -DCMAKE_BUILD_TYPE=Release
 
@@ -107,7 +107,7 @@ RUN mkdir -p /root/.jupyter/lab/workspaces && \
       echo "c.ServerApp.allow_root = True"; } > /root/.jupyter/jupyter_server_config.py
 
 # 设置ROS环境
-RUN echo "source /opt/ros/$ROS_DISTRO/setup.bash" >> /root/.bashrc && \
+RUN echo "source /opt/ros/humble/setup.bash" >> /root/.bashrc && \
     echo "source /root/ros2_ws/install/setup.bash" >> /root/.bashrc
 
 # 启动脚本
