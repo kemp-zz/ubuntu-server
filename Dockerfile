@@ -4,12 +4,14 @@ FROM nvidia/cuda:11.8.0-devel-ubuntu22.04
 # 设置环境变量
 ENV DEBIAN_FRONTEND=noninteractive \
     ROS_DISTRO=humble \
-    TCNN_CUDA_ARCHITECTURES=61 \
+    TCNN_CUDA_ARCHITECTURES="61" \
     SHELL=/bin/bash \
     PYTHONVER=3.10 \
+    WORKSPACE=/root/ros2_ws \
+    VENV_PATH=/opt/venv \
     PATH="/opt/venv/bin:$PATH"
 
-# 安装系统依赖（优化后的合并安装）
+# 安装基础系统依赖
 RUN apt-get update && apt-get install -y --no-install-recommends \
     software-properties-common \
     wget \
@@ -39,41 +41,42 @@ RUN apt-get update && apt-get install -y --no-install-recommends \
 
 # 设置ROS2仓库
 RUN curl -sSL https://raw.githubusercontent.com/ros/rosdistro/master/ros.key -o /usr/share/keyrings/ros-archive-keyring.gpg && \
-    echo "deb [arch=$(dpkg --print-architecture) signed-by=/usr/share/keyrings/ros-archive-keyring.gpg] http://packages.ros.org/ros2/ubuntu $(lsb_release -cs) main" > /etc/apt/sources.list.d/ros2.list
-SHELL ["/bin/bash", "-c"]
-# 安装ROS2核心组件（新增相机相关组件）
-# 安装ROS2核心组件（新增相机相关组件及消息生成依赖）
+    echo "deb [arch=$(dpkg --print-architecture) signed-by=/usr/share/keyrings/ros-archive-keyring.gpg] http://packages.ros.org/ros2/ubuntu $(. /etc/os-release && echo $UBUNTU_CODENAME) main" > /etc/apt/sources.list.d/ros2.list
+
+# 安装ROS2核心组件
 RUN apt-get update && apt-get install -y --no-install-recommends \
-    ros-humble-ros-base \
-    ros-humble-rosbridge-server \
-    ros-humble-image-geometry \
-    ros-humble-camera-info-manager \
-    ros-humble-image-transport \
-    ros-humble-image-publisher \
-    ros-humble-sensor-msgs \
-    ros-humble-std-msgs \
-    ros-humble-geometry-msgs \
-    ros-humble-rosidl-default-generators \
+    ros-${ROS_DISTRO}-ros-base \
+    ros-${ROS_DISTRO}-rosbridge-server \
+    ros-${ROS_DISTRO}-image-geometry \
+    ros-${ROS_DISTRO}-camera-info-manager \
+    ros-${ROS_DISTRO}-image-transport \
+    ros-${ROS_DISTRO}-image-publisher \
+    ros-${ROS_DISTRO}-sensor-msgs \
+    ros-${ROS_DISTRO}-std-msgs \
+    ros-${ROS_DISTRO}-geometry-msgs \
+    ros-${ROS_DISTRO}-rosidl-default-generators \
     ros-dev-tools \
     python3-colcon-common-extensions \
     python3-rosdep && \
-    rosdep init && rosdep update
+    rosdep init || true && \
+    rosdep update || true
 
 # 安装Python工具链
 RUN add-apt-repository -y ppa:deadsnakes/ppa && \
     apt-get update && apt-get install -y \
-    python$PYTHONVER \
-    python$PYTHONVER-dev \
+    python${PYTHONVER} \
+    python${PYTHONVER}-dev \
     python3-pip \
     python3-venv && \
-    python$PYTHONVER -m venv /opt/venv
+    python${PYTHONVER} -m venv ${VENV_PATH} && \
+    ln -s /usr/bin/python3 /usr/bin/python
 
-# 安装Python依赖（优化分步安装顺序）
-RUN pip install --upgrade pip setuptools wheel
-RUN pip install --extra-index-url https://download.pytorch.org/whl/cu118 \
+# 安装Python依赖
+RUN pip install --upgrade pip setuptools wheel && \
+    pip install --extra-index-url https://download.pytorch.org/whl/cu118 \
     torch==2.1.2+cu118 \
-    torchvision==0.16.2+cu118
-RUN pip install \
+    torchvision==0.16.2+cu118 && \
+    pip install \
     jupyterlab \
     nerfstudio \
     pypose \
@@ -83,39 +86,47 @@ RUN pip install \
     empy \
     catkin_tools
 
-RUN pip install "tinycudann @ git+https://github.com/NVlabs/tiny-cuda-nn@master#subdirectory=bindings/torch"
+# 安装tiny-cuda-nn
+RUN pip install "tinycudann @ git+https://github.com/NVlabs/tiny-cuda-nn@v1.7#subdirectory=bindings/torch"
 
 # 编译安装libuvc
-RUN git clone https://github.com/libuvc/libuvc.git /root/libuvc && \
-    cd /root/libuvc && \
-    mkdir build && cd build && \
-    cmake .. && make -j4 && make install && ldconfig
+WORKDIR /root
+RUN git clone --depth 1 --branch v0.0.6 https://github.com/libuvc/libuvc.git && \
+    mkdir libuvc/build && cd libuvc/build && \
+    cmake .. -DCMAKE_BUILD_TYPE=Release && \
+    make -j$(nproc) && \
+    make install && \
+    ldconfig
 
-# 创建工作空间并克隆驱动代码
-RUN mkdir -p /root/ros2_ws/src && \
-    git clone https://github.com/orbbec/ros2_astra_camera.git /root/ros2_ws/src/ros2_astra_camera
+# 准备ROS工作空间
+RUN mkdir -p ${WORKSPACE}/src && \
+    git clone --branch humble https://github.com/orbbec/ros2_astra_camera.git ${WORKSPACE}/src/ros2_astra_camera
 
-# 安装udev规则（需提前创建scripts目录）
-RUN cd /root/ros2_ws/src/ros2_astra_camera/astra_camera/scripts && \
+# 安装udev规则
+RUN cd ${WORKSPACE}/src/ros2_astra_camera/astra_camera/scripts && \
     chmod +x install.sh && \
-    ./install.sh 
+    ./install.sh
 
-# 构建ROS2工作空间
-RUN cd /root/ros2_ws && \
-    . /opt/ros/humble/setup.bash && \
+# 构建ROS工作空间
+RUN . /opt/ros/${ROS_DISTRO}/setup.bash && \
+    cd ${WORKSPACE} && \
     rosdep install --from-paths src --ignore-src -y && \
     colcon build --event-handlers console_direct+ --cmake-args -DCMAKE_BUILD_TYPE=Release
 
 # 配置JupyterLab
-RUN mkdir -p /root/.jupyter/lab/workspaces && \
-    { echo "c.ServerApp.ip = '0.0.0.0'"; \
-      echo "c.ServerApp.allow_root = True"; } > /root/.jupyter/jupyter_server_config.py
+RUN mkdir -p /root/.jupyter && \
+    echo -e "c.ServerApp.ip = '0.0.0.0'\nc.ServerApp.allow_root = True\nc.ServerApp.open_browser = False" > /root/.jupyter/jupyter_server_config.py
 
-# 设置ROS环境
-RUN echo "source /opt/ros/humble/setup.bash" >> /root/.bashrc && \
-    echo "source /root/ros2_ws/install/setup.bash" >> /root/.bashrc
+# 设置环境配置
+RUN echo "source /opt/ros/${ROS_DISTRO}/setup.bash" >> /root/.bashrc && \
+    echo "source ${WORKSPACE}/install/setup.bash" >> /root/.bashrc && \
+    echo "export PYTHONPATH=\${VENV_PATH}/lib/python${PYTHONVER}/site-packages:\${PYTHONPATH}" >> /root/.bashrc
 
-# 启动脚本
+# 设置入口脚本
 COPY entrypoint.sh /entrypoint.sh
 RUN chmod +x /entrypoint.sh
+
+# 设置默认工作目录
+WORKDIR ${WORKSPACE}
+
 ENTRYPOINT ["/entrypoint.sh"]
