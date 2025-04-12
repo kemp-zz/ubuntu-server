@@ -1,22 +1,15 @@
 # syntax=docker/dockerfile:1
 
-ARG CUDA_VERSION=11.8.0
-ARG UBUNTU_VERSION=22.04
-ARG ROS_DISTRO=humble
-ARG TCNN_CUDA_ARCHITECTURES=61
+# 基础镜像直接指定CUDA 11.8和Ubuntu 22.04
+FROM nvidia/cuda:11.8.0-devel-ubuntu22.04
 
-# Base image with CUDA 11.8 development environment
-FROM nvidia/cuda:${CUDA_VERSION}-devel-ubuntu${UBUNTU_VERSION}
-
-# Set environment variables
+# 设置环境变量
 ENV DEBIAN_FRONTEND=noninteractive
-ENV ROS_DISTRO=${ROS_DISTRO}
-ENV TCNN_CUDA_ARCHITECTURES=${TCNN_CUDA_ARCHITECTURES}
 ENV ROS2_WS=/opt/ros2_ws
 ENV PYTHON_VERSION=3.10
 ENV SHELL=/bin/bash
 
-# Configure base system
+# 配置基础系统
 RUN <<EOF
 apt-get update && apt-get install -y --no-install-recommends \
     software-properties-common \
@@ -28,17 +21,17 @@ apt-get update && apt-get install -y --no-install-recommends \
     && rm -rf /var/lib/apt/lists/*
 EOF
 
-# Setup ROS 2 repository
+# 设置ROS 2仓库
 RUN <<EOF
 apt-key adv --keyserver hkp://keyserver.ubuntu.com:80 --recv-keys C1CF6E31E6BADE8868B172B4F42ED6FBAB17C654
-echo "deb [arch=$(dpkg --print-architecture)] http://packages.ros.org/ros2/ubuntu $(lsb_release -cs) main" > /etc/apt/sources.list.d/ros2.list
+echo "deb [arch=$(dpkg --print-architecture)] http://packages.ros.org/ros2/ubuntu jammy main" > /etc/apt/sources.list.d/ros2.list
 EOF
 
-# Install ROS 2 packages
+# 安装ROS 2软件包
 RUN <<EOF
 apt-get update && apt-get install -y --no-install-recommends \
-    ros-${ROS_DISTRO}-ros-base \
-    ros-dev-tools \
+    ros-humble-ros-base \
+    ros-humble-ros-dev-tools \
     python3-colcon-common-extensions \
     python3-rosdep \
     python3-pip \
@@ -46,24 +39,24 @@ apt-get update && apt-get install -y --no-install-recommends \
     && rm -rf /var/lib/apt/lists/*
 EOF
 
-# Setup Python environment
+# 配置Python环境
 RUN <<EOF
 add-apt-repository -y ppa:deadsnakes/ppa
 apt-get update && apt-get install -y \
-    python${PYTHON_VERSION} \
-    python${PYTHON_VERSION}-dev \
-    python${PYTHON_VERSION}-venv \
+    python3.10 \
+    python3.10-dev \
+    python3.10-venv \
     && rm -rf /var/lib/apt/lists/*
 EOF
 
-# Create Python virtual environment
+# 创建Python虚拟环境
 RUN <<EOF
-update-alternatives --install /usr/bin/python3 python3 /usr/bin/python${PYTHON_VERSION} 1
+update-alternatives --install /usr/bin/python3 python3 /usr/bin/python3.10 1
 python3 -m venv /opt/venv
 /opt/venv/bin/pip install --upgrade pip setuptools wheel
 EOF
 
-# Install Python dependencies
+# 安装Python依赖
 COPY requirements.txt /tmp/
 RUN <<EOF
 /opt/venv/bin/pip install -r /tmp/requirements.txt
@@ -72,39 +65,39 @@ RUN <<EOF
     torchvision==0.16.2+cu118
 EOF
 
-# Build tiny-cuda-nn with specified architectures
+# 构建tiny-cuda-nn（直接指定CUDA架构）
 RUN <<EOF
 git clone https://github.com/NVlabs/tiny-cuda-nn /tmp/tiny-cuda-nn
 cd /tmp/tiny-cuda-nn
 mkdir build && cd build
-cmake -DTCNN_CUDA_ARCHITECTURES=${TCNN_CUDA_ARCHITECTURES} ..
+cmake -DTCNN_CUDA_ARCHITECTURES=61 ..
 make -j$(nproc)
 cp -r ../bindings/torch /opt/venv/lib/python3.10/site-packages/tcnn
 EOF
 
-# Setup ROS workspace
-RUN mkdir -p ${ROS2_WS}/src
-WORKDIR ${ROS2_WS}
+# 设置ROS工作空间
+RUN mkdir -p /opt/ros2_ws/src
+WORKDIR /opt/ros2_ws
 
-# Build ROS workspace
+# 构建ROS工作空间
 RUN <<EOF
-source /opt/ros/${ROS_DISTRO}/setup.sh
+source /opt/ros/humble/setup.sh
 colcon build --symlink-install
 EOF
 
-# Configure entrypoint
+# 配置入口脚本
 COPY entrypoint.sh /entrypoint.sh
 RUN chmod +x /entrypoint.sh
 
-# Configure Jupyter Lab
+# 配置Jupyter Lab环境
 RUN <<EOF
 mkdir -p /root/.jupyter/lab/workspaces
-echo "source /opt/ros/${ROS_DISTRO}/setup.bash" >> /root/.bashrc
-echo "source ${ROS2_WS}/install/local_setup.bash" >> /root/.bashrc
+echo "source /opt/ros/humble/setup.bash" >> /root/.bashrc
+echo "source /opt/ros2_ws/install/local_setup.bash" >> /root/.bashrc
 echo "source /opt/venv/bin/activate" >> /root/.bashrc
 EOF
 
-# Runtime configuration
+# 运行时配置
 EXPOSE 8888
 VOLUME ["/opt/ros2_ws/src", "/app", "/root/.jupyter/lab"]
 WORKDIR /app
