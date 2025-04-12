@@ -55,11 +55,13 @@ RUN apt-get update && apt-get install -y --no-install-recommends \
     ros-humble-std-msgs \
     ros-humble-geometry-msgs \
     ros-humble-rosidl-default-generators \
+    ros-humble-rosidl-default-runtime \  
+    ros-humble-builtin-interfaces \  
     ros-dev-tools \
     python3-colcon-common-extensions \
     python3-rosdep && \
-    rosdep init || true && \
-    rosdep update || true 
+    rosdep init  && \
+    rosdep update 
     
 
 # 安装Python工具链
