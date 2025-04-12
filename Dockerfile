@@ -8,7 +8,7 @@ FROM nvidia/cuda:11.8.0-devel-ubuntu22.04 as builder
 ENV DEBIAN_FRONTEND=noninteractive \
     ROS2_WS=/opt/ros2_ws \
     TCNN_CUDA_ARCHITECTURES=61 \
-    CUDA_ARCH=sm_61  # 修正架构参数格式
+    CUDA_ARCH=sm_61
 
 # 用户及权限管理
 RUN <<EOF
