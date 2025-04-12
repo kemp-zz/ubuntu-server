@@ -52,7 +52,7 @@ RUN python3.10 -m venv /opt/venv && \
 
 # 第二阶段：应用构建（非特权用户上下文）
 # ==============================================
-FROM nvidia/cuda:11.8.0-devel-ubuntu22.04  # 保持开发镜像以支持编译
+FROM nvidia/cuda:11.8.0-devel-ubuntu22.04 
 
 ENV ROS2_WS=/opt/ros2_ws \
     PATH="/opt/venv/bin:$PATH" \
