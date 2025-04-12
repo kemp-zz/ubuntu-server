@@ -42,30 +42,18 @@ RUN apt-get update && apt-get remove -y python3-blinker \
     && apt-get autoremove -y \
     && rm -rf /var/lib/apt/lists/*
 
-# 第三阶段：分步安装 Python 依赖
-RUN pip3 install --no-cache-dir --upgrade pip setuptools wheel
-
-# 固定 NumPy 版本以解决兼容性问题
-RUN pip3 install --no-cache-dir numpy==1.23.5
-
-# 安装 PyTorch (CUDA 11.8，适配 Pascal 架构)
-RUN pip3 install --no-cache-dir \
+# 第三阶段：一次性安装所有 Python 依赖（解决 NumPy 版本冲突）
+RUN pip3 install --no-cache-dir --upgrade pip setuptools wheel && \
+    pip3 install --no-cache-dir \
+    numpy==1.23.5 \
     torch==2.1.2+cu118 \
     torchvision==0.16.2+cu118 \
     torchaudio==2.1.2+cu118 \
-    --extra-index-url https://download.pytorch.org/whl/cu118
-
-# 安装 JupyterLab
-RUN pip3 install --no-cache-dir jupyterlab
-
-# 安装 NeRFStudio
-RUN pip3 install --no-cache-dir nerfstudio
-
-# 安装 PyPose（确保 OpenCV 依赖正确）
-RUN pip3 install --no-cache-dir pypose
-
-# 安装 tiny-cuda-nn（指定 CUDA 架构）
-RUN TCNN_CUDA_ARCHITECTURES=$TCNN_CUDA_ARCHITECTURES \
+    jupyterlab \
+    nerfstudio \
+    pypose \
+    --extra-index-url https://download.pytorch.org/whl/cu118 && \
+    TCNN_CUDA_ARCHITECTURES=$TCNN_CUDA_ARCHITECTURES \
     pip3 install --no-cache-dir \
     git+https://github.com/NVlabs/tiny-cuda-nn/#subdirectory=bindings/torch
 
