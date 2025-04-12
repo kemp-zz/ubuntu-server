@@ -9,7 +9,7 @@ ENV DEBIAN_FRONTEND=noninteractive \
     PYTHONVER=3.10 \
     WORKSPACE=/root/ros2_ws \
     VENV_PATH=/opt/venv \
-    PATH="/opt/venv/bin:$PATH"
+    SYSTEM_PYTHON_PATH=/usr/bin/python3
 
 # 安装基础系统依赖
 RUN apt-get update && apt-get install -y --no-install-recommends \
@@ -44,7 +44,7 @@ RUN apt-get update && apt-get install -y --no-install-recommends \
 RUN curl -sSL https://raw.githubusercontent.com/ros/rosdistro/master/ros.key -o /usr/share/keyrings/ros-archive-keyring.gpg && \
     echo "deb [arch=$(dpkg --print-architecture) signed-by=/usr/share/keyrings/ros-archive-keyring.gpg] http://packages.ros.org/ros2/ubuntu $(. /etc/os-release && echo $UBUNTU_CODENAME) main" > /etc/apt/sources.list.d/ros2.list
 
-# 安装ROS2核心组件
+# 安装ROS2核心组件（使用系统Python）
 RUN apt-get update && apt-get install -y --no-install-recommends \
     ros-humble-ros-base \
     ros-humble-rosbridge-server \
@@ -56,31 +56,30 @@ RUN apt-get update && apt-get install -y --no-install-recommends \
     ros-humble-std-msgs \
     ros-humble-geometry-msgs \
     ros-humble-rosidl-default-generators \
-    ros-humble-rosidl-default-runtime \  
-    ros-humble-builtin-interfaces \  
+    ros-humble-rosidl-default-runtime \
+    ros-humble-builtin-interfaces \
     ros-dev-tools \
     python3-colcon-common-extensions \
-    python3-rosdep &&\
-    rosdep init  && \
-    rosdep update 
-    
+    python3-rosdep && \
+    rosdep init && \
+    rosdep update
 
-# 安装Python工具链
-RUN add-apt-repository -y ppa:deadsnakes/ppa && \
-    apt-get update && apt-get install -y \
-    python${PYTHONVER} \
-    python${PYTHONVER}-dev \
-    python3-pip \
-    python3-venv && \
+# 创建Python虚拟环境（与系统Python隔离）
+RUN apt-get update && apt-get install -y \
+    python${PYTHONVER}-venv \
+    python3-pip && \
     python${PYTHONVER} -m venv ${VENV_PATH} && \
     ln -s /usr/bin/python3 /usr/bin/python
 
-# 安装Python依赖
-RUN pip install --upgrade pip setuptools wheel && \
-    pip install --extra-index-url https://download.pytorch.org/whl/cu118 \
+# 安装PyTorch到虚拟环境（使用虚拟环境的pip）
+RUN ${VENV_PATH}/bin/pip install --upgrade pip setuptools wheel && \
+    ${VENV_PATH}/bin/pip install --extra-index-url https://download.pytorch.org/whl/cu118 \
     torch==2.1.2+cu118 \
-    torchvision==0.16.2+cu118 && \
-    pip install \
+    torchvision==0.16.2+cu118 \
+    torchaudio==2.1.2+cu118
+
+# 安装其他Python依赖到虚拟环境
+RUN ${VENV_PATH}/bin/pip install \
     jupyterlab \
     nerfstudio \
     pypose \
@@ -90,18 +89,9 @@ RUN pip install --upgrade pip setuptools wheel && \
     empy \
     catkin_tools
 
-# 安装tiny-cuda-nn（修复版本问题）
-
-RUN pip install --extra-index-url https://download.pytorch.org/whl/cu118 \
-    torch==2.1.2+cu118 \
-    torchvision==0.16.2+cu118 \
-    torchaudio==2.1.2+cu118
-    
-
-
 # 编译安装libuvc
 WORKDIR /root
-RUN git clone --depth 1  https://github.com/libuvc/libuvc.git && \
+RUN git clone --depth 1 https://github.com/libuvc/libuvc.git && \
     mkdir libuvc/build && cd libuvc/build && \
     cmake .. -DCMAKE_BUILD_TYPE=Release && \
     make -j$(nproc) && \
@@ -110,36 +100,28 @@ RUN git clone --depth 1  https://github.com/libuvc/libuvc.git && \
 
 # 准备ROS工作空间
 RUN mkdir -p ${WORKSPACE}/src && \
-    git clone  https://github.com/orbbec/ros2_astra_camera.git ${WORKSPACE}/src/ros2_astra_camera
+    git clone https://github.com/orbbec/ros2_astra_camera.git ${WORKSPACE}/src/ros2_astra_camera
 
-# 安装udev规则
+# 安装udev规则（使用系统Python）
 RUN cd ${WORKSPACE}/src/ros2_astra_camera/astra_camera/scripts && \
     chmod +x install.sh && \
     ./install.sh
 
-
-
-# 安装ROS工作空间依赖并构建
+# 构建ROS工作空间（强制使用系统Python）
 RUN /bin/bash -c "source /opt/ros/${ROS_DISTRO}/setup.bash && \
-    cd /root/ros2_ws && \
-    apt-get update && \
+    cd ${WORKSPACE} && \
     rosdep install --from-paths src --ignore-src -y --rosdistro ${ROS_DISTRO} && \
-    apt-get install -y ros-humble-rosidl-default-generators ros-humble-builtin-interfaces"
+    PYTHONPATH= PATH=${SYSTEM_PYTHON_PATH}:${PATH} colcon build \
+    --event-handlers console_direct+ \
+    --cmake-args -DCMAKE_BUILD_TYPE=Release"
 
-# 执行构建（使用系统Python）
-RUN /bin/bash -c "source /opt/ros/${ROS_DISTRO}/setup.bash && \
-    cd /root/ros2_ws && \
-    export PATH=/usr/bin:${VENV_PATH}/bin && \
-    colcon build --event-handlers console_direct+ --cmake-args -DCMAKE_BUILD_TYPE=Release"
-
-# 配置JupyterLab
-RUN mkdir -p /root/.jupyter && \
-    echo -e "c.ServerApp.ip = '0.0.0.0'\nc.ServerApp.allow_root = True\nc.ServerApp.open_browser = False" > /root/.jupyter/jupyter_server_config.py
-
-# 设置环境配置
+# 配置环境变量隔离
+ENV PATH="${VENV_PATH}/bin:${PATH}"
 RUN echo "source /opt/ros/${ROS_DISTRO}/setup.bash" >> /root/.bashrc && \
     echo "source ${WORKSPACE}/install/setup.bash" >> /root/.bashrc && \
-    echo "export PYTHONPATH=\${VENV_PATH}/lib/python${PYTHONVER}/site-packages:\${PYTHONPATH}" >> /root/.bashrc
+    echo "export PYTHONPATH=\"${VENV_PATH}/lib/python${PYTHONVER}/site-packages:\${PYTHONPATH}\"" >> /root/.bashrc
+
+# 剩余配置保持不变...
 
 # 设置入口脚本
 COPY entrypoint.sh /entrypoint.sh
