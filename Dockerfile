@@ -15,6 +15,8 @@ RUN apt-get update && apt-get install -y --no-install-recommends \
     wget \
     curl \
     gnupg2 \
+    udev \
+    usbutils \
     lsb-release \
     build-essential \
     cmake \
@@ -28,17 +30,25 @@ RUN apt-get update && apt-get install -y --no-install-recommends \
     libxext6 \
     libxrender1 \
     ffmpeg \
-    freeglut3-dev && \
+    freeglut3-dev \
+    libgflags-dev \
+    libgoogle-glog-dev \
+    libusb-1.0-0-dev \
+    libeigen3-dev && \
     rm -rf /var/lib/apt/lists/*
 
 # 设置ROS2仓库
 RUN curl -sSL https://raw.githubusercontent.com/ros/rosdistro/master/ros.key -o /usr/share/keyrings/ros-archive-keyring.gpg && \
     echo "deb [arch=$(dpkg --print-architecture) signed-by=/usr/share/keyrings/ros-archive-keyring.gpg] http://packages.ros.org/ros2/ubuntu $(lsb_release -cs) main" > /etc/apt/sources.list.d/ros2.list
 
-# 安装ROS2核心组件
+# 安装ROS2核心组件（新增相机相关组件）
 RUN apt-get update && apt-get install -y --no-install-recommends \
     ros-$ROS_DISTRO-ros-base \
     ros-$ROS_DISTRO-rosbridge-server \
+    ros-$ROS_DISTRO-image-geometry \
+    ros-$ROS_DISTRO-camera-info-manager \
+    ros-$ROS_DISTRO-image-transport \
+    ros-$ROS_DISTRO-image-publisher \
     ros-dev-tools \
     python3-colcon-common-extensions \
     python3-rosdep && \
@@ -70,13 +80,35 @@ RUN pip install \
 
 RUN pip install "tinycudann @ git+https://github.com/NVlabs/tiny-cuda-nn@master#subdirectory=bindings/torch"
 
+# 编译安装libuvc
+RUN git clone https://github.com/libuvc/libuvc.git /root/libuvc && \
+    cd /root/libuvc && \
+    mkdir build && cd build && \
+    cmake .. && make -j4 && make install && ldconfig
+
+# 创建工作空间并克隆驱动代码
+RUN mkdir -p /root/ros2_ws/src && \
+    git clone https://github.com/orbbec/ros2_astra_camera.git /root/ros2_ws/src/ros2_astra_camera
+
+# 安装udev规则（需提前创建scripts目录）
+RUN cd /root/ros2_ws/src/ros2_astra_camera/astra_camera/scripts && \
+    chmod +x install.sh && \
+    ./install.sh 
+
+# 构建ROS2工作空间
+RUN cd /root/ros2_ws && \
+    . /opt/ros/$ROS_DISTRO/setup.bash && \
+    rosdep install --from-paths src --ignore-src -y && \
+    colcon build --event-handlers console_direct+ --cmake-args -DCMAKE_BUILD_TYPE=Release
+
 # 配置JupyterLab
 RUN mkdir -p /root/.jupyter/lab/workspaces && \
     { echo "c.ServerApp.ip = '0.0.0.0'"; \
       echo "c.ServerApp.allow_root = True"; } > /root/.jupyter/jupyter_server_config.py
 
 # 设置ROS环境
-RUN echo "source /opt/ros/$ROS_DISTRO/setup.bash" >> /root/.bashrc
+RUN echo "source /opt/ros/$ROS_DISTRO/setup.bash" >> /root/.bashrc && \
+    echo "source /root/ros2_ws/install/setup.bash" >> /root/.bashrc
 
 # 启动脚本
 COPY entrypoint.sh /entrypoint.sh
