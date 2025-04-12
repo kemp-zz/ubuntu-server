@@ -67,7 +67,8 @@ RUN pip install \
     rosinstall \
     empy \
     catkin_tools
-RUN pip install "tcnn @ git+https://github.com/NVlabs/tiny-cuda-nn@master#subdirectory=bindings/torch"
+
+RUN pip install "tinycudann @ git+https://github.com/NVlabs/tiny-cuda-nn@master#subdirectory=bindings/torch"
 
 # 配置JupyterLab
 RUN mkdir -p /root/.jupyter/lab/workspaces && \
