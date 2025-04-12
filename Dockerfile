@@ -59,8 +59,8 @@ RUN apt-get update && apt-get install -y --no-install-recommends \
     python3-colcon-common-extensions \
     python3-rosdep && \
     rosdep init || true && \
-    rosdep update || true && \
-    rosdep install --from-paths src --ignore-src -r -y
+    rosdep update || true && 
+    
 
 # 安装Python工具链
 RUN add-apt-repository -y ppa:deadsnakes/ppa && \
