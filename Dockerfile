@@ -37,9 +37,15 @@ RUN curl -sSL https://raw.githubusercontent.com/ros/rosdistro/master/ros.key -o 
     && rosdep update \
     && rm -rf /var/lib/apt/lists/*
 
+# 移除可能冲突的系统Python包（如blinker）
+RUN apt-get update && apt-get remove -y python3-blinker \
+    && apt-get autoremove -y \
+    && rm -rf /var/lib/apt/lists/*
+
 # 第三阶段：分步安装 Python 依赖
 RUN pip3 install --no-cache-dir --upgrade pip setuptools wheel
 
+# ...后续步骤保持不变...
 # 安装 PyTorch (CUDA 11.8)
 RUN pip3 install --no-cache-dir \
     torch==2.1.2+cu118 \
