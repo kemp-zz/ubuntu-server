@@ -88,7 +88,10 @@ RUN pip install --upgrade pip setuptools wheel && \
 
 # 安装tiny-cuda-nn（修复版本问题）
 
-RUN pip install -vvv "tinycudann @ git+https://github.com/NVlabs/tiny-cuda-nn@v1.6#subdirectory=bindings/torch"
+RUN pip install --extra-index-url https://download.pytorch.org/whl/cu118 \
+    torch==2.1.2+cu118 \
+    torchvision==0.16.2+cu118 \
+    torchaudio==2.1.2+cu118
 
 
 # 编译安装libuvc
