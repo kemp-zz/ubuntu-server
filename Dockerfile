@@ -57,7 +57,7 @@ ENV ROS_PYTHON_VERSION=3 \
 
 # 设置工作目录并复制示例笔记本
 WORKDIR /workspace
-COPY ./notebooks ./notebooks
+
 
 # 启动 Jupyter Lab
 CMD ["jupyter-lab", "--ip=0.0.0.0", "--allow-root", "--no-browser", "--NotebookApp.token=''"]
