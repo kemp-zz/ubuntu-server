@@ -59,7 +59,7 @@ RUN apt-get update && apt-get install -y --no-install-recommends \
     python3-colcon-common-extensions \
     python3-rosdep && \
     rosdep init || true && \
-    rosdep update || true && 
+    rosdep update || true 
     
 
 # 安装Python工具链
