@@ -4,7 +4,7 @@
 source /opt/venv/bin/activate
 
 # 加载ROS环境
-source /opt/ros/$ROS_DISTRO/setup.bash
+source /opt/ros/humble/setup.bash
 
 # 加载自定义ROS工作空间（根据实际需要选择是否启用）
 if [ -f "${ROS2_WS}/install/local_setup.bash" ]; then
