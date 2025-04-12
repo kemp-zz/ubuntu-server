@@ -21,26 +21,26 @@ RUN apt-get update && apt-get install -y --no-install-recommends \
     zlib1g-dev \
     gnupg2 \
     lsb-release \
-    # 清理缓存
     && rm -rf /var/lib/apt/lists/*
 
-# 第二阶段：安装 ROS 2 (修复关键步骤)
-RUN echo "deb [arch=$(dpkg --print-architecture)] https://mirrors.tuna.tsinghua.edu.cn/ros2/ubuntu jammy main" > /etc/apt/sources.list.d/ros2.list && \
-    # 使用国内镜像源并直接下载密钥
-    curl -sSL https://mirrors.tuna.tsinghua.edu.cn/ros/ros.key -o /etc/apt/trusted.gpg.d/ros.asc && \
-    apt-get update && \
-    apt-get install -y --no-install-recommends \
+# 第二阶段：安装 ROS 2 (官方源版本)
+RUN apt-get update && apt-get install -y curl gnupg2 \
+    # 添加官方ROS仓库
+    && curl -sSL https://raw.githubusercontent.com/ros/rosdistro/master/ros.key -o /usr/share/keyrings/ros-archive-keyring.gpg \
+    && echo "deb [arch=$(dpkg --print-architecture) signed-by=/usr/share/keyrings/ros-archive-keyring.gpg] http://packages.ros.org/ros2/ubuntu jammy main" > /etc/apt/sources.list.d/ros2.list \
+    && apt-get update \
+    && apt-get install -y --no-install-recommends \
     ros-${ROS_DISTRO}-desktop \
     python3-rosdep \
     python3-colcon-common-extensions \
     # 初始化 rosdep
-    && rosdep init && rosdep update \
-    # 清理缓存
+    && rosdep init \
+    && rosdep update \
     && rm -rf /var/lib/apt/lists/*
 
 # 第三阶段：配置 Python 环境
-RUN pip3 install --no-cache-dir --upgrade pip && \
-    pip3 install --no-cache-dir \
+RUN pip3 install --no-cache-dir --upgrade pip \
+    && pip3 install --no-cache-dir \
     jupyterlab \
     nerfstudio \
     pypose \
@@ -58,6 +58,3 @@ WORKDIR /workspace
 
 # 启动命令
 CMD ["jupyter-lab", "--ip=0.0.0.0", "--allow-root", "--NotebookApp.token=''"]
-
-
-
