@@ -4,4 +4,4 @@ pypose
 --extra-index-url https://download.pytorch.org/whl/cu118 --trusted-host download.pytorch.org
 torch==2.1.2+cu118
 torchvision==0.16.2+cu118
-#tcnn @ git+https://github.com/NVlabs/tiny-cuda-nn/#subdirectory=bindings/torch
+tcnn @ git+https://github.com/NVlabs/tiny-cuda-nn/#subdirectory=bindings/torch
