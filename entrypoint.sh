@@ -1,5 +1,5 @@
 #!/bin/bash
-
+ENV ROS2_WS=/opt/ros2_ws
 # 激活Python虚拟环境（路径改为/opt/venv）
 source /opt/venv/bin/activate
 
