@@ -107,13 +107,19 @@ RUN cd ${WORKSPACE}/src/ros2_astra_camera/astra_camera/scripts && \
     chmod +x install.sh && \
     ./install.sh
 
-# 构建ROS工作空间（强制使用系统Python）
+
+# 修改构建命令，添加更严格的环境隔离
 RUN /bin/bash -c "source /opt/ros/${ROS_DISTRO}/setup.bash && \
     cd ${WORKSPACE} && \
     rosdep install --from-paths src --ignore-src -y --rosdistro ${ROS_DISTRO} && \
-    PYTHONPATH= PATH=${SYSTEM_PYTHON_PATH}:${PATH} colcon build \
+    unset VIRTUAL_ENV && \  # 清除虚拟环境变量
+    export PATH=\"/usr/bin:/bin:${VENV_PATH}/bin\" && \  # 优先使用系统路径
+    export PYTHONPATH=\"/usr/lib/python3/dist-packages\" && \  # 强制系统Python库
+    colcon build \
     --event-handlers console_direct+ \
-    --cmake-args -DCMAKE_BUILD_TYPE=Release"
+    --cmake-args \
+    -DPYTHON_EXECUTABLE=/usr/bin/python3 \
+    -DCMAKE_BUILD_TYPE=Release"
 
 # 配置环境变量隔离
 ENV PATH="${VENV_PATH}/bin:${PATH}"
