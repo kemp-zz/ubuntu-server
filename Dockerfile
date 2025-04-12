@@ -60,7 +60,7 @@ RUN apt-get update && apt-get install -y --no-install-recommends \
     ros-humble-builtin-interfaces \  
     ros-dev-tools \
     python3-colcon-common-extensions \
-    python3-rosdep \
+    python3-rosdep &&\
     rosdep init  && \
     rosdep update 
     
