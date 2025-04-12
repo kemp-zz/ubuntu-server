@@ -30,6 +30,9 @@ RUN apt-get update && apt-get install -y --no-install-recommends \
     libopenmpi-dev \
     libboost-dev \
     libeigen3-dev \
+    libcudnn8-dev \        
+    libcublas-dev \         
+    libcurand-dev \  
     && rm -rf /var/lib/apt/lists/*
 
 # 配置ROS 2仓库（root权限操作）
