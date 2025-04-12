@@ -42,6 +42,7 @@ RUN curl -sSL https://raw.githubusercontent.com/ros/rosdistro/master/ros.key -o 
     echo "deb [arch=$(dpkg --print-architecture) signed-by=/usr/share/keyrings/ros-archive-keyring.gpg] http://packages.ros.org/ros2/ubuntu $(lsb_release -cs) main" > /etc/apt/sources.list.d/ros2.list
 SHELL ["/bin/bash", "-c"]
 # 安装ROS2核心组件（新增相机相关组件）
+# 安装ROS2核心组件（新增相机相关组件及消息生成依赖）
 RUN apt-get update && apt-get install -y --no-install-recommends \
     ros-humble-ros-base \
     ros-humble-rosbridge-server \
@@ -49,6 +50,10 @@ RUN apt-get update && apt-get install -y --no-install-recommends \
     ros-humble-camera-info-manager \
     ros-humble-image-transport \
     ros-humble-image-publisher \
+    ros-humble-sensor-msgs \
+    ros-humble-std-msgs \
+    ros-humble-geometry-msgs \
+    ros-humble-rosidl-default-generators \
     ros-dev-tools \
     python3-colcon-common-extensions \
     python3-rosdep && \
