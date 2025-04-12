@@ -45,21 +45,22 @@ RUN curl -sSL https://raw.githubusercontent.com/ros/rosdistro/master/ros.key -o 
 
 # 安装ROS2核心组件
 RUN apt-get update && apt-get install -y --no-install-recommends \
-    ros-${ROS_DISTRO}-ros-base \
-    ros-${ROS_DISTRO}-rosbridge-server \
-    ros-${ROS_DISTRO}-image-geometry \
-    ros-${ROS_DISTRO}-camera-info-manager \
-    ros-${ROS_DISTRO}-image-transport \
-    ros-${ROS_DISTRO}-image-publisher \
-    ros-${ROS_DISTRO}-sensor-msgs \
-    ros-${ROS_DISTRO}-std-msgs \
-    ros-${ROS_DISTRO}-geometry-msgs \
-    ros-${ROS_DISTRO}-rosidl-default-generators \
+    ros-humble-ros-base \
+    ros-humble-rosbridge-server \
+    ros-humble-image-geometry \
+    ros-humble-camera-info-manager \
+    ros-humble-image-transport \
+    ros-humble-image-publisher \
+    ros-humble-sensor-msgs \
+    ros-humble-std-msgs \
+    ros-humble-geometry-msgs \
+    ros-humble-rosidl-default-generators \
     ros-dev-tools \
     python3-colcon-common-extensions \
     python3-rosdep && \
     rosdep init || true && \
-    rosdep update || true
+    rosdep update || true && \
+    rosdep install --from-paths src --ignore-src -r -y
 
 # 安装Python工具链
 RUN add-apt-repository -y ppa:deadsnakes/ppa && \
@@ -92,6 +93,7 @@ RUN pip install --extra-index-url https://download.pytorch.org/whl/cu118 \
     torch==2.1.2+cu118 \
     torchvision==0.16.2+cu118 \
     torchaudio==2.1.2+cu118
+    
 
 
 # 编译安装libuvc
