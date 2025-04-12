@@ -87,7 +87,9 @@ RUN pip install --upgrade pip setuptools wheel && \
     catkin_tools
 
 # 安装tiny-cuda-nn（修复版本问题）
-RUN pip install "tinycudann @ git+https://github.com/NVlabs/tiny-cuda-nn@d0a119d#subdirectory=bindings/torch"
+
+RUN pip install "tinycudann @ git+https://github.com/NVlabs/tiny-cuda-nn@v1.6#subdirectory=bindings/torch"
+
 
 # 编译安装libuvc
 WORKDIR /root
