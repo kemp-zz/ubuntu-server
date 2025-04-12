@@ -37,7 +37,7 @@ RUN apt-get update && apt-get install -y --no-install-recommends \
     libgoogle-glog-dev \
     libusb-1.0-0-dev \
     libeigen3-dev && \
-    python3-empy && \ 
+    python3-empy && \
     rm -rf /var/lib/apt/lists/*
 
 # 设置ROS2仓库
