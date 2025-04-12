@@ -113,8 +113,8 @@ RUN /bin/bash -c "source /opt/ros/${ROS_DISTRO}/setup.bash && \
     cd ${WORKSPACE} && \
     rosdep install --from-paths src --ignore-src -y --rosdistro ${ROS_DISTRO} && \
     unset VIRTUAL_ENV && \  # 清除虚拟环境变量
-    export PATH=\"/usr/bin:/bin:${VENV_PATH}/bin\" && \  # 优先使用系统路径
-    export PYTHONPATH=\"/usr/lib/python3/dist-packages\" && \  # 强制系统Python库
+    export PATH=\"/usr/bin:/bin:${VENV_PATH}/bin\" && \  
+    export PYTHONPATH=\"/usr/lib/python3/dist-packages\" && \ 
     colcon build \
     --event-handlers console_direct+ \
     --cmake-args \
