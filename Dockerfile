@@ -14,7 +14,6 @@ ENV DEBIAN_FRONTEND=noninteractive \
     SHELL=/bin/bash \
     TCNN_CUDA_ARCHITECTURES=61
 
-# 安装系统依赖（保持root权限）
 RUN apt-get update && apt-get install -y --no-install-recommends \
     software-properties-common \
     build-essential \
@@ -30,9 +29,10 @@ RUN apt-get update && apt-get install -y --no-install-recommends \
     libopenmpi-dev \
     libboost-dev \
     libeigen3-dev \
-    libcudnn8-dev \        
-    libcublas-dev \         
-    libcurand-dev \  
+    libcudnn8-dev \
+    cuda-toolkit-11-8 \      
+    libcublas-dev-11-8 \     
+    libcurand-dev-11-8 \      
     && rm -rf /var/lib/apt/lists/*
 
 # 配置ROS 2仓库（root权限操作）
