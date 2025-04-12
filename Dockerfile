@@ -36,7 +36,7 @@ RUN apt-get update && apt-get install -y --no-install-recommends \
     libgflags-dev \
     libgoogle-glog-dev \
     libusb-1.0-0-dev \
-    libeigen3-dev && \
+    libeigen3-dev \
     python3-empy && \
     rm -rf /var/lib/apt/lists/*
 
