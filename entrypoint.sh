@@ -10,4 +10,4 @@ ros2 launch rosbridge_server rosbridge_websocket_launch.xml &
 jupyter-lab --ip=0.0.0.0 --port=8888 --no-browser --allow-root &
 
 # 保持容器运行
-exec "$@"
+exec /bin/bash
