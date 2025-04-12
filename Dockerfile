@@ -47,11 +47,14 @@ RUN pip3 install --no-cache-dir \
     torchaudio==2.1.2+cu118 \
     --extra-index-url https://download.pytorch.org/whl/cu118
 
-# 安装其他依赖
-RUN pip3 install --no-cache-dir \
-    jupyterlab \
-    nerfstudio \
-    pypose
+# 步骤1：单独安装 JupyterLab
+RUN pip3 install --no-cache-dir jupyterlab==4.3.5
+
+# 步骤2：安装 NeRFStudio（需验证 CUDA 兼容性）
+RUN pip3 install --no-cache-dir nerfstudio==0.1.14
+
+# 步骤3：安装 PyPose（注意 OpenCV 依赖）
+RUN pip3 install --no-cache-dir pypose
 
 # 安装 tiny-cuda-nn
 RUN TCNN_CUDA_ARCHITECTURES=$TCNN_CUDA_ARCHITECTURES \
