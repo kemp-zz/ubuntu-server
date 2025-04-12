@@ -6,7 +6,6 @@ FROM nvidia/cuda:11.8.0-devel-ubuntu22.04
 # 设置环境变量
 ENV DEBIAN_FRONTEND=noninteractive
 ENV ROS2_WS=/opt/ros2_ws
-ENV PYTHON_VERSION=3.10
 ENV SHELL=/bin/bash
 
 # 配置基础系统
@@ -27,22 +26,24 @@ apt-key adv --keyserver hkp://keyserver.ubuntu.com:80 --recv-keys C1CF6E31E6BADE
 echo "deb [arch=$(dpkg --print-architecture)] http://packages.ros.org/ros2/ubuntu jammy main" > /etc/apt/sources.list.d/ros2.list
 EOF
 
-# 安装ROS 2软件包
+# 安装ROS 2软件包（修正版）
 RUN <<EOF
 apt-get update && apt-get install -y --no-install-recommends \
     ros-humble-ros-base \
-    ros-humble-ros-dev-tools \
+    ros-dev-tools \
     python3-colcon-common-extensions \
     python3-rosdep \
     python3-pip \
     python3-venv \
+    && rosdep init \
+    && rosdep update \
     && rm -rf /var/lib/apt/lists/*
 EOF
 
 # 配置Python环境
 RUN <<EOF
 add-apt-repository -y ppa:deadsnakes/ppa
-apt-get update && apt-get install -y \
+apt-get update && apt-get install -y --no-install-recommends \
     python3.10 \
     python3.10-dev \
     python3.10-venv \
@@ -65,7 +66,7 @@ RUN <<EOF
     torchvision==0.16.2+cu118
 EOF
 
-# 构建tiny-cuda-nn（直接指定CUDA架构）
+# 构建tiny-cuda-nn
 RUN <<EOF
 git clone https://github.com/NVlabs/tiny-cuda-nn /tmp/tiny-cuda-nn
 cd /tmp/tiny-cuda-nn
