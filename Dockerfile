@@ -108,16 +108,22 @@ RUN cd ${WORKSPACE}/src/ros2_astra_camera/astra_camera/scripts && \
     chmod +x install.sh && \
     ./install.sh
 
-# 修改构建命令强制使用虚拟环境Python
+# 修改后的构建命令（完整版）
 RUN /bin/bash -c "source /opt/ros/${ROS_DISTRO}/setup.bash && \
     cd ${WORKSPACE} && \
-    rosdep install --from-paths src --ignore-src -y --rosdistro ${ROS_DISTRO} && \
+    # 强制环境隔离
+    unset VIRTUAL_ENV && \
+    export PATH=\"${VENV_PATH}/bin:$PATH\" && \
     export PYTHON_EXECUTABLE=${VENV_PATH}/bin/python3 && \
     export PYTHONPATH=\"${VENV_PATH}/lib/python${PYTHONVER}/site-packages:/opt/ros/${ROS_DISTRO}/lib/python${PYTHONVER}/site-packages\" && \
+    # 使用虚拟环境Python安装ROS依赖
+    rosdep install --from-paths src --ignore-src -y --rosdistro ${ROS_DISTRO} --python ${VENV_PATH}/bin/python3 && \
+    # 使用虚拟环境Python进行构建
     colcon build \
     --event-handlers console_direct+ \
     --cmake-args \
     -DPYTHON_EXECUTABLE=${VENV_PATH}/bin/python3 \
+    -DPYTHON_INCLUDE_DIR=$(find /usr/include -name python${PYTHONVER} -type d | head -n1) \
     -DCMAKE_BUILD_TYPE=Release"
 
 # 配置环境变量
