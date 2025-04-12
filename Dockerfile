@@ -9,7 +9,7 @@ RUN groupadd -g 1000 appuser && \
 ENV DEBIAN_FRONTEND=noninteractive \
     ROS2_WS=/opt/ros2_ws \
     SHELL=/bin/bash \
-    TCNN_CUDA_ARCHITECTURES=89
+    TCNN_CUDA_ARCHITECTURES=61
 
 # 安装系统依赖（保持root权限）
 RUN apt-get update && apt-get install -y --no-install-recommends \
