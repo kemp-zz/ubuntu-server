@@ -1,5 +1,5 @@
-# 使用NVIDIA CUDA基础镜像
-FROM nvidia/cuda:11.8.0-base-ubuntu22.04
+# 使用NVIDIA CUDA开发镜像（包含完整的CUDA工具链）
+FROM nvidia/cuda:11.8.0-devel-ubuntu22.04
 
 # 设置环境变量
 ENV DEBIAN_FRONTEND=noninteractive \
@@ -9,7 +9,7 @@ ENV DEBIAN_FRONTEND=noninteractive \
     PYTHONVER=3.10 \
     PATH="/opt/venv/bin:$PATH"
 
-# 安装系统依赖（合并图形和编译工具）
+# 安装系统依赖（优化后的合并安装）
 RUN apt-get update && apt-get install -y --no-install-recommends \
     software-properties-common \
     wget \
@@ -20,14 +20,14 @@ RUN apt-get update && apt-get install -y --no-install-recommends \
     cmake \
     git \
     ninja-build \
-    zlib1g-dev \              
-    libtcmalloc-minimal4 \      
-    libgl1-mesa-glx \         
+    zlib1g-dev \
+    libtcmalloc-minimal4 \
+    libgl1-mesa-glx \
     libgl1-mesa-dri \
     libx11-6 \
     libxext6 \
     libxrender1 \
-    ffmpeg \                   
+    ffmpeg \
     freeglut3-dev && \
     rm -rf /var/lib/apt/lists/*
 
