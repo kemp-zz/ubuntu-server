@@ -37,7 +37,6 @@ EOF
 # Install ROS 2 packages
 RUN <<EOF
 apt-get update && apt-get install -y --no-install-recommends \
-    ros-${ROS_DISTRO}-desktop \
     ros-${ROS_DISTRO}-ros-base \
     ros-dev-tools \
     python3-colcon-common-extensions \
