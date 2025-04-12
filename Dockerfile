@@ -96,7 +96,7 @@ RUN pip install --extra-index-url https://download.pytorch.org/whl/cu118 \
 
 # 编译安装libuvc
 WORKDIR /root
-RUN git clone --depth 1 - https://github.com/libuvc/libuvc.git && \
+RUN git clone --depth 1  https://github.com/libuvc/libuvc.git && \
     mkdir libuvc/build && cd libuvc/build && \
     cmake .. -DCMAKE_BUILD_TYPE=Release && \
     make -j$(nproc) && \
