@@ -6,7 +6,7 @@ ENV DEBIAN_FRONTEND=noninteractive \
     LANG=C.UTF-8 \
     LC_ALL=C.UTF-8 \
     ROS_DISTRO=humble \
-    TCNN_CUDA_ARCHITECTURES=61  # 指定 CUDA 架构为 Maxwell (sm_61)
+    TCNN_CUDA_ARCHITECTURES=61
 
 # 第一阶段：安装基础系统依赖
 RUN apt-get update && apt-get install -y --no-install-recommends \
