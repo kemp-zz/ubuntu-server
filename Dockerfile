@@ -77,30 +77,25 @@ RUN { \
     } | tee /var/log/nerfstudio-install.log
 
 # -------------------------
-# CUDA 支持验证（依赖顺序控制）
-RUN { \
-    # 仅在本地开发环境执行 CUDA 验证
-    if [ "$CI" != "true" ]; then \
-        python3 -c "import torch; print('PyTorch CUDA可用性（仅本地）:', torch.cuda.is_available())"; \
-    else \
-        echo "跳过 CI 环境下的 CUDA 验证"; \
-    fi; \
-    } && \
-    python3 -c "import jaxtyping; print(f'jaxtyping版本: {jaxtyping.__version__}')"# -------------------------
+
 # PyPose 安装（移除 apt 依赖）
 RUN { \
     echo "[阶段3.4] 安装PyPose (纯 pip 环境)"; \
     pip3 install --no-cache-dir pypose; \
     } && [ "$DEBUG_MODE" = "true" ] && \
     python3 -c "import cv2, pypose; print(f'OpenCV版本: {cv2.__version__}, PyPose版本: {pypose.__version__}')"
+# 验证 CUDA 路径和版本
+RUN echo "CUDA_HOME: $CUDA_HOME" && \
+    nvcc --version | grep "release 11.8" && \
+    ls /usr/local/cuda/targets/x86_64-linux/lib/libcudnn*    
 
 # -------------------------
-RUN echo "[阶段3.5] 编译tiny-cuda-nn (SM${TCNN_CUDA_ARCHITECTURES})" && \
-    TCNN_CUDA_ARCHITECTURES=$TCNN_CUDA_ARCHITECTURES \
+RUN echo "[阶段3.5] 编译tiny-cuda-nn (SM61)" && \
     pip3 install --no-cache-dir \
-    git+https://github.com/NVlabs/tiny-cuda-nn/#subdirectory=bindings/torch && \
+    git+https://github.com/NVlabs/tiny-cuda-nn/#subdirectory=bindings/torch \
+    --install-option="--archs=61" && \
     python3 -c "import torch, tinycudann as tcnn; \
-    print(f'tiny-cuda-nn版本: {tcnn.__version__}, PyTorch CUDA版本: {torch.version.cuda}')"
+    print(f'tiny-cuda-nn版本: {tcnn.__version__}, CUDA版本: {torch.version.cuda}')"
     
 ENV ROS_PYTHON_VERSION=3 \
     PYTHONPATH="/opt/ros/${ROS_DISTRO}/lib/python3.10/site-packages:${PYTHONPATH}" \
