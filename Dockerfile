@@ -1,12 +1,14 @@
 # 基础镜像 (明确指定 CUDA 11.8 + cuDNN + Ubuntu 22.04 开发环境)
-FROM nvidia/cuda:11.8.0-cudnn8-devel-ubuntu22.04
+FROM nvidia/cuda:11.8.0-cudnn8-runtime-ubuntu22.04
 
 # 设置全局环境变量
 ENV DEBIAN_FRONTEND=noninteractive \
     LANG=C.UTF-8 \
     LC_ALL=C.UTF-8 \
     ROS_DISTRO=humble \
-    TCNN_CUDA_ARCHITECTURES=61
+    TCNN_CUDA_ARCHITECTURES=61 \
+    NVIDIA_DRIVER_CAPABILITIES=compute,utility \
+    NVIDIA_VISIBLE_DEVICES=all
 
 # 第一阶段：安装基础系统依赖
 RUN apt-get update && apt-get install -y --no-install-recommends \
