@@ -1,5 +1,5 @@
 # 基础镜像 (明确指定 CUDA 11.8 + cuDNN + Ubuntu 22.04 开发环境)
-FROM nvidia/cuda:11.8.0-cudnn8-runtime-ubuntu22.04
+FROM nvidia/cuda:11.8.0-cudnn8-devel-ubuntu22.04
 
 # 设置全局环境变量
 ENV DEBIAN_FRONTEND=noninteractive \
@@ -26,6 +26,7 @@ RUN apt-get update && apt-get install -y --no-install-recommends \
     wget \
     gnupg2 \
     lsb-release \
+    gcc-9 g++-9 \
     && rm -rf /var/lib/apt/lists/*
 
 # 第二阶段：安装 ROS 2 Humble
@@ -70,8 +71,16 @@ RUN /bin/bash -c "source /workspace/myenv/bin/activate \
 # 安装 tiny-cuda-nn
 RUN /bin/bash -c "source /workspace/myenv/bin/activate \
     && pip install --no-cache-dir numpy==1.24.4"
-RUN /bin/bash -c "source /workspace/myenv/bin/activate \
-    && TCNN_CUDA_ARCHITECTURES=$TCNN_CUDA_ARCHITECTURES pip install --no-cache-dir git+https://github.com/NVlabs/tiny-cuda-nn/#subdirectory=bindings/torch"
+
+# 使用源码编译 tiny-cuda-nn
+WORKDIR /workspace
+RUN git clone --recursive https://github.com/NVlabs/tiny-cuda-nn.git
+WORKDIR /workspace/tiny-cuda-nn
+RUN mkdir build && cd build
+RUN cmake .. -DCMAKE_CUDA_COMPILER=/usr/local/cuda/bin/nvcc -DCMAKE_CXX_COMPILER=g++-9 -DCMAKE_C_COMPILER=gcc-9
+RUN cmake --build . --config RelWithDebInfo -j
+WORKDIR /workspace/tiny-cuda-nn/bindings/torch
+RUN python setup.py install
 
 # 配置 ROS 环境
 ENV ROS_PYTHON_VERSION=3 \
