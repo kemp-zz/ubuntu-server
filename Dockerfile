@@ -33,6 +33,7 @@ RUN apt-get update && apt-get install -y --no-install-recommends \
     lsb-release \
     gcc-9 g++-9 \
     nvidia-driver-535 \
+    cuda-toolkit-11-8 \
     && rm -rf /var/lib/apt/lists/*
 
 # 第二阶段：安装 ROS 2 Humble
