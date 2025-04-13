@@ -5,7 +5,7 @@ ENV DEBIAN_FRONTEND=noninteractive
 
 # 安装 ROS 依赖和系统依赖
 RUN apt-get update && apt-get install -y \
-    ros-rolling-desktop \
+    ros-humble-desktop \
     python3-rosdep \
     python3-vcstool \
     python3-pip \
