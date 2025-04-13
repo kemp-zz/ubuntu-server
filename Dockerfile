@@ -84,12 +84,18 @@ RUN { \
     pip3 install --no-cache-dir pypose; \
     } && [ "$DEBUG_MODE" = "true" ] && \
     python3 -c "import cv2, pypose; print(f'OpenCV版本: {cv2.__version__}, PyPose版本: {pypose.__version__}')"
-# 验证 CUDA 路径和版本
-RUN echo "CUDA_HOME: $CUDA_HOME" && \
+# 显式声明CUDA路径（网页7）
+ENV CUDA_HOME=/usr/local/cuda-11.8 \
+    LD_LIBRARY_PATH=/usr/local/cuda-11.8/lib64:$LD_LIBRARY_PATH
+
+# 调整验证命令（网页3）
+RUN echo "[阶段3.6] 验证CUDA环境" && \
+    echo "CUDA_HOME: $CUDA_HOME" && \
     nvcc --version | grep "release 11.8" && \
-    ls /usr/local/cuda/targets/x86_64-linux/lib/libcudnn*    
+    ls /usr/lib/x86_64-linux-gnu/libcudnn*  # 修正cuDNN路径   
 
 # -------------------------
+# 显式指定计算能力（网页4）
 RUN echo "[阶段3.5] 编译tiny-cuda-nn (SM61)" && \
     pip3 install --no-cache-dir \
     git+https://github.com/NVlabs/tiny-cuda-nn/#subdirectory=bindings/torch \
