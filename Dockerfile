@@ -1,5 +1,5 @@
 # 基础镜像 (明确指定 CUDA 11.8 + Ubuntu 22.04 开发环境)
-FROM nvidia/cuda:11.8.0-devel-ubuntu22.04
+FROM nvidia/cuda:11.8.0-cudnn8-devel-ubuntu22.04
 
 # 设置全局环境变量（新增调试模式开关）
 ENV DEBIAN_FRONTEND=noninteractive \
