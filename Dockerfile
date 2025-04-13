@@ -92,7 +92,7 @@ ENV CUDA_HOME=/usr/local/cuda-11.8 \
 RUN echo "[阶段3.6] 验证CUDA环境" && \
     echo "CUDA_HOME: $CUDA_HOME" && \
     nvcc --version | grep "release 11.8" && \
-    ls /usr/lib/x86_64-linux-gnu/libcudnn*  # 修正cuDNN路径   
+    ls /usr/lib/x86_64-linux-gnu/libcudnn*
 
 # -------------------------
 # 显式指定计算能力（网页4）
