@@ -58,11 +58,7 @@ RUN apt-get update && apt-get install -y ros-noetic-dynamic-tf-publisher || true
 # 使用 rosdep 安装依赖，忽略无法解析的键
 RUN rosdep install -y --from-paths src --ignore-src --skip-keys="jsk_rviz_plugins roseus dynamic-tf-publisher" --rosdistro $ROS_DISTRO
 
-# 构建 jsk-rviz-plugins
-WORKDIR /root/catkin_ws/src/jsk_visualization/jsk_rviz_plugins
-RUN /bin/bash -c "source /opt/ros/noetic/setup.bash && catkin_make"
-
-# 构建 radiance_field_ros
+# 构建工作空间
 WORKDIR /root/catkin_ws
 RUN /bin/bash -c "source /opt/ros/noetic/setup.bash && catkin_make"
 
