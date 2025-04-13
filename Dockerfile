@@ -61,15 +61,28 @@ RUN { \
 
 # -------------------------
 # NeRFStudio 安装与验证分离
+RUN pip3 install --no-cache-dir \
+    jaxtyping==0.2.24 \
+    rich==13.7.1 \
+    tyro==0.7.2 \
+    opencv-python-headless==4.8.0.76 \
+    plotly==5.18.0
+
+# -------------------------
+# NeRFStudio 本体安装（保持禁用自动依赖）
 RUN { \
     echo "[阶段3.3] 安装NeRFStudio (禁用依赖自动安装)"; \
     pip3 install --no-cache-dir --no-deps nerfstudio; \
     } | tee /var/log/nerfstudio-install.log
 
-RUN python3 -c "import torch; \
+# -------------------------
+# CUDA 支持验证优化（确保依赖加载顺序）
+RUN python3 -c "\
+    import torch; \
+    import jaxtyping; \
     from nerfstudio.utils import colormaps; \
-    print(f'NeRFStudio CUDA支持: {torch.cuda.is_available()}')"
-
+    print(f'PyTorch CUDA可用性: {torch.cuda.is_available()}'); \
+    print(f'jaxtyping版本: {jaxtyping.__version__}')"
 # -------------------------
 # PyPose 的 OpenCV 显式依赖
 RUN apt-get update && apt-get install -y --no-install-recommends \
@@ -90,6 +103,7 @@ RUN echo "[阶段3.5] 编译tiny-cuda-nn (SM${TCNN_CUDA_ARCHITECTURES})" && \
     git+https://github.com/NVlabs/tiny-cuda-nn/#subdirectory=bindings/torch && \
     python3 -c "import torch, tinycudann as tcnn; \
     print(f'tiny-cuda-nn版本: {tcnn.__version__}, PyTorch CUDA版本: {torch.version.cuda}')"
+    
 # 配置 ROS 环境
 ENV ROS_PYTHON_VERSION=3 \
     PYTHONPATH="/opt/ros/${ROS_DISTRO}/lib/python3.10/site-packages:${PYTHONPATH}" \
