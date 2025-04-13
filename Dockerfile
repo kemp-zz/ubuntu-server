@@ -63,7 +63,7 @@ RUN rm -rf build devel
 
 # 构建整个工作空间
 WORKDIR /root/catkin_ws
-RUN /bin/bash -c "source /opt/ros/noetic/setup.bash && catkin_make"
+RUN /bin/bash -c "source /opt/ros/noetic/setup.bash && catkin_make -j1"
 
 # 创建 conda 环境并安装 PyTorch 和 CUDA 工具包
 RUN pip3 install conda
