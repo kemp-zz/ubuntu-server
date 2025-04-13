@@ -35,6 +35,12 @@ RUN echo "[阶段1] 安装系统依赖" && \
     && echo "[阶段1] 完成" && \
     rm -rf /var/lib/apt/lists/*
 
+# 验证CUDA环境
+RUN echo "[验证] CUDA环境" && \
+    echo "CUDA_HOME: $CUDA_HOME" && \
+    nvcc --version | grep "release 11.8" && \
+    ls /usr/lib/x86_64-linux-gnu/libcudnn*
+
 # -------------------------
 # 第二阶段：安装 ROS 2 Humble
 RUN { \
@@ -47,6 +53,9 @@ RUN { \
     python3-colcon-common-extensions; \
     } || { echo "[错误] ROS安装失败"; exit 1; } 
 RUN rosdep init && rosdep update
+
+# 验证ROS安装
+RUN echo "[验证] ROS版本: $(ros2 --version)"
 
 # -------------------------
 # PyTorch 安装（修复编译依赖）
@@ -83,6 +92,9 @@ RUN { \
     pip3 install --no-cache-dir --no-deps nerfstudio; \
     } | tee /var/log/nerfstudio-install.log
 
+# 验证NeRFStudio安装
+RUN echo "[验证] NeRFStudio版本: $(python3 -c 'import nerfstudio; print(nerfstudio.__version__)')"
+
 # -------------------------
 # PyPose 安装
 RUN { \
@@ -101,13 +113,11 @@ RUN echo "[阶段3.5] 编译tiny-cuda-nn (SM61)" && \
     python3 -c "import torch, tinycudann as tcnn; \
     print(f'tiny-cuda-nn版本: {tcnn.__version__}, CUDA版本: {torch.version.cuda}')"
 
+# 验证tiny-cuda-nn安装
+RUN echo "[验证] tiny-cuda-nn版本: $(python3 -c 'import tinycudann as tcnn; print(tcnn.__version__)')"
+
 # -------------------------
 # 最终环境配置
-RUN echo "[阶段3.6] 验证CUDA环境" && \
-    echo "CUDA_HOME: $CUDA_HOME" && \
-    nvcc --version | grep "release 11.8" && \
-    ls /usr/lib/x86_64-linux-gnu/libcudnn*
-
 ENV ROS_PYTHON_VERSION=3 \
     PYTHONPATH="/opt/ros/${ROS_DISTRO}/lib/python3.10/site-packages:${PYTHONPATH}" \
     PATH="/opt/ros/${ROS_DISTRO}/bin:${PATH}"
