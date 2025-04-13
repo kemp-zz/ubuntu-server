@@ -30,6 +30,9 @@ RUN apt-get update && apt-get install -y --no-install-recommends \
     gcc-9 g++-9 \
     && rm -rf /var/lib/apt/lists/*
 
+ENV CONDA_DIR=/opt/conda \
+    PATH=$CONDA_DIR/bin:$PATH
+
 # 安装 Miniconda
 RUN wget https://repo.anaconda.com/miniconda/Miniconda3-py38_23.11.0-2-Linux-x86_64.sh -O miniconda.sh \
     && bash miniconda.sh -b -p $CONDA_DIR \
