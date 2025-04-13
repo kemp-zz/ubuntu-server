@@ -37,28 +37,39 @@ RUN curl -sSL https://raw.githubusercontent.com/ros/rosdistro/master/ros.key -o 
     && rosdep update \
     && rm -rf /var/lib/apt/lists/*
 
-# 第三阶段：分步安装 Python 依赖
-RUN pip3 install --no-cache-dir --upgrade pip setuptools wheel
+# 第三阶段：创建 Python 虚拟环境
+RUN python3 -m venv /workspace/myenv
+
+# 激活虚拟环境并安装依赖
+RUN /bin/bash -c "source /workspace/myenv/bin/activate \
+    && pip install --upgrade pip setuptools wheel"
 
 # 安装 PyTorch (CUDA 11.8)
-RUN pip3 install --no-cache-dir \
+RUN /bin/bash -c "source /workspace/myenv/bin/activate \
+    && pip install --no-cache-dir \
     torch==2.1.2+cu118 \
     torchvision==0.16.2+cu118 \
     torchaudio==2.1.2+cu118 \
-    --extra-index-url https://download.pytorch.org/whl/cu118
+    --extra-index-url https://download.pytorch.org/whl/cu118"
 
 # 步骤1：单独安装 JupyterLab
-RUN pip3 install --no-cache-dir jupyterlab
+RUN /bin/bash -c "source /workspace/myenv/bin/activate \
+    && pip install --no-cache-dir jupyterlab"
 
 # 步骤2：安装 NeRFStudio（需验证 CUDA 兼容性）
-RUN pip3 install --no-cache-dir nerfstudio || echo "NeRFStudio 安装失败，检查 CUDA 兼容性"
+RUN /bin/bash -c "source /workspace/myenv/bin/activate \
+    && pip install --no-cache-dir nerfstudio || echo 'NeRFStudio 安装失败，检查 CUDA 兼容性'"
 
 # 步骤3：安装 PyPose（注意 OpenCV 依赖）
 RUN apt-get update && apt-get install -y --no-install-recommends libopencv-dev && rm -rf /var/lib/apt/lists/*
-RUN pip3 install --no-cache-dir pypose
+RUN /bin/bash -c "source /workspace/myenv/bin/activate \
+    && pip install --no-cache-dir pypose"
 
 # 安装 tiny-cuda-nn
-RUN TCNN_CUDA_ARCHITECTURES=$TCNN_CUDA_ARCHITECTURES pip3 install --no-cache-dir git+https://github.com/NVlabs/tiny-cuda-nn/#subdirectory=bindings/torch
+RUN /bin/bash -c "source /workspace/myenv/bin/activate \
+    && pip install --no-cache-dir numpy==1.24.4"
+RUN /bin/bash -c "source /workspace/myenv/bin/activate \
+    && TCNN_CUDA_ARCHITECTURES=$TCNN_CUDA_ARCHITECTURES pip install --no-cache-dir git+https://github.com/NVlabs/tiny-cuda-nn/#subdirectory=bindings/torch"
 
 # 配置 ROS 环境
 ENV ROS_PYTHON_VERSION=3 \
@@ -69,4 +80,4 @@ ENV ROS_PYTHON_VERSION=3 \
 WORKDIR /workspace
 
 # 启动 Jupyter Lab
-CMD ["jupyter-lab", "--ip=0.0.0.0", "--allow-root", "--no-browser", "--NotebookApp.token=''"]
+CMD ["bash", "-c", "source /workspace/myenv/bin/activate && jupyter-lab --ip=0.0.0.0 --allow-root --no-browser --NotebookApp.token=''"]
