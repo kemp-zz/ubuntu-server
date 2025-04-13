@@ -21,7 +21,7 @@ RUN echo "[阶段1] 安装系统依赖" && \
     build-essential \
     git \
     cmake \
-    ninja-build \  # 新增构建工具
+    ninja-build \  
     libboost-dev \
     libeigen3-dev \
     libopenmpi-dev \
@@ -31,7 +31,7 @@ RUN echo "[阶段1] 安装系统依赖" && \
     wget \
     gnupg2 \
     lsb-release \
-    libcudnn8-dev=8.9.7.29-1+cuda11.8 \  # 显式锁定cuDNN版本
+    libcudnn8-dev=8.9.7.29-1+cuda11.8 \ 
     && echo "[阶段1] 完成" && \
     rm -rf /var/lib/apt/lists/*
 
