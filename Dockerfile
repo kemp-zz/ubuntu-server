@@ -28,15 +28,9 @@ RUN apt-get update && apt-get install -y \
     ninja-build \
     && rm -rf /var/lib/apt/lists/*
 
-RUN apt-get update && apt-get install -y software-properties-common
-RUN add-apt-repository ppa:jsk-ros-pkg/ppa \
-    && apt-get update
-    
-
 # 初始化 rosdep
 RUN rosdep init && rosdep update
-# 使用 rosdep 安装依赖
-RUN rosdep install -y --from-paths src --ignore-src --rosdistro $ROS_DISTRO
+
 # 设置 ROS 环境变量
 ENV ROS_DISTRO=noetic
 RUN echo "source /opt/ros/$ROS_DISTRO/setup.bash" >> /root/.bashrc
@@ -48,8 +42,19 @@ WORKDIR /root/catkin_ws
 # 下载 radiance_field_ros 源码
 RUN git clone https://github.com/leggedrobotics/radiance_field_ros.git src/radiance_field_ros
 
-# 使用 rosdep 安装依赖
-RUN rosdep install -y --from-paths src --ignore-src --rosdistro $ROS_DISTRO
+# 下载 jsk_visualization 源码
+RUN git clone https://github.com/jsk-ros-pkg/jsk_visualization.git src/jsk_visualization
+
+# 使用 rosdep 安装依赖，忽略无法解析的键
+RUN rosdep install -y --from-paths src --ignore-src --skip-keys="jsk_rviz_plugins" --rosdistro $ROS_DISTRO
+
+# 构建 jsk-rviz-plugins
+WORKDIR /root/catkin_ws/src/jsk_visualization/jsk_rviz_plugins
+RUN /bin/bash -c "source /opt/ros/noetic/setup.bash && catkin_make"
+
+# 构建 radiance_field_ros
+WORKDIR /root/catkin_ws
+RUN /bin/bash -c "source /opt/ros/noetic/setup.bash && catkin_make"
 
 # 创建 conda 环境
 RUN pip3 install conda
@@ -66,10 +71,6 @@ RUN pip install git+https://github.com/NVlabs/tiny-cuda-nn/#subdirectory=binding
 # 安装 radiance_field_ros
 WORKDIR /root/catkin_ws/src/radiance_field_ros
 RUN pip install -e .
-
-# 构建 ROS 包
-WORKDIR /root/catkin_ws
-RUN /bin/bash -c "source /opt/ros/noetic/setup.bash && catkin_make"
 
 # 设置工作目录和环境变量
 WORKDIR /root
