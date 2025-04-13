@@ -8,9 +8,11 @@ ENV DEBIAN_FRONTEND=noninteractive \
     ROS_DISTRO=humble \
     TCNN_CUDA_ARCHITECTURES=61 \
     NVIDIA_DRIVER_CAPABILITIES=compute,utility \
-    NVIDIA_VISIBLE_DEVICES=all
+    NVIDIA_VISIBLE_DEVICES=all \
+    CONDA_DIR=/opt/conda \
+    PATH=$CONDA_DIR/bin:$PATH
 
-# 第一阶段：安装基础系统依赖
+# 第一阶段：安装基础系统依赖和Conda
 RUN apt-get update && apt-get install -y --no-install-recommends \
     software-properties-common \
     build-essential \
@@ -21,13 +23,18 @@ RUN apt-get update && apt-get install -y --no-install-recommends \
     libeigen3-dev \
     libopenmpi-dev \
     python3-pip \
-    python3-venv \
     curl \
     wget \
     gnupg2 \
     lsb-release \
     gcc-9 g++-9 \
     && rm -rf /var/lib/apt/lists/*
+
+# 安装 Miniconda
+RUN wget https://repo.anaconda.com/miniconda/Miniconda3-py38_23.11.0-2-Linux-x86_64.sh -O miniconda.sh \
+    && bash miniconda.sh -b -p $CONDA_DIR \
+    && rm miniconda.sh \
+    && conda clean -ya
 
 # 第二阶段：安装 ROS 2 Humble
 RUN curl -sSL https://raw.githubusercontent.com/ros/rosdistro/master/ros.key -o /usr/share/keyrings/ros-archive-keyring.gpg \
@@ -40,51 +47,49 @@ RUN curl -sSL https://raw.githubusercontent.com/ros/rosdistro/master/ros.key -o 
     && rosdep update \
     && rm -rf /var/lib/apt/lists/*
 
-# 第三阶段：创建 Python 虚拟环境
-RUN python3 -m venv /workspace/myenv
-
-# 激活虚拟环境并安装依赖
-RUN /bin/bash -c "source /workspace/myenv/bin/activate \
-    && pip install --upgrade pip setuptools wheel"
+# 第三阶段：创建Conda环境
+RUN conda create -n nerfenv python=3.8 -y \
+    && echo "conda activate nerfenv" >> ~/.bashrc
 
 # 安装 PyTorch (CUDA 11.8)
-RUN /bin/bash -c "source /workspace/myenv/bin/activate \
+RUN bash -c "source activate nerfenv \
     && pip install --no-cache-dir \
     torch==2.1.2+cu118 \
     torchvision==0.16.2+cu118 \
     torchaudio==2.1.2+cu118 \
     --extra-index-url https://download.pytorch.org/whl/cu118"
 
-# 步骤1：单独安装 JupyterLab
-RUN /bin/bash -c "source /workspace/myenv/bin/activate \
-    && pip install --no-cache-dir jupyterlab"
+# 安装 NeRFStudio 和依赖
+RUN bash -c "source activate nerfenv \
+    && pip install --no-cache-dir nerfstudio"
 
-# 步骤2：安装 NeRFStudio（需验证 CUDA 兼容性）
-RUN /bin/bash -c "source /workspace/myenv/bin/activate \
-    && pip install --no-cache-dir nerfstudio || echo 'NeRFStudio 安装失败，检查 CUDA 兼容性'"
-
-# 步骤3：安装 PyPose（注意 OpenCV 依赖）
-RUN apt-get update && apt-get install -y --no-install-recommends libopencv-dev && rm -rf /var/lib/apt/lists/*
-RUN /bin/bash -c "source /workspace/myenv/bin/activate \
+# 安装 PyPose 和 OpenCV
+RUN apt-get update && apt-get install -y --no-install-recommends libopencv-dev \
+    && rm -rf /var/lib/apt/lists/*
+RUN bash -c "source activate nerfenv \
     && pip install --no-cache-dir pypose"
 
 # 安装 tiny-cuda-nn
-RUN /bin/bash -c "source /workspace/myenv/bin/activate \
+RUN bash -c "source activate nerfenv \
     && pip install --no-cache-dir numpy==1.24.4"
-
 WORKDIR /workspace
 RUN git clone --recursive https://github.com/NVlabs/tiny-cuda-nn.git
-
 WORKDIR /workspace/tiny-cuda-nn
 RUN mkdir build
-
 WORKDIR /workspace/tiny-cuda-nn/build
-RUN cmake .. -DCMAKE_CUDA_COMPILER=/usr/local/cuda/bin/nvcc -DCMAKE_CXX_COMPILER=g++-9 -DCMAKE_C_COMPILER=gcc-9
-
+RUN bash -c "source activate nerfenv \
+    && cmake .. -DCMAKE_CUDA_COMPILER=/usr/local/cuda/bin/nvcc -DCMAKE_CXX_COMPILER=g++-9 -DCMAKE_C_COMPILER=gcc-9"
 RUN cmake --build . --config RelWithDebInfo -j
-
 WORKDIR /workspace/tiny-cuda-nn/bindings/torch
-RUN /bin/bash -c "source /workspace/myenv/bin/activate && python setup.py install"
+RUN bash -c "source activate nerfenv \
+    && python setup.py install"
+
+# 安装 NerfBridge
+WORKDIR /workspace
+RUN git clone https://github.com/nerfbridge/nerfbridge.git
+WORKDIR /workspace/nerfbridge
+RUN bash -c "source activate nerfenv \
+    && pip install -e ."
 
 # 配置 ROS 环境
 ENV ROS_PYTHON_VERSION=3 \
@@ -94,5 +99,5 @@ ENV ROS_PYTHON_VERSION=3 \
 # 设置工作目录
 WORKDIR /workspace
 
-# 启动 Jupyter Lab
-CMD ["bash", "-c", "source /workspace/myenv/bin/activate && jupyter-lab --ip=0.0.0.0 --allow-root --no-browser --NotebookApp.token=''"]
+# 启动命令
+CMD ["bash", "-c", "source activate nerfenv && /bin/bash"]
