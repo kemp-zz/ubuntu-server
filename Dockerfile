@@ -1,24 +1,24 @@
-FROM nvidia/cuda:11.8.0-devel-ubuntu22.04
+FROM nvidia/cuda:11.8.0-devel-ubuntu20.04
 
 # 设置非交互式安装
 ENV DEBIAN_FRONTEND=noninteractive
 
 # 设置语言环境为 UTF-8
 RUN apt-get update && apt-get install -y locales \
-    && locale-gen en_US en_US.UTF-8 \
+    && locale-gen en_US.UTF-8 \
     && update-locale LC_ALL=en_US.UTF-8 LANG=en_US.UTF-8 \
     && export LANG=en_US.UTF-8
 
-# 添加 ROS 软件源
+# 添加 ROS Noetic 软件源
 RUN apt-get update && apt-get install -y software-properties-common \
     && add-apt-repository universe \
     && apt-get update && apt-get install -y curl \
     && curl -sSL https://raw.githubusercontent.com/ros/rosdistro/master/ros.key -o /usr/share/keyrings/ros-archive-keyring.gpg \
-    && echo "deb [arch=$(dpkg --print-architecture) signed-by=/usr/share/keyrings/ros-archive-keyring.gpg] http://packages.ros.org/ros2/ubuntu $(. /etc/os-release && echo $UBUNTU_CODENAME) main" | tee /etc/apt/sources.list.d/ros2.list > /dev/null
+    && echo "deb [arch=$(dpkg --print-architecture) signed-by=/usr/share/keyrings/ros-archive-keyring.gpg] http://packages.ros.org/ros/ubuntu $(lsb_release -cs) main" > /etc/apt/sources.list.d/ros-noetic.list
 
-# 安装 ROS 依赖和系统工具
+# 安装 ROS Noetic 和相关工具
 RUN apt-get update && apt-get install -y \
-    ros-humble-desktop \
+    ros-noetic-desktop-full \
     python3-rosdep \
     python3-vcstool \
     python3-pip \
@@ -32,12 +32,12 @@ RUN apt-get update && apt-get install -y \
 RUN rosdep init && rosdep update
 
 # 设置 ROS 环境变量
-ENV ROS_DISTRO=humble
+ENV ROS_DISTRO=noetic
 RUN echo "source /opt/ros/$ROS_DISTRO/setup.bash" >> /root/.bashrc
 
 # 创建并初始化 ROS 工作空间
-RUN mkdir -p /root/ros2_ws/src
-WORKDIR /root/ros2_ws
+RUN mkdir -p /root/catkin_ws/src
+WORKDIR /root/catkin_ws
 
 # 下载 radiance_field_ros 源码
 RUN git clone https://github.com/leggedrobotics/radiance_field_ros.git src/radiance_field_ros
@@ -58,15 +58,15 @@ RUN conda install -c "nvidia/label/cuda-11.8.0" cuda-toolkit
 RUN pip install git+https://github.com/NVlabs/tiny-cuda-nn/#subdirectory=bindings/torch
 
 # 安装 radiance_field_ros
-WORKDIR /root/ros2_ws/src/radiance_field_ros
+WORKDIR /root/catkin_ws/src/radiance_field_ros
 RUN pip install -e .
 
 # 构建 ROS 包
-WORKDIR /root/ros2_ws
-RUN colcon build
+WORKDIR /root/catkin_ws
+RUN /bin/bash -c "source /opt/ros/noetic/setup.bash && catkin_make"
 
 # 设置工作目录和环境变量
 WORKDIR /root
-RUN echo "source /opt/ros/$ROS_DISTRO/setup.bash" >> /root/.bashrc
-RUN echo "conda activate nerfstudio" >> /root/.bashrc
-RUN echo "source /root/ros2_ws/install/setup.bash" >> /root/.bashrc
+RUN echo "source /opt/ros/$ROS_DISTRO/setup.bash" >> ~/.bashrc
+RUN echo "conda activate nerfstudio" >> ~/.bashrc
+RUN echo "source /root/catkin_ws/devel/setup.bash" >> ~/.bashrc
