@@ -26,10 +26,17 @@ RUN apt-get update && apt-get install -y \
     wget \
     curl \
     ninja-build \
+    qtbase5-dev \
+    ros-noetic-std-msgs \
+    ros-noetic-message-generation \
+    ros-noetic-geometry-msgs \
+    ros-noetic-sensor-msgs \
+    ros-noetic-actionlib-msgs \
+    ros-noetic-rviz \
     && rm -rf /var/lib/apt/lists/*
 
 # 初始化 rosdep
-RUN rosdep init && rosdep update
+RUN rosdep init && rosdep fix-permissions && rosdep update
 
 # 设置 ROS 环境变量
 ENV ROS_DISTRO=noetic
@@ -46,7 +53,7 @@ RUN git clone https://github.com/leggedrobotics/radiance_field_ros.git src/radia
 RUN git clone https://github.com/jsk-ros-pkg/jsk_visualization.git src/jsk_visualization
 
 # 使用 rosdep 安装依赖，忽略无法解析的键
-RUN rosdep install -y --from-paths src --ignore-src --skip-keys="jsk_rviz_plugins" --rosdistro $ROS_DISTRO
+RUN rosdep install -y --from-paths src --ignore-src --skip-keys="jsk_rviz_plugins roseus" --rosdistro $ROS_DISTRO
 
 # 构建 jsk-rviz-plugins
 WORKDIR /root/catkin_ws/src/jsk_visualization/jsk_rviz_plugins
@@ -56,20 +63,16 @@ RUN /bin/bash -c "source /opt/ros/noetic/setup.bash && catkin_make"
 WORKDIR /root/catkin_ws
 RUN /bin/bash -c "source /opt/ros/noetic/setup.bash && catkin_make"
 
-# 创建 conda 环境
+# 创建 conda 环境并安装 PyTorch 和 CUDA 工具包
 RUN pip3 install conda
 RUN conda create --name nerfstudio -y python=3.8
-
-# 激活 conda 环境并安装 PyTorch 和 CUDA 工具包
 SHELL ["conda", "run", "-n", "nerfstudio", "/bin/bash", "-c"]
 RUN conda install pytorch==2.1.2 torchvision==0.16.2 pytorch-cuda=11.8 -c pytorch -c nvidia
 RUN conda install -c "nvidia/label/cuda-11.8.0" cuda-toolkit
 
-# 安装 tiny-cuda-nn
-RUN pip install git+https://github.com/NVlabs/tiny-cuda-nn/#subdirectory=bindings/torch
-
-# 安装 radiance_field_ros
+# 安装 tiny-cuda-nn 和 radiance_field_ros 的 Python 依赖
 WORKDIR /root/catkin_ws/src/radiance_field_ros
+RUN pip install git+https://github.com/NVlabs/tiny-cuda-nn/#subdirectory=bindings/torch
 RUN pip install -e .
 
 # 设置工作目录和环境变量
