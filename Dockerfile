@@ -85,6 +85,7 @@ RUN cmake --build . --config RelWithDebInfo -j
 
 WORKDIR /workspace/tiny-cuda-nn/bindings/torch
 RUN /bin/bash -c "source /workspace/myenv/bin/activate && python setup.py install"
+
 # 配置 ROS 环境
 ENV ROS_PYTHON_VERSION=3 \
     PYTHONPATH="/opt/ros/${ROS_DISTRO}/lib/python3.10/site-packages:${PYTHONPATH}" \
