@@ -75,7 +75,7 @@ RUN git clone --depth 1 --branch v1.7 https://github.com/NVlabs/tiny-cuda-nn.git
     mkdir build && cd build && \
     cmake .. \
     -DCMAKE_BUILD_TYPE=RelWithDebInfo \
-    -DCMAKE_CUDA_ARCHITECTURES="60;61;70;75;80;86" \  # 覆盖更多GPU架构
+    -DCMAKE_CUDA_ARCHITECTURES="61" \ 
     -DCMAKE_CXX_COMPILER=g++-10 \
     -DCMAKE_CUDA_COMPILER=/usr/local/cuda/bin/nvcc && \
     cmake --build . --parallel $(nproc) && \
