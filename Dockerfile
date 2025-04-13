@@ -10,6 +10,11 @@ ENV DEBIAN_FRONTEND=noninteractive \
     NVIDIA_DRIVER_CAPABILITIES=compute,utility \
     NVIDIA_VISIBLE_DEVICES=all
 
+# 设置 CUDA 环境变量
+ENV CUDA_HOME=/usr/local/cuda
+ENV PATH=$CUDA_HOME/bin:$PATH
+ENV LD_LIBRARY_PATH=$CUDA_HOME/lib64:$LD_LIBRARY_PATH
+
 # 第一阶段：安装基础系统依赖
 RUN apt-get update && apt-get install -y --no-install-recommends \
     software-properties-common \
@@ -27,6 +32,7 @@ RUN apt-get update && apt-get install -y --no-install-recommends \
     gnupg2 \
     lsb-release \
     gcc-9 g++-9 \
+    nvidia-driver-535 \
     && rm -rf /var/lib/apt/lists/*
 
 # 第二阶段：安装 ROS 2 Humble
@@ -63,7 +69,7 @@ RUN /bin/bash -c "source /workspace/myenv/bin/activate \
 RUN /bin/bash -c "source /workspace/myenv/bin/activate \
     && pip install --no-cache-dir nerfstudio || echo 'NeRFStudio 安装失败，检查 CUDA 兼容性'"
 
-# 步骤3：安装 PyPose（注意 OpenCV 依赖）
+# 步骤 3：安装 PyPose（注意 OpenCV 依赖）
 RUN apt-get update && apt-get install -y --no-install-recommends libopencv-dev && rm -rf /var/lib/apt/lists/*
 RUN /bin/bash -c "source /workspace/myenv/bin/activate \
     && pip install --no-cache-dir pypose"
@@ -87,12 +93,16 @@ WORKDIR /workspace/tiny-cuda-nn/bindings/torch
 RUN /bin/bash -c "source /workspace/myenv/bin/activate && python setup.py install"
 
 # 配置 ROS 环境
-ENV ROS_PYTHON_VERSION=3 \
-    PYTHONPATH="/opt/ros/${ROS_DISTRO}/lib/python3.10/site-packages:${PYTHONPATH}" \
-    PATH="/opt/ros/${ROS_DISTRO}/bin:${PATH}"
+ENV ROS_PYTHON_VERSION=3
+ENV PYTHONPATH="/opt/ros/${ROS_DISTRO}/lib/python3.10/site-packages:${PYTHONPATH}"
+ENV PATH="/opt/ros/${ROS_DISTRO}/bin:${PATH}"
 
 # 设置工作目录
 WORKDIR /workspace
 
+# 复制测试脚本并使其可执行
+COPY nerfstudio_test.sh /usr/local/bin/nerfstudio_test.sh
+RUN chmod +x /usr/local/bin/nerfstudio_test.sh
+
 # 启动 Jupyter Lab
-CMD ["bash", "-c", "source /workspace/myenv/bin/activate && jupyter-lab --ip=0.0.0.0 --allow-root --no-browser --NotebookApp.token=''"]
+CMD ["bash", "-c", "source /workspace/myenv/bin/activate && /usr/local/bin/nerfstudio_test.sh && jupyter-lab --ip=0.0.0.0 --allow-root --no-browser --NotebookApp.token=''"]
