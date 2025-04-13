@@ -72,16 +72,19 @@ RUN /bin/bash -c "source /workspace/myenv/bin/activate \
 RUN /bin/bash -c "source /workspace/myenv/bin/activate \
     && pip install --no-cache-dir numpy==1.24.4"
 
-# 使用源码编译 tiny-cuda-nn
 WORKDIR /workspace
 RUN git clone --recursive https://github.com/NVlabs/tiny-cuda-nn.git
-WORKDIR /workspace/tiny-cuda-nn
-RUN mkdir build && cd build
-RUN cmake .. -DCMAKE_CUDA_COMPILER=/usr/local/cuda/bin/nvcc -DCMAKE_CXX_COMPILER=g++-9 -DCMAKE_C_COMPILER=gcc-9
-RUN cmake --build . --config RelWithDebInfo -j
-WORKDIR /workspace/tiny-cuda-nn/bindings/torch
-RUN python setup.py install
 
+WORKDIR /workspace/tiny-cuda-nn
+RUN mkdir build
+
+WORKDIR /workspace/tiny-cuda-nn/build
+RUN cmake .. -DCMAKE_CUDA_COMPILER=/usr/local/cuda/bin/nvcc -DCMAKE_CXX_COMPILER=g++-9 -DCMAKE_C_COMPILER=gcc-9
+
+RUN cmake --build . --config RelWithDebInfo -j
+
+WORKDIR /workspace/tiny-cuda-nn/bindings/torch
+RUN /bin/bash -c "source /workspace/myenv/bin/activate && python setup.py install"
 # 配置 ROS 环境
 ENV ROS_PYTHON_VERSION=3 \
     PYTHONPATH="/opt/ros/${ROS_DISTRO}/lib/python3.10/site-packages:${PYTHONPATH}" \
