@@ -78,13 +78,7 @@ RUN { \
 
 # -------------------------
 # CUDA 支持验证（依赖顺序控制）
-RUN python3 -c "\
-    import torch; \
-    import jaxtyping; \
-    from nerfstudio.utils import colormaps; \
-    print(f'PyTorch CUDA可用性: {torch.cuda.is_available()}'); \
-    print(f'jaxtyping版本: {jaxtyping.__version__}')"
-
+RUN python3 -c "import torch; import jaxtyping; from nerfstudio.utils import colormaps; print(f'PyTorch CUDA可用性: {torch.cuda.is_available()}'); print(f'jaxtyping版本: {jaxtyping.__version__}')"
 # -------------------------
 # PyPose 安装（移除 apt 依赖）
 RUN { \
