@@ -7,7 +7,7 @@ ENV DEBIAN_FRONTEND=noninteractive \
     LC_ALL=C.UTF-8 \
     ROS_DISTRO=humble \
     TCNN_CUDA_ARCHITECTURES=61 \
-    DEBUG_MODE=false  # [!NEW] 调试模式控制变量
+    DEBUG_MODE=false 
 
 # [!NEW] 添加调试工具链
 RUN apt-get update && apt-get install -y --no-install-recommends \
@@ -43,7 +43,7 @@ RUN { \
     ros-${ROS_DISTRO}-desktop \
     python3-rosdep \
     python3-colcon-common-extensions; \
-    } || { echo "[错误] ROS安装失败"; exit 1; }  # [!NEW] 错误捕获
+    } || { echo "[错误] ROS安装失败"; exit 1; }  
 RUN rosdep init && rosdep update
 
 # [!NEW] 第三阶段前验证环境
@@ -62,17 +62,16 @@ RUN { \
     torchvision==0.16.2+cu118 \
     torchaudio==2.1.2+cu118 \
     --extra-index-url https://download.pytorch.org/whl/cu118; \
-    } && echo "[验证] numpy版本: $(pip3 list | grep numpy)"  # 防止隐式升级
-
+    } && echo "[验证] numpy版本: $(pip3 list | grep numpy)" 
 RUN { \
     echo "[阶段3.2] 安装JupyterLab"; \
     pip3 install --no-cache-dir jupyterlab; \
-    } || { echo "[错误] Jupyter安装失败"; [ "$DEBUG_MODE" = "true" ] && pip3 debug -v; exit 1; }  # [!NEW] 调试模式响应
+    } || { echo "[错误] Jupyter安装失败"; [ "$DEBUG_MODE" = "true" ] && pip3 debug -v; exit 1; }  
 
 RUN { \
     echo "[阶段3.3] 安装NeRFStudio"; \
     pip3 install --no-cache-dir nerfstudio; \
-    } | tee /var/log/nerfstudio-install.log  # [!NEW] 日志重定向
+    } | tee /var/log/nerfstudio-install.log  
 
 # [!NEW] 安装PyPose前检查OpenCV兼容性
 RUN if [ "$DEBUG_MODE" = "true" ]; then \
@@ -83,7 +82,7 @@ RUN if [ "$DEBUG_MODE" = "true" ]; then \
 RUN { \
     echo "[阶段3.4] 安装PyPose"; \
     pip3 install --no-cache-dir pypose; \
-    } && [ "$DEBUG_MODE" = "true" ] && python3 -c "import cv2; print('OpenCV版本:', cv2.__version__)"  # [!NEW] 调试模式验证
+    } && [ "$DEBUG_MODE" = "true" ] && python3 -c "import cv2; print('OpenCV版本:', cv2.__version__)"  
 
 # [!NEW] 显式传递CUDA架构参数
 RUN echo "[阶段3.5] 安装tiny-cuda-nn (架构: $TCNN_CUDA_ARCHITECTURES)" && \
