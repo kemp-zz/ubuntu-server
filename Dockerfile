@@ -89,7 +89,7 @@ RUN bash -c "source activate nerfenv \
 
 # 安装 NerfBridge
 WORKDIR /workspace
-RUN git clone https://github.com/nerfbridge/nerfbridge.git
+RUN git clone https://github.com/javieryu/nerf_bridge.git
 WORKDIR /workspace/nerfbridge
 RUN bash -c "source activate nerfenv \
     && pip install -e ."
