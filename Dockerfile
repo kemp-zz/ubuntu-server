@@ -57,7 +57,7 @@ RUN git clone --depth 1 --branch v1.7 https://github.com/NVlabs/tiny-cuda-nn.git
     cd tiny-cuda-nn && \
     mkdir build && cd build && \
     cmake .. \
-    -DCMAKE_CUDA_ARCHITECTURES="61;70;75;80" \
+    -DCMAKE_CUDA_ARCHITECTURES="61" \
     -DCMAKE_CXX_COMPILER=g++-10 \
     -DCMAKE_CUDA_COMPILER=/usr/local/cuda/bin/nvcc && \
     cmake --build . --config RelWithDebInfo -j $(nproc)
