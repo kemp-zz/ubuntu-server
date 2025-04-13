@@ -41,51 +41,55 @@ RUN { \
     } || { echo "[错误] ROS安装失败"; exit 1; } 
 RUN rosdep init && rosdep update
 
-# [!NEW] 第三阶段前验证环境
-RUN echo "[调试] CUDA架构: $TCNN_CUDA_ARCHITECTURES" && \
-    nvidia-smi -L | tee /tmp/gpu-info.log
-
-# 第三阶段：分步安装 Python 依赖（关键组件依赖隔离）
 # -------------------------
-# [!NEW] 锁定PyTorch依赖树
-RUN echo "[阶段3.1] 安装PyTorch (强制锁定numpy版本)" && \
+# PyTorch 核心依赖锁定
+RUN echo "[阶段3.1] 安装PyTorch (强制锁定依赖)" && \
     pip3 install --no-cache-dir \
     numpy==1.23.5 \
     torch==2.1.2+cu118 \
     torchvision==0.16.2+cu118 \
     torchaudio==2.1.2+cu118 \
     --extra-index-url https://download.pytorch.org/whl/cu118 && \
-    echo "[验证] numpy版本: $(pip3 list | grep numpy)"  
+    echo "[验证] PyTorch版本: $(python3 -c 'import torch; print(torch.__version__)')"
+
 # -------------------------
-# [!NEW] JupyterLab独立安装（隔离UI工具链）
+# JupyterLab 独立安装
 RUN { \
     echo "[阶段3.2] 安装JupyterLab"; \
-    pip3 install --no-cache-dir jupyterlab; \
-    } && echo "[验证] JupyterLab核心组件: $(pip3 list | grep jupyterlab)" 
+    pip3 install --no-cache-dir jupyterlab==4.0.0; \
+    } && echo "[验证] JupyterLab版本: $(jupyter lab --version)"
 
 # -------------------------
-# [!NEW] NeRFStudio安装（依赖PyTorch CUDA兼容性检查）
+# NeRFStudio 安装与验证分离
 RUN { \
-    echo "[阶段3.3] 安装NeRFStudio"; \
-    pip3 install --no-cache-dir nerfstudio; \
-    } | tee /var/log/nerfstudio-install.log && \
-    python3 -c "from nerfstudio.utils import colormaps; print('NeRFStudio CUDA支持:', torch.cuda.is_available())" 
+    echo "[阶段3.3] 安装NeRFStudio (禁用依赖自动安装)"; \
+    pip3 install --no-cache-dir --no-deps nerfstudio; \
+    } | tee /var/log/nerfstudio-install.log
+
+RUN python3 -c "import torch; \
+    from nerfstudio.utils import colormaps; \
+    print(f'NeRFStudio CUDA支持: {torch.cuda.is_available()}')"
 
 # -------------------------
-# [!NEW] PyPose安装（OpenCV依赖控制）
+# PyPose 的 OpenCV 显式依赖
+RUN apt-get update && apt-get install -y --no-install-recommends \
+    libopencv-dev python3-opencv && \
+    rm -rf /var/lib/apt/lists/*
+
 RUN { \
-    echo "[阶段3.4] 安装PyPose (检查OpenCV兼容性)" && \
+    echo "[阶段3.4] 安装PyPose"; \
     pip3 install --no-cache-dir pypose; \
-    } && [ "$DEBUG_MODE" = "true" ] && python3 -c "import cv2; print('OpenCV版本:', cv2.__version__)" 
+    } && [ "$DEBUG_MODE" = "true" ] && \
+    python3 -c "import cv2, pypose; print(f'OpenCV版本: {cv2.__version__}, PyPose版本: {pypose.__version__}')"
 
 # -------------------------
-# [!NEW] tiny-cuda-nn显式编译（确保CUDA架构参数传递）
-RUN echo "[阶段3.5] 安装tiny-cuda-nn (架构: $TCNN_CUDA_ARCHITECTURES)" && \
+# tiny-cuda-nn 显式架构编译
+RUN echo "[阶段3.5] 编译tiny-cuda-nn (SM${TCNN_CUDA_ARCHITECTURES})" && \
     TCNN_CUDA_ARCHITECTURES=$TCNN_CUDA_ARCHITECTURES \
     pip3 install --no-cache-dir \
     git+https://github.com/NVlabs/tiny-cuda-nn/#subdirectory=bindings/torch && \
-    python3 -c "import tinycudann as tcnn; print(f'tiny-cuda-nn版本: {tcnn.__version__}')"  
-
+    python3 -c "import torch, tinycudann as tcnn; \
+    print(f'tiny-cuda-nn版本: {tcnn.__version__}, PyTorch CUDA版本: {torch.version.cuda}')"
 # 配置 ROS 环境
 ENV ROS_PYTHON_VERSION=3 \
     PYTHONPATH="/opt/ros/${ROS_DISTRO}/lib/python3.10/site-packages:${PYTHONPATH}" \
