@@ -40,17 +40,16 @@ RUN python3 -m venv /workspace/myenv && \
     /workspace/myenv/bin/pip install torch==2.1.2 torchvision==0.16.2 torchaudio==2.1.2 \
     --index-url https://download.pytorch.org/whl/cu118
 
-# 验证CUDA可用性（新增验证层）
 # 验证CUDA可用性（优化版）
 RUN /workspace/myenv/bin/python -c "\
-    import torch;\
-    error_msg = 'CUDA初始化失败！可能原因：\\n'\
-                '1. 容器运行时未加--gpus参数\\n'\
-                '2. 宿主机NVIDIA驱动不兼容\\n'\
-                '3. CUDA工具链安装错误\\n'\
-                '4. 内核模块加载问题';\
-    assert torch.cuda.is_available(), error_msg;\
-    print(f'[√] PyTorch {torch.__version__} CUDA验证通过: {torch.version.cuda}')"
+import torch;\
+error_msg = 'CUDA初始化失败！可能原因：\\n'\
+'1. 容器运行时未加--gpus参数\\n'\
+'2. 宿主机NVIDIA驱动不兼容\\n'\
+'3. CUDA工具链安装错误\\n'\
+'4. 内核模块加载问题';\
+assert torch.cuda.is_available(), error_msg;\
+print(f'[√] PyTorch {torch.__version__} CUDA验证通过: {torch.version.cuda}')"
 
 # tiny-cuda-nn编译优化
 WORKDIR /workspace
