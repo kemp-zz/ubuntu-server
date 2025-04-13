@@ -42,9 +42,9 @@ RUN { \
 RUN rosdep init && rosdep update
 
 # -------------------------
-# PyTorch 核心依赖锁定
-RUN echo "[阶段3.1] 安装PyTorch (强制锁定依赖)" && \
-    pip3 install --no-cache-dir \
+# PyTorch 核心依赖锁定（强制覆盖系统包）
+RUN echo "[阶段3.1] 安装PyTorch (强制覆盖系统依赖)" && \
+    pip3 install --no-cache-dir --ignore-installed \
     numpy==1.23.5 \
     torch==2.1.2+cu118 \
     torchvision==0.16.2+cu118 \
@@ -53,57 +53,54 @@ RUN echo "[阶段3.1] 安装PyTorch (强制锁定依赖)" && \
     echo "[验证] PyTorch版本: $(python3 -c 'import torch; print(torch.__version__)')"
 
 # -------------------------
-# JupyterLab 独立安装
+# JupyterLab 独立安装（隔离工具链）
 RUN { \
     echo "[阶段3.2] 安装JupyterLab"; \
     pip3 install --no-cache-dir jupyterlab==4.0.0; \
     } && echo "[验证] JupyterLab版本: $(jupyter lab --version)"
 
 # -------------------------
-# NeRFStudio 安装与验证分离
+# NeRFStudio 显式依赖（通过 pip 管理）
 RUN pip3 install --no-cache-dir \
     jaxtyping==0.2.24 \
     rich==13.7.1 \
     tyro==0.7.2 \
-    opencv-python-headless==4.8.0.76 \
-    plotly==5.18.0
+    opencv-python-headless==4.8.0.76 \  
+    plotly==5.18.0 \
+    pillow==10.0.0
 
 # -------------------------
-# NeRFStudio 本体安装（保持禁用自动依赖）
+# NeRFStudio 本体安装（禁用自动依赖）
 RUN { \
-    echo "[阶段3.3] 安装NeRFStudio (禁用依赖自动安装)"; \
+    echo "[阶段3.3] 安装NeRFStudio (纯 pip 依赖链)"; \
     pip3 install --no-cache-dir --no-deps nerfstudio; \
     } | tee /var/log/nerfstudio-install.log
 
 # -------------------------
-# CUDA 支持验证优化（确保依赖加载顺序）
+# CUDA 支持验证（依赖顺序控制）
 RUN python3 -c "\
     import torch; \
     import jaxtyping; \
     from nerfstudio.utils import colormaps; \
     print(f'PyTorch CUDA可用性: {torch.cuda.is_available()}'); \
     print(f'jaxtyping版本: {jaxtyping.__version__}')"
-# -------------------------
-# PyPose 的 OpenCV 显式依赖
-RUN apt-get update && apt-get install -y --no-install-recommends \
-    libopencv-dev python3-opencv && \
-    rm -rf /var/lib/apt/lists/*
 
+# -------------------------
+# PyPose 安装（移除 apt 依赖）
 RUN { \
-    echo "[阶段3.4] 安装PyPose"; \
+    echo "[阶段3.4] 安装PyPose (纯 pip 环境)"; \
     pip3 install --no-cache-dir pypose; \
     } && [ "$DEBUG_MODE" = "true" ] && \
     python3 -c "import cv2, pypose; print(f'OpenCV版本: {cv2.__version__}, PyPose版本: {pypose.__version__}')"
 
 # -------------------------
-# tiny-cuda-nn 显式架构编译
+# tiny-cuda-nn 显式架构编译（无需系统库）
 RUN echo "[阶段3.5] 编译tiny-cuda-nn (SM${TCNN_CUDA_ARCHITECTURES})" && \
     TCNN_CUDA_ARCHITECTURES=$TCNN_CUDA_ARCHITECTURES \
     pip3 install --no-cache-dir \
     git+https://github.com/NVlabs/tiny-cuda-nn/#subdirectory=bindings/torch && \
     python3 -c "import torch, tinycudann as tcnn; \
-    print(f'tiny-cuda-nn版本: {tcnn.__version__}, PyTorch CUDA版本: {torch.version.cuda}')"
-    
+    print(f'tiny-cuda-nn版本: {tcnn.__version__}, PyTorch CUDA版本: {torch.version.cuda})'"
 # 配置 ROS 环境
 ENV ROS_PYTHON_VERSION=3 \
     PYTHONPATH="/opt/ros/${ROS_DISTRO}/lib/python3.10/site-packages:${PYTHONPATH}" \
