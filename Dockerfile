@@ -28,9 +28,15 @@ RUN apt-get update && apt-get install -y \
     ninja-build \
     && rm -rf /var/lib/apt/lists/*
 
+RUN apt-get update && apt-get install -y software-properties-common
+RUN add-apt-repository ppa:jsk-ros-pkg/ppa \
+    && apt-get update
+    
+
 # 初始化 rosdep
 RUN rosdep init && rosdep update
-
+# 使用 rosdep 安装依赖
+RUN rosdep install -y --from-paths src --ignore-src --rosdistro $ROS_DISTRO
 # 设置 ROS 环境变量
 ENV ROS_DISTRO=noetic
 RUN echo "source /opt/ros/$ROS_DISTRO/setup.bash" >> /root/.bashrc
