@@ -1,106 +1,61 @@
-# 基础镜像 (明确指定 CUDA 11.8 + cuDNN + Ubuntu 22.04 开发环境)
-FROM nvidia/cuda:11.8.0-cudnn8-devel-ubuntu22.04
+FROM nvidia/cuda:11.8.0-devel-ubuntu22.04
 
-# 设置全局环境变量
-ENV DEBIAN_FRONTEND=noninteractive \
-    LANG=C.UTF-8 \
-    LC_ALL=C.UTF-8 \
-    ROS_DISTRO=humble \
-    TCNN_CUDA_ARCHITECTURES=61 \
-    NVIDIA_DRIVER_CAPABILITIES=compute,utility \
-    NVIDIA_VISIBLE_DEVICES=all \
-    CONDA_DIR=/opt/conda \
-    PATH=$CONDA_DIR/bin:$PATH
+# 设置非交互式安装
+ENV DEBIAN_FRONTEND=noninteractive
 
-# 第一阶段：安装基础系统依赖和Conda
-RUN apt-get update && apt-get install -y --no-install-recommends \
-    software-properties-common \
-    build-essential \
-    git \
-    cmake \
-    ninja-build \
-    libboost-dev \
-    libeigen3-dev \
-    libopenmpi-dev \
-    python3-pip \
-    curl \
-    wget \
-    gnupg2 \
-    lsb-release \
-    gcc-9 g++-9 \
-    && rm -rf /var/lib/apt/lists/*
-
-ENV CONDA_DIR=/opt/conda \
-    PATH=$CONDA_DIR/bin:$PATH
-
-# 安装 Miniconda
-RUN wget https://repo.anaconda.com/miniconda/Miniconda3-py38_23.11.0-2-Linux-x86_64.sh -O miniconda.sh \
-    && bash miniconda.sh -b -p $CONDA_DIR \
-    && rm miniconda.sh \
-    && conda clean -ya
-
-# 第二阶段：安装 ROS 2 Humble
-RUN curl -sSL https://raw.githubusercontent.com/ros/rosdistro/master/ros.key -o /usr/share/keyrings/ros-archive-keyring.gpg \
-    && echo "deb [arch=$(dpkg --print-architecture) signed-by=/usr/share/keyrings/ros-archive-keyring.gpg] http://packages.ros.org/ros2/ubuntu jammy main" > /etc/apt/sources.list.d/ros2.list \
-    && apt-get update && apt-get install -y --no-install-recommends \
-    ros-${ROS_DISTRO}-desktop \
+# 安装 ROS 依赖和系统依赖
+RUN apt-get update && apt-get install -y \
+    ros-rolling-desktop \
     python3-rosdep \
-    python3-colcon-common-extensions \
-    && rosdep init \
-    && rosdep update \
+    python3-vcstool \
+    python3-pip \
+    git \
+    wget \
+    curl \
+    ninja-build \
     && rm -rf /var/lib/apt/lists/*
 
-# 第三阶段：创建Conda环境
-RUN conda create -n nerfenv python=3.8 -y \
-    && echo "conda activate nerfenv" >> ~/.bashrc
+# 设置 ROS 环境变量
+ENV ROS_DISTRO=humble
+ENV ROS_VERSION=humble
+RUN echo "source /opt/ros/$ROS_DISTRO/setup.bash" >> /root/.bashrc
 
-# 安装 PyTorch (CUDA 11.8)
-RUN bash -c "source activate nerfenv \
-    && pip install --no-cache-dir \
-    torch==2.1.2+cu118 \
-    torchvision==0.16.2+cu118 \
-    torchaudio==2.1.2+cu118 \
-    --extra-index-url https://download.pytorch.org/whl/cu118"
+# 创建并初始化 ROS 工作空间
+RUN mkdir -p /root/ros2_ws/src
+WORKDIR /root/ros2_ws
 
-# 安装 NeRFStudio 和依赖
-RUN bash -c "source activate nerfenv \
-    && pip install --no-cache-dir nerfstudio"
+# 下载 radiance_field_ros 源码
+RUN git clone https://github.com/leggedrobotics/radiance_field_ros.git src/radiance_field_ros
 
-# 安装 PyPose 和 OpenCV
-RUN apt-get update && apt-get install -y --no-install-recommends libopencv-dev \
-    && rm -rf /var/lib/apt/lists/*
-RUN bash -c "source activate nerfenv \
-    && pip install --no-cache-dir pypose"
+# 使用 rosdep 安装依赖
+RUN rosdep update
+RUN rosdep install -y --from-paths src --ignore-src --rosdistro $ROS_DISTRO
+
+# 创建 conda 环境
+RUN pip3 install conda
+RUN conda create --name nerfstudio -y python=3.8
+# 激活 conda 环境
+SHELL ["conda", "run", "-n", "nerfstudio", "/bin/bash", "-c"]
+
+# 安装 PyTorch 和 CUDA 工具包
+RUN conda install pytorch==2.1.2 torchvision==0.16.2 pytorch-cuda=11.8 -c pytorch -c nvidia
+RUN conda install -c "nvidia/label/cuda-11.8.0" cuda-toolkit
 
 # 安装 tiny-cuda-nn
-RUN bash -c "source activate nerfenv \
-    && pip install --no-cache-dir numpy==1.24.4"
-WORKDIR /workspace
-RUN git clone --recursive https://github.com/NVlabs/tiny-cuda-nn.git
-WORKDIR /workspace/tiny-cuda-nn
-RUN mkdir build
-WORKDIR /workspace/tiny-cuda-nn/build
-RUN bash -c "source activate nerfenv \
-    && cmake .. -DCMAKE_CUDA_COMPILER=/usr/local/cuda/bin/nvcc -DCMAKE_CXX_COMPILER=g++-9 -DCMAKE_C_COMPILER=gcc-9"
-RUN cmake --build . --config RelWithDebInfo -j
-WORKDIR /workspace/tiny-cuda-nn/bindings/torch
-RUN bash -c "source activate nerfenv \
-    && python setup.py install"
+RUN pip install git+https://github.com/NVlabs/tiny-cuda-nn/#subdirectory=bindings/torch
 
-# 安装 NerfBridge
-WORKDIR /workspace
-RUN git clone https://github.com/javieryu/nerf_bridge.git
-WORKDIR /workspace/nerfbridge
-RUN bash -c "source activate nerfenv \
-    && pip install -e ."
+# 安装 radiance_field_ros
+WORKDIR /root/ros2_ws/src/radiance_field_ros
+RUN pip install -e .
 
-# 配置 ROS 环境
-ENV ROS_PYTHON_VERSION=3 \
-    PYTHONPATH="/opt/ros/${ROS_DISTRO}/lib/python3.10/site-packages:${PYTHONPATH}" \
-    PATH="/opt/ros/${ROS_DISTRO}/bin:${PATH}"
+# 构建 ROS 包
+WORKDIR /root/ros2_ws
+RUN colcon build
+
+# 设置 ROS 环境变量，包括 conda 激活
+RUN echo "source /opt/ros/$ROS_DISTRO/setup.bash" >> /root/.bashrc
+RUN echo "conda activate nerfstudio" >> /root/.bashrc
+RUN echo "source /root/ros2_ws/install/setup.bash" >> /root/.bashrc
 
 # 设置工作目录
-WORKDIR /workspace
-
-# 启动命令
-CMD ["bash", "-c", "source activate nerfenv && /bin/bash"]
+WORKDIR /root
