@@ -4,7 +4,7 @@ on: [push, workflow_dispatch]
 
 env:
   REGISTRY: docker.io
-  IMAGE_NAME: ${{ secrets.DOCKERHUB_USERNAME }}/your-repo-name  # 替换为你的Docker Hub仓库名
+  IMAGE_NAME: ${{ secrets.DOCKERHUB_USERNAME }}/nerfstudio-ros
 
 jobs:
   build:
