@@ -3,7 +3,20 @@ FROM nvidia/cuda:11.8.0-devel-ubuntu22.04
 # 设置非交互式安装
 ENV DEBIAN_FRONTEND=noninteractive
 
-# 安装 ROS 依赖和系统依赖
+# 设置语言环境为 UTF-8
+RUN apt-get update && apt-get install -y locales \
+    && locale-gen en_US en_US.UTF-8 \
+    && update-locale LC_ALL=en_US.UTF-8 LANG=en_US.UTF-8 \
+    && export LANG=en_US.UTF-8
+
+# 添加 ROS 软件源
+RUN apt-get update && apt-get install -y software-properties-common \
+    && add-apt-repository universe \
+    && apt-get update && apt-get install -y curl \
+    && curl -sSL https://raw.githubusercontent.com/ros/rosdistro/master/ros.key -o /usr/share/keyrings/ros-archive-keyring.gpg \
+    && echo "deb [arch=$(dpkg --print-architecture) signed-by=/usr/share/keyrings/ros-archive-keyring.gpg] http://packages.ros.org/ros2/ubuntu $(. /etc/os-release && echo $UBUNTU_CODENAME) main" | tee /etc/apt/sources.list.d/ros2.list > /dev/null
+
+# 安装 ROS 依赖和系统工具
 RUN apt-get update && apt-get install -y \
     ros-humble-desktop \
     python3-rosdep \
@@ -15,9 +28,11 @@ RUN apt-get update && apt-get install -y \
     ninja-build \
     && rm -rf /var/lib/apt/lists/*
 
+# 初始化 rosdep
+RUN rosdep init && rosdep update
+
 # 设置 ROS 环境变量
 ENV ROS_DISTRO=humble
-ENV ROS_VERSION=humble
 RUN echo "source /opt/ros/$ROS_DISTRO/setup.bash" >> /root/.bashrc
 
 # 创建并初始化 ROS 工作空间
@@ -28,16 +43,14 @@ WORKDIR /root/ros2_ws
 RUN git clone https://github.com/leggedrobotics/radiance_field_ros.git src/radiance_field_ros
 
 # 使用 rosdep 安装依赖
-RUN rosdep update
 RUN rosdep install -y --from-paths src --ignore-src --rosdistro $ROS_DISTRO
 
 # 创建 conda 环境
 RUN pip3 install conda
 RUN conda create --name nerfstudio -y python=3.8
-# 激活 conda 环境
-SHELL ["conda", "run", "-n", "nerfstudio", "/bin/bash", "-c"]
 
-# 安装 PyTorch 和 CUDA 工具包
+# 激活 conda 环境并安装 PyTorch 和 CUDA 工具包
+SHELL ["conda", "run", "-n", "nerfstudio", "/bin/bash", "-c"]
 RUN conda install pytorch==2.1.2 torchvision==0.16.2 pytorch-cuda=11.8 -c pytorch -c nvidia
 RUN conda install -c "nvidia/label/cuda-11.8.0" cuda-toolkit
 
@@ -52,10 +65,8 @@ RUN pip install -e .
 WORKDIR /root/ros2_ws
 RUN colcon build
 
-# 设置 ROS 环境变量，包括 conda 激活
+# 设置工作目录和环境变量
+WORKDIR /root
 RUN echo "source /opt/ros/$ROS_DISTRO/setup.bash" >> /root/.bashrc
 RUN echo "conda activate nerfstudio" >> /root/.bashrc
 RUN echo "source /root/ros2_ws/install/setup.bash" >> /root/.bashrc
-
-# 设置工作目录
-WORKDIR /root
