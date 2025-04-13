@@ -31,7 +31,7 @@ RUN echo "[阶段1] 安装系统依赖" && \
     wget \
     gnupg2 \
     lsb-release \
-    libcudnn8-dev=8.9.7.29-1+cuda11.8 \
+    libcudnn8-dev \
     && echo "[阶段1] 完成" && \
     rm -rf /var/lib/apt/lists/*
 
