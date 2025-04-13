@@ -53,7 +53,8 @@ RUN git clone https://github.com/leggedrobotics/radiance_field_ros.git src/radia
 RUN git clone https://github.com/jsk-ros-pkg/jsk_visualization.git src/jsk_visualization
 
 # 使用 rosdep 安装依赖，忽略无法解析的键
-RUN rosdep install -y --from-paths src --ignore-src --skip-keys="jsk_rviz_plugins roseus" --rosdistro $ROS_DISTRO
+RUN rosdep install -y --from-paths src --ignore-src --skip-keys="jsk_rviz_plugins roseus dynamic-tf-publisher" --rosdistro $ROS_DISTRO
+
 
 # 构建 jsk-rviz-plugins
 WORKDIR /root/catkin_ws/src/jsk_visualization/jsk_rviz_plugins
