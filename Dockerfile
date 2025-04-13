@@ -7,14 +7,9 @@ ENV DEBIAN_FRONTEND=noninteractive \
     LC_ALL=C.UTF-8 \
     ROS_DISTRO=humble \
     TCNN_CUDA_ARCHITECTURES=61 \
-    DEBUG_MODE=false 
+    DEBUG_MODE=true 
 
-# [!NEW] 添加调试工具链
-RUN apt-get update && apt-get install -y --no-install-recommends \
-    strace lsof procps nano && \
-    rm -rf /var/lib/apt/lists/*
-
-# 第一阶段：安装基础系统依赖（添加日志输出）
+# 第一阶段：安装基础系统依赖（添加分层日志）
 RUN echo "[阶段1] 安装系统依赖" && \
     apt-get update && apt-get install -y --no-install-recommends \
     software-properties-common \
@@ -34,7 +29,7 @@ RUN echo "[阶段1] 安装系统依赖" && \
     && echo "[阶段1] 完成" && \
     rm -rf /var/lib/apt/lists/*
 
-# 第二阶段：安装 ROS 2 Humble（添加错误检查）
+# 第二阶段：安装 ROS 2 Humble（添加错误捕获）
 RUN { \
     echo "[阶段2] 安装ROS"; \
     curl -sSL https://raw.githubusercontent.com/ros/rosdistro/master/ros.key -o /usr/share/keyrings/ros-archive-keyring.gpg; \
@@ -43,57 +38,53 @@ RUN { \
     ros-${ROS_DISTRO}-desktop \
     python3-rosdep \
     python3-colcon-common-extensions; \
-    } || { echo "[错误] ROS安装失败"; exit 1; }  
+    } || { echo "[错误] ROS安装失败"; exit 1; } 
 RUN rosdep init && rosdep update
 
 # [!NEW] 第三阶段前验证环境
 RUN echo "[调试] CUDA架构: $TCNN_CUDA_ARCHITECTURES" && \
     nvidia-smi -L | tee /tmp/gpu-info.log
 
-# 第三阶段：分步安装 Python 依赖（添加分步日志）
-RUN echo "[阶段3] 升级pip工具链" && \
-    pip3 install --no-cache-dir --upgrade pip setuptools wheel
-
-# [!NEW] 安装PyTorch后验证numpy版本
-RUN { \
-    echo "[阶段3.1] 安装PyTorch"; \
+# 第三阶段：分步安装 Python 依赖（关键组件依赖隔离）
+# -------------------------
+# [!NEW] 锁定PyTorch依赖树
+RUN echo "[阶段3.1] 安装PyTorch (强制锁定numpy版本)" && \
     pip3 install --no-cache-dir \
+    numpy==1.23.5 \
     torch==2.1.2+cu118 \
     torchvision==0.16.2+cu118 \
     torchaudio==2.1.2+cu118 \
-    --extra-index-url https://download.pytorch.org/whl/cu118; \
-    } && echo "[验证] numpy版本: $(pip3 list | grep numpy)" 
+    --extra-index-url https://download.pytorch.org/whl/cu118 && \
+    echo "[验证] numpy版本: $(pip3 list | grep numpy)"  
+# -------------------------
+# [!NEW] JupyterLab独立安装（隔离UI工具链）
 RUN { \
     echo "[阶段3.2] 安装JupyterLab"; \
     pip3 install --no-cache-dir jupyterlab; \
-    } || { echo "[错误] Jupyter安装失败"; [ "$DEBUG_MODE" = "true" ] && pip3 debug -v; exit 1; }  
+    } && echo "[验证] JupyterLab核心组件: $(pip3 list | grep jupyterlab)" 
 
+# -------------------------
+# [!NEW] NeRFStudio安装（依赖PyTorch CUDA兼容性检查）
 RUN { \
     echo "[阶段3.3] 安装NeRFStudio"; \
     pip3 install --no-cache-dir nerfstudio; \
-    } | tee /var/log/nerfstudio-install.log  
+    } | tee /var/log/nerfstudio-install.log && \
+    python3 -c "from nerfstudio.utils import colormaps; print('NeRFStudio CUDA支持:', torch.cuda.is_available())" 
 
-# [!NEW] 安装PyPose前检查OpenCV兼容性
-RUN if [ "$DEBUG_MODE" = "true" ]; then \
-    echo "[调试] 检查OpenCV依赖"; \
-    apt-get update && apt-get install -y pkg-config; \
-    fi
-
+# -------------------------
+# [!NEW] PyPose安装（OpenCV依赖控制）
 RUN { \
-    echo "[阶段3.4] 安装PyPose"; \
+    echo "[阶段3.4] 安装PyPose (检查OpenCV兼容性)" && \
     pip3 install --no-cache-dir pypose; \
-    } && [ "$DEBUG_MODE" = "true" ] && python3 -c "import cv2; print('OpenCV版本:', cv2.__version__)"  
+    } && [ "$DEBUG_MODE" = "true" ] && python3 -c "import cv2; print('OpenCV版本:', cv2.__version__)" 
 
-# [!NEW] 显式传递CUDA架构参数
+# -------------------------
+# [!NEW] tiny-cuda-nn显式编译（确保CUDA架构参数传递）
 RUN echo "[阶段3.5] 安装tiny-cuda-nn (架构: $TCNN_CUDA_ARCHITECTURES)" && \
     TCNN_CUDA_ARCHITECTURES=$TCNN_CUDA_ARCHITECTURES \
     pip3 install --no-cache-dir \
-    git+https://github.com/NVlabs/tiny-cuda-nn/#subdirectory=bindings/torch
-
-# [!NEW] 构建后诊断脚本
-COPY docker-debug.sh /usr/local/bin/
-RUN chmod +x /usr/local/bin/docker-debug.sh && \
-    echo "export PATH=$PATH:/usr/local/bin" >> /etc/bash.bashrc
+    git+https://github.com/NVlabs/tiny-cuda-nn/#subdirectory=bindings/torch && \
+    python3 -c "import tinycudann as tcnn; print(f'tiny-cuda-nn版本: {tcnn.__version__}')"  
 
 # 配置 ROS 环境
 ENV ROS_PYTHON_VERSION=3 \
