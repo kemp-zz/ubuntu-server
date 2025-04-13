@@ -53,21 +53,21 @@ RUN $VENV_PATH/bin/pip install --no-cache-dir \
     --index-url https://download.pytorch.org/whl/cu118
 
 # 增强版CUDA验证（增加设备信息检查）
-RUN $VENV_PATH/bin/python -c "\
-import torch; \
-try: \
-    assert torch.cuda.is_available(), 'CUDA不可用! 检查项:\n1. 容器运行时是否添加--gpus参数\n2. 宿主机驱动版本是否≥525.60.13\n3. nvidia-container-toolkit是否正确安装'; \
-    print(f'[√] PyTorch {torch.__version__} 验证通过'); \
-    print(f'|__ CUDA版本: {torch.version.cuda}'); \
-    print(f'|__ 设备数量: {torch.cuda.device_count()}'); \
-    print(f'|__ 当前设备: {torch.cuda.get_device_name(0)}'); \
-except Exception as e: \
-    print(f'[×] 验证失败: {str(e)}'); \
-    print('调试信息:'); \
-    print(f'CUDA路径: {torch.utils.cpp_extension.CUDA_HOME}'); \
-    print(f'LD路径: {torch.utils.cpp_extension.LIBRARY_DIRS}'); \
-    raise SystemExit(1)"
-
+RUN $VENV_PATH/bin/python <<EOF
+import torch
+try:
+    assert torch.cuda.is_available(), 'CUDA不可用! 检查项:\n1. 容器运行时添加--gpus参数\n2. 宿主机驱动≥525.60.13\n3. 安装nvidia-container-toolkit'
+    print(f'[√] PyTorch {torch.__version__} 验证通过')
+    print(f'|__ CUDA版本: {tor.cuda}')
+    print(f'|__ 设备数: {torch.cuda.device_count()}')
+    print(f'|__ 当前设备: {torch.cuda.get_device_name(0)}')
+except Exception as e:
+    print(f'[×] 验证失败: {str(e)}')
+    print('调试信息:')
+    print(f'CUDA路径: {torch.utils.cpp_extension.CUDA_HOME}')
+    print(f'LD路径: {torch.utils.cpp_extension.LIBRARY_DIRS}')
+    raise SystemExit(1)
+EOF
 # 编译优化tiny-cuda-nn（增加架构白名单）
 WORKDIR /workspace
 RUN git clone --depth 1 --branch v1.7 https://github.com/NVlabs/tiny-cuda-nn.git && \
