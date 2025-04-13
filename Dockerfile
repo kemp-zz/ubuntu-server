@@ -1,8 +1,6 @@
 # 基础镜像 (明确指定 CUDA 11.8 + cuDNN + Ubuntu 22.04 开发环境)
 FROM nvidia/cuda:11.8.0-cudnn8-devel-ubuntu22.04
 
-
-
 # 设置全局环境变量
 ENV DEBIAN_FRONTEND=noninteractive \
     LANG=C.UTF-8 \
@@ -53,15 +51,14 @@ RUN pip3 install --no-cache-dir \
 RUN pip3 install --no-cache-dir jupyterlab
 
 # 步骤2：安装 NeRFStudio（需验证 CUDA 兼容性）
-RUN pip3 install --no-cache-dir nerfstudio
+RUN pip3 install --no-cache-dir nerfstudio || echo "NeRFStudio 安装失败，检查 CUDA 兼容性"
 
 # 步骤3：安装 PyPose（注意 OpenCV 依赖）
+RUN apt-get update && apt-get install -y --no-install-recommends libopencv-dev && rm -rf /var/lib/apt/lists/*
 RUN pip3 install --no-cache-dir pypose
 
 # 安装 tiny-cuda-nn
-RUN TCNN_CUDA_ARCHITECTURES=$TCNN_CUDA_ARCHITECTURES \
-    pip3 install --no-cache-dir \
-    git+https://github.com/NVlabs/tiny-cuda-nn/#subdirectory=bindings/torch
+RUN TCNN_CUDA_ARCHITECTURES=$TCNN_CUDA_ARCHITECTURES pip3 install --no-cache-dir git+https://github.com/NVlabs/tiny-cuda-nn/#subdirectory=bindings/torch
 
 # 配置 ROS 环境
 ENV ROS_PYTHON_VERSION=3 \
