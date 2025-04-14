@@ -16,7 +16,7 @@ RUN apt-get update && apt-get install -y software-properties-common \
     && curl -sSL https://raw.githubusercontent.com/ros/rosdistro/master/ros.key -o /usr/share/keyrings/ros-archive-keyring.gpg \
     && echo "deb [arch=$(dpkg --print-architecture) signed-by=/usr/share/keyrings/ros-archive-keyring.gpg] http://packages.ros.org/ros/ubuntu focal main" > /etc/apt/sources.list.d/ros-noetic.list
 
-# 安装 ROS Noetic 和相关工具
+# 安装 ROS Noetic 和相关工具（包含jsk插件）
 RUN apt-get update && apt-get install -y \
     ros-noetic-desktop-full \
     python3-rosdep \
@@ -43,6 +43,14 @@ RUN rosdep init && rosdep fix-permissions && rosdep update
 ENV ROS_DISTRO=noetic
 RUN echo "source /opt/ros/$ROS_DISTRO/setup.bash" >> /root/.bashrc
 
+# 构建ROS工作空间
+RUN mkdir -p /catkin_ws/src \
+    && cd /catkin_ws/src \
+    && git clone https://github.com/leggedrobotics/radiance_field_ros \
+    && cd .. \
+    && /bin/bash -c "source /opt/ros/noetic/setup.bash; catkin build nerf_teleoperation_msgs" \
+    && echo "source /catkin_ws/devel/setup.bash" >> /root/.bashrc
+
 # 安装 Miniconda
 RUN apt-get update && apt-get install -y wget \
     && wget https://repo.anaconda.com/miniconda/Miniconda3-latest-Linux-x86_64.sh \
@@ -59,27 +67,13 @@ RUN /opt/miniconda3/bin/conda run -n nerfstudio pip install --upgrade pip
 # 安装 PyTorch 和相关包
 RUN /opt/miniconda3/bin/conda run -n nerfstudio conda install pytorch==2.1.2 torchvision==0.16.2 pytorch-cuda=11.8 -c pytorch -c nvidia
 
+# 设置 CUDA 架构
 ENV TCNN_CUDA_ARCHITECTURES="61"
 
 # 安装 tiny-cuda-nn
 RUN /opt/miniconda3/bin/conda run -n nerfstudio pip install ninja git+https://github.com/NVlabs/tiny-cuda-nn/#subdirectory=bindings/torch
 
 # 安装 NerfStudio
-RUN /opt/miniconda3/bin/conda run -n nerfstudio pip install -e .
-
-# 克隆项目仓库
-RUN git clone https://github.com/your-repo/your-project.git /opt/your-project
-
-# 构建 ROS 包
-WORKDIR /opt/your-project
-RUN catkin init
-RUN catkin config --merge-devel
-RUN catkin build nerf_teleoperation_msgs
-RUN catkin build nerf_view_controller
-RUN catkin build nerf_teleoperation
-
-# 安装 Python 模块
-WORKDIR /opt/your-project/ros_nerf
 RUN /opt/miniconda3/bin/conda run -n nerfstudio pip install -e .
 
 # 验证 CUDA 和 ROS
