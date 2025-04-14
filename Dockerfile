@@ -66,10 +66,5 @@ RUN /opt/miniconda3/bin/conda run -n nerfstudio pip install ninja git+https://gi
 # 安装 NerfStudio
 RUN /opt/miniconda3/bin/conda run -n nerfstudio pip install -e .
 
-
-
-# 安装 NerfStudio
-RUN pip install -e .
-
 # 验证 CUDA 和 ROS
 CMD ["/bin/bash"]
