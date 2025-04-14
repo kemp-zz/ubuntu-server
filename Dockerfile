@@ -22,7 +22,7 @@ RUN apt-get update && apt-get install -y \
     python3-rosdep \
     python3-vcstool \
     python3-pip \
-    python-catkin-tools
+    python-catkin-tools \
     git \
     wget \
     curl \
@@ -44,11 +44,11 @@ RUN rosdep init && rosdep fix-permissions && rosdep update
 ENV ROS_DISTRO=noetic
 RUN echo "source /opt/ros/$ROS_DISTRO/setup.bash" >> /root/.bashrc
 
-# 构建ROS工作空间
 RUN mkdir -p /catkin_ws/src \
     && cd /catkin_ws/src \
     && git clone https://github.com/leggedrobotics/radiance_field_ros \
     && cd .. \
+    && rosdep install --from-paths src --ignore-src -r -y \
     && /bin/bash -c "source /opt/ros/noetic/setup.bash; catkin build nerf_teleoperation_msgs" \
     && echo "source /catkin_ws/devel/setup.bash" >> /root/.bashrc
 
