@@ -15,6 +15,10 @@ jobs:
     steps:
     - name: Checkout
       uses: actions/checkout@v4
+    - name: 磁盘使用情况
+      run: |
+          echo "▂▂▂▂▂▂▂▂ 磁盘使用情况 ▂▂▂▂▂▂▂▂"
+          df -h /
 
 
     - name: Setup Docker
