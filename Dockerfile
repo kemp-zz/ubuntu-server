@@ -73,13 +73,12 @@ ENV TCNN_CUDA_ARCHITECTURES="61"
 # 安装 tiny-cuda-nn
 RUN /opt/miniconda3/bin/conda run -n nerfstudio pip install ninja git+https://github.com/NVlabs/tiny-cuda-nn/#subdirectory=bindings/torch
 
-# 激活 conda 环境并安装依赖项, 且将以下命令合并，减少镜像层数
-RUN /bin/bash -c "source /opt/miniconda3/etc/profile.d/conda.sh \
-    && conda activate nerfstudio \
-    && pip install catkin_pkg \
-    && cd /catkin_ws/src/radiance_field_ros \
-    && pip install -e .
-"
+# 激活 conda 环境并安装依赖项
+RUN /bin/bash -c "source /opt/miniconda3/etc/profile.d/conda.sh && \
+    conda activate nerfstudio && \
+    pip install catkin_pkg && \
+    cd /catkin_ws/src/radiance_field_ros && \
+    pip install -e ."
 
 WORKDIR /catkin_ws
 RUN /bin/bash -c "source /opt/ros/noetic/setup.bash && catkin build"
