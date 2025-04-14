@@ -74,10 +74,26 @@ ENV TCNN_CUDA_ARCHITECTURES="61"
 # 安装 tiny-cuda-nn
 RUN /opt/miniconda3/bin/conda run -n nerfstudio pip install ninja git+https://github.com/NVlabs/tiny-cuda-nn/#subdirectory=bindings/torch
 
-# 切换到 Python 项目根目录
-WORKDIR /catkin_ws/src/radiance_field_ros
+# 安装 setuptools
+RUN /opt/miniconda3/bin/conda run -n nerfstudio pip install setuptools
 
-# 安装 NerfStudio
+# 克隆项目仓库
+RUN mkdir -p /catkin_ws/src \
+    && cd /catkin_ws/src \
+    && git clone https://github.com/leggedrobotics/radiance_field_ros \
+    && cd .. \
+    && rosdep install --from-paths src --ignore-src -r -y \
+    && /bin/bash -c "source /opt/ros/noetic/setup.bash; catkin build" \
+    && echo "source /catkin_ws/devel/setup.bash" >> /root/.bashrc
+
+# 手动克隆 ros_numpy
+RUN git clone https://github.com/eric-wieser/ros_numpy.git /tmp/ros_numpy \
+    && cd /tmp/ros_numpy \
+    && git checkout 74879737c8648f48adb507a5bdf4e51c0d194124 \
+    && /opt/miniconda3/bin/conda run -n nerfstudio pip install -e .
+
+# 安装 ros_nerf
+WORKDIR /catkin_ws/src/radiance_field_ros/ros_nerf
 RUN /opt/miniconda3/bin/conda run -n nerfstudio pip install -e .
 
 # 验证 CUDA 和 ROS
