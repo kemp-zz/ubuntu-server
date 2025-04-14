@@ -82,10 +82,11 @@ RUN /opt/miniconda3/bin/conda run -n nerfstudio pip install ninja git+https://gi
 # 安装 setuptools
 RUN /opt/miniconda3/bin/conda run -n nerfstudio pip install setuptools
 
-# 手动克隆 ros_numpy
+# 手动克隆 ros_numpy 并安装依赖
 RUN git clone https://github.com/eric-wieser/ros_numpy.git /tmp/ros_numpy \
     && cd /tmp/ros_numpy \
     && git checkout 74879737c8648f48adb507a5bdf4e51c0d194124 \
+    && /opt/miniconda3/bin/conda run -n nerfstudio pip install catkin_pkg \
     && /opt/miniconda3/bin/conda run -n nerfstudio pip install -e .
 
 # 安装 ros_nerf
