@@ -11,6 +11,7 @@ RUN apt-get update && apt-get install -y locales \
 # 添加 ROS Noetic 软件源
 RUN apt-get update && apt-get install -y software-properties-common \
     && add-apt-repository universe \
+    && curl \
     && curl -sSL https://raw.githubusercontent.com/ros/rosdistro/master/ros.key -o /usr/share/keyrings/ros-archive-keyring.gpg \
     && echo "deb [arch=$(dpkg --print-architecture) signed-by=/usr/share/keyrings/ros-archive-keyring.gpg] http://packages.ros.org/ros/ubuntu focal main" > /etc/apt/sources.list.d/ros-noetic.list
 
