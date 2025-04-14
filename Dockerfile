@@ -74,6 +74,9 @@ ENV TCNN_CUDA_ARCHITECTURES="61"
 # 安装 tiny-cuda-nn
 RUN /opt/miniconda3/bin/conda run -n nerfstudio pip install ninja git+https://github.com/NVlabs/tiny-cuda-nn/#subdirectory=bindings/torch
 
+# 切换到 Python 项目根目录
+WORKDIR /catkin_ws/src/radiance_field_ros/ros_nerf
+
 # 安装 NerfStudio
 RUN /opt/miniconda3/bin/conda run -n nerfstudio pip install -e .
 
