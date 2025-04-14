@@ -22,7 +22,7 @@ RUN apt-get update && apt-get install -y \
     python3-rosdep \
     python3-vcstool \
     python3-pip \
-    python-catkin-tools \
+    python3-catkin-tools \
     git \
     wget \
     curl \
