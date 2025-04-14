@@ -44,12 +44,17 @@ RUN rosdep init && rosdep fix-permissions && rosdep update
 ENV ROS_DISTRO=noetic
 RUN echo "source /opt/ros/$ROS_DISTRO/setup.bash" >> /root/.bashrc
 
-RUN mkdir -p /catkin_ws/src \
-    && cd /catkin_ws/src \
-    && git clone https://github.com/leggedrobotics/radiance_field_ros \
-    && cd .. \
-    && rosdep install --from-paths src --ignore-src -r -y \
-    && /bin/bash -c "source /opt/ros/noetic/setup.bash; catkin build " \
+# 创建 Catkin 工作空间
+RUN mkdir -p /catkin_ws/src
+
+# 克隆项目仓库
+WORKDIR /catkin_ws/src
+RUN git clone https://github.com/leggedrobotics/radiance_field_ros
+
+# 安装 ROS 依赖项并构建
+WORKDIR /catkin_ws
+RUN rosdep install --from-paths src --ignore-src -r -y \
+    && /bin/bash -c "source /opt/ros/noetic/setup.bash; catkin build" \
     && echo "source /catkin_ws/devel/setup.bash" >> /root/.bashrc
 
 # 安装 Miniconda
@@ -76,15 +81,6 @@ RUN /opt/miniconda3/bin/conda run -n nerfstudio pip install ninja git+https://gi
 
 # 安装 setuptools
 RUN /opt/miniconda3/bin/conda run -n nerfstudio pip install setuptools
-
-# 克隆项目仓库
-RUN mkdir -p /catkin_ws/src \
-    && cd /catkin_ws/src \
-    && git clone https://github.com/leggedrobotics/radiance_field_ros \
-    && cd .. \
-    && rosdep install --from-paths src --ignore-src -r -y \
-    && /bin/bash -c "source /opt/ros/noetic/setup.bash; catkin build" \
-    && echo "source /catkin_ws/devel/setup.bash" >> /root/.bashrc
 
 # 手动克隆 ros_numpy
 RUN git clone https://github.com/eric-wieser/ros_numpy.git /tmp/ros_numpy \
