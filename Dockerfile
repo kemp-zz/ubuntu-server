@@ -49,7 +49,7 @@ RUN mkdir -p /catkin_ws/src \
     && git clone https://github.com/leggedrobotics/radiance_field_ros \
     && cd .. \
     && rosdep install --from-paths src --ignore-src -r -y \
-    && /bin/bash -c "source /opt/ros/noetic/setup.bash; catkin build nerf_teleoperation_msgs" \
+    && /bin/bash -c "source /opt/ros/noetic/setup.bash; catkin build " \
     && echo "source /catkin_ws/devel/setup.bash" >> /root/.bashrc
 
 # 安装 Miniconda
