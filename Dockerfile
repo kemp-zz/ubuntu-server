@@ -1,3 +1,4 @@
+# 使用 CUDA 11.8 基础镜像
 FROM nvidia/cuda:11.8.0-devel-ubuntu20.04
 
 # 设置非交互式安装
@@ -41,6 +42,28 @@ RUN rosdep init && rosdep fix-permissions && rosdep update
 # 设置 ROS 环境变量
 ENV ROS_DISTRO=noetic
 RUN echo "source /opt/ros/$ROS_DISTRO/setup.bash" >> /root/.bashrc
+
+# 安装 Miniconda
+RUN apt-get update && apt-get install -y wget \
+    && wget https://repo.anaconda.com/miniconda/Miniconda3-latest-Linux-x86_64.sh \
+    && bash Miniconda3-latest-Linux-x86_64.sh -b -p /opt/miniconda3 \
+    && rm Miniconda3-latest-Linux-x86_64.sh \
+    && /opt/miniconda3/bin/conda init bash
+
+# 创建环境并激活
+RUN /opt/miniconda3/bin/conda create --name nerfstudio python=3.8 -y \
+    && /opt/miniconda3/bin/conda activate nerfstudio \
+    && pip install --upgrade pip
+
+# 安装 PyTorch 和相关包
+RUN /opt/miniconda3/bin/conda install pytorch==2.1.2 torchvision==0.16.2 pytorch-cuda=11.8 -c pytorch -c nvidia \
+    && /opt/miniconda3/bin/conda install -c "nvidia/label/cuda-11.8.0" cuda-toolkit
+
+# 安装 tiny-cuda-nn
+RUN pip install ninja git+https://github.com/NVlabs/tiny-cuda-nn/#subdirectory=bindings/torch
+
+# 安装 NerfStudio
+RUN pip install -e .
 
 # 验证 CUDA 和 ROS
 CMD ["/bin/bash"]
