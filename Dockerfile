@@ -22,7 +22,7 @@ RUN apt-get update && apt-get install -y \
     python3-vcstool \
     python3-pip \
     python3-catkin-tools \
-    git wget curl ninja-build qtbase5-dev \
+    git wget nano ninja-build qtbase5-dev \
     ros-noetic-std-msgs ros-noetic-message-generation \
     ros-noetic-geometry-msgs ros-noetic-sensor-msgs \
     ros-noetic-actionlib-msgs ros-noetic-rviz \
