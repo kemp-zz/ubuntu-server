@@ -51,12 +51,6 @@ RUN mkdir -p /catkin_ws/src
 WORKDIR /catkin_ws/src
 RUN git clone https://github.com/leggedrobotics/radiance_field_ros
 
-# 安装 ROS 依赖项并构建
-WORKDIR /catkin_ws
-RUN rosdep install --from-paths src --ignore-src -r -y \
-    && /bin/bash -c "source /opt/ros/noetic/setup.bash; catkin build" \
-    && echo "source /catkin_ws/devel/setup.bash" >> /root/.bashrc
-
 # 安装 Miniconda
 RUN apt-get update && apt-get install -y wget \
     && wget https://repo.anaconda.com/miniconda/Miniconda3-latest-Linux-x86_64.sh \
@@ -79,8 +73,15 @@ ENV TCNN_CUDA_ARCHITECTURES="61"
 # 安装 tiny-cuda-nn
 RUN /opt/miniconda3/bin/conda run -n nerfstudio pip install ninja git+https://github.com/NVlabs/tiny-cuda-nn/#subdirectory=bindings/torch
 
+# 激活 conda 环境并安装依赖项, 且将以下命令合并，减少镜像层数
+RUN /bin/bash -c "source /opt/miniconda3/etc/profile.d/conda.sh \
+    && conda activate nerfstudio \
+    && pip install catkin_pkg \
+    && cd /catkin_ws/src/radiance_field_ros \
+    && pip install -e .
+"
 
+WORKDIR /catkin_ws
+RUN /bin/bash -c "source /opt/ros/noetic/setup.bash && catkin build"
 
-
-# 验证 CUDA 和 ROS
-CMD ["/bin/bash"]
+CMD ["/bin/bash", "-c", "source /opt/miniconda3/etc/profile.d/conda.sh && conda activate nerfstudio && /bin/bash"]
