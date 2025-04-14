@@ -90,7 +90,7 @@ RUN git clone https://github.com/eric-wieser/ros_numpy.git /tmp/ros_numpy \
     && /opt/miniconda3/bin/conda run -n nerfstudio pip install -e .
 
 # 安装 ros_nerf
-WORKDIR /catkin_ws/src/radiance_field_ros/ros_nerf
+WORKDIR /catkin_ws/src/radiance_field_ros
 RUN /opt/miniconda3/bin/conda run -n nerfstudio pip install -e .
 
 # 验证 CUDA 和 ROS
