@@ -7,11 +7,11 @@ ENV DEBIAN_FRONTEND=noninteractive
 RUN apt-get update && apt-get install -y locales \
     && locale-gen en_US.UTF-8 \
     && update-locale LC_ALL=en_US.UTF-8 LANG=en_US.UTF-8
+    
 
 # 添加 ROS Noetic 软件源
-RUN apt-get update && apt-get install -y software-properties-common \
-    && add-apt-repository universe \
-    && curl \
+RUN apt-get update && apt-get install -y software-properties-common curl \
+    && add-apt-repository universe \   
     && curl -sSL https://raw.githubusercontent.com/ros/rosdistro/master/ros.key -o /usr/share/keyrings/ros-archive-keyring.gpg \
     && echo "deb [arch=$(dpkg --print-architecture) signed-by=/usr/share/keyrings/ros-archive-keyring.gpg] http://packages.ros.org/ros/ubuntu focal main" > /etc/apt/sources.list.d/ros-noetic.list
 
