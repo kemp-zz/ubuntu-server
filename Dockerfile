@@ -59,7 +59,7 @@ RUN /opt/miniconda3/bin/conda run -n nerfstudio pip install --upgrade pip
 # 安装 PyTorch 和相关包
 RUN /opt/miniconda3/bin/conda run -n nerfstudio conda install pytorch==2.1.2 torchvision==0.16.2 pytorch-cuda=11.8 -c pytorch -c nvidia
 
-
+ENV TCNN_CUDA_ARCHITECTURES="61"
 # 安装 tiny-cuda-nn
 RUN /opt/miniconda3/bin/conda run -n nerfstudio pip install ninja git+https://github.com/NVlabs/tiny-cuda-nn/#subdirectory=bindings/torch
 
