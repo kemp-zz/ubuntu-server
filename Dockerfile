@@ -64,10 +64,9 @@ RUN conda create -n nerfstudio python=3.8 -y \
 RUN conda run -n nerfstudio pip install --upgrade pip \
     && conda run -n nerfstudio pip install ninja git+https://github.com/NVlabs/tiny-cuda-nn/#subdirectory=bindings/torch
 
-# 安装项目依赖 (保留)
 WORKDIR /catkin_ws/src/radiance_field_ros
-RUN conda run -n nerfstudio pip install -e . \
-    && conda run -n nerfstudio pip install catkin_pkg
+RUN conda run -n nerfstudio pip install catkin_pkg empy==3.3.4 \
+    && conda run -n nerfstudio pip install -e .
 
 # 构建 Catkin 工作空间
 WORKDIR /catkin_ws
