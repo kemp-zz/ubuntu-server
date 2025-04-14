@@ -15,6 +15,14 @@ jobs:
     steps:
     - name: Checkout
       uses: actions/checkout@v4
+            # 新增磁盘空间深度清理步骤 [4,5](@ref)
+    - name: Free Disk Space
+      uses: jlumbroso/free-disk-space@main
+      with:
+          swap-storage: true  # 释放交换空间
+          docker-images: ${{ github.event_name != 'schedule' }}  # 非定期任务清理镜像
+          dotnet: true       # 已手动清理 .NET SDK
+          tool-cache: true  # 保留 /opt/hostedtoolcache 基础工具链
     - name: 磁盘使用情况
       run: |
           echo "▂▂▂▂▂▂▂▂ 磁盘使用情况 ▂▂▂▂▂▂▂▂"
