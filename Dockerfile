@@ -1,6 +1,5 @@
 FROM nvcr.io/nvidia/pytorch:22.11-py3
 
-
 ENV DEBIAN_FRONTEND=noninteractive
 ENV ROS_DISTRO=noetic
 ENV TCNN_CUDA_ARCHITECTURES="61"
@@ -24,6 +23,14 @@ RUN echo "source /opt/ros/$ROS_DISTRO/setup.bash" >> /root/.bashrc
 RUN mkdir -p /catkin_ws/src
 WORKDIR /catkin_ws/src
 RUN git clone https://github.com/leggedrobotics/radiance_field_ros
+
+# 安装 Miniconda
+RUN apt-get update && apt-get install -y wget bzip2 \
+    && wget https://repo.anaconda.com/miniconda/Miniconda3-latest-Linux-x86_64.sh -O /tmp/miniconda.sh \
+    && bash /tmp/miniconda.sh -b -p /opt/conda \
+    && rm /tmp/miniconda.sh
+
+ENV PATH="/opt/conda/bin:$PATH"
 
 # 创建并激活 Conda 环境，安装项目依赖
 RUN conda create --name nerfstudio python=3.8 -y \
