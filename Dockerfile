@@ -30,7 +30,7 @@ RUN apt-get update && apt-get install -y python3-pip python3-dev build-essential
 
 # 克隆 tiny-cuda-nn 并编译安装
 
-RUN pip3 install --upgrade setuptools && git clone --recursive https://github.com/NVlabs/tiny-cuda-nn.git /tmp/tiny-cuda-nn \
+RUN pip3 install --upgrade  setuptools==65.5.1 && git clone --recursive https://github.com/NVlabs/tiny-cuda-nn.git /tmp/tiny-cuda-nn \
     && cd /tmp/tiny-cuda-nn/bindings/torch \
     && export CUDA_HOME=/usr/local/cuda \
     && export PATH=$CUDA_HOME/bin:$PATH \
