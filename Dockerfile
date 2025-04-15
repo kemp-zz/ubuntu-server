@@ -29,7 +29,8 @@ RUN apt-get update && apt-get install -y python3-pip python3-dev build-essential
     && python3 -m pip install --upgrade pip setuptools wheel ninja
 
 # 克隆 tiny-cuda-nn 并编译安装
-RUN git clone --recursive https://github.com/NVlabs/tiny-cuda-nn.git /tmp/tiny-cuda-nn \
+
+RUN pip3 install --upgrade setuptools && git clone --recursive https://github.com/NVlabs/tiny-cuda-nn.git /tmp/tiny-cuda-nn \
     && cd /tmp/tiny-cuda-nn/bindings/torch \
     && export CUDA_HOME=/usr/local/cuda \
     && export PATH=$CUDA_HOME/bin:$PATH \
