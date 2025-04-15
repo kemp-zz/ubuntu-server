@@ -1,4 +1,5 @@
-FROM pytorch/pytorch:2.6.0-cuda11.8-cudnn9-devel
+FROM nvcr.io/nvidia/pytorch:22.10-py3
+
 
 ENV DEBIAN_FRONTEND=noninteractive
 ENV ROS_DISTRO=noetic
