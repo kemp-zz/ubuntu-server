@@ -4,7 +4,7 @@ ENV DEBIAN_FRONTEND=noninteractive
 ENV ROS_DISTRO=noetic
 ENV TCNN_CUDA_ARCHITECTURES="61"
 
-# 设置语言环境，安装 ROS Noetic 和依赖
+# 设置语言环境并安装 ROS Noetic 和依赖
 RUN apt-get update && apt-get install -y locales curl software-properties-common \
     && locale-gen en_US.UTF-8 && update-locale LC_ALL=en_US.UTF-8 LANG=en_US.UTF-8 \
     && curl -sSL https://raw.githubusercontent.com/ros/rosdistro/master/ros.key -o /usr/share/keyrings/ros-archive-keyring.gpg \
@@ -24,26 +24,23 @@ RUN mkdir -p /catkin_ws/src
 WORKDIR /catkin_ws/src
 RUN git clone https://github.com/leggedrobotics/radiance_field_ros
 
-# 安装 Miniconda
-RUN apt-get update && apt-get install -y wget bzip2 \
-    && wget https://repo.anaconda.com/miniconda/Miniconda3-latest-Linux-x86_64.sh -O /tmp/miniconda.sh \
-    && bash /tmp/miniconda.sh -b -p /opt/conda \
-    && rm /tmp/miniconda.sh
+# 安装 Python 和编译依赖
+RUN apt-get update && apt-get install -y python3-pip python3-dev build-essential cmake git ninja-build \
+    && python3 -m pip install --upgrade pip setuptools wheel ninja
 
-ENV PATH="/opt/conda/bin:$PATH"
-
-# 创建并激活 Conda 环境，安装项目依赖
-RUN conda create --name nerfstudio python=3.8 -y \
-    && echo "conda activate nerfstudio" >> /root/.bashrc
-
-RUN /bin/bash -c "source /opt/ros/$ROS_DISTRO/setup.bash && source activate nerfstudio && pip install --upgrade pip && pip install catkin_pkg && cd /catkin_ws/src/radiance_field_ros && pip install -e ."
-
-# 安装 tiny-cuda-nn（如果项目需要）
-RUN /bin/bash -c "source activate nerfstudio && pip install ninja git+https://github.com/NVlabs/tiny-cuda-nn/#subdirectory=bindings/torch"
+# 克隆 tiny-cuda-nn 并编译安装
+RUN git clone --recursive https://github.com/NVlabs/tiny-cuda-nn.git /tmp/tiny-cuda-nn \
+    && cd /tmp/tiny-cuda-nn/bindings/torch \
+    && export CUDA_HOME=/usr/local/cuda \
+    && export PATH=$CUDA_HOME/bin:$PATH \
+    && export LD_LIBRARY_PATH=$CUDA_HOME/lib64:$LD_LIBRARY_PATH \
+    && export TCNN_CUDA_ARCHITECTURES="61" \
+    && python3 setup.py install \
+    && rm -rf /tmp/tiny-cuda-nn
 
 # 构建 Catkin 工作空间
 WORKDIR /catkin_ws
 RUN /bin/bash -c "source /opt/ros/$ROS_DISTRO/setup.bash && catkin build"
 
-# 默认启动命令，激活环境和 ROS
-CMD ["/bin/bash", "-c", "source /opt/ros/$ROS_DISTRO/setup.bash && source activate nerfstudio && /bin/bash"]
+# 默认启动命令，激活 ROS 环境
+CMD ["/bin/bash", "-c", "source /opt/ros/$ROS_DISTRO/setup.bash && /bin/bash"]
