@@ -1,4 +1,4 @@
-FROM nvcr.io/nvidia/pytorch:22.11-py3
+FROM pytorch/pytorch:2.1.0-cuda11.8-cudnn8-devel 
 
 ENV DEBIAN_FRONTEND=noninteractive
 ENV ROS_DISTRO=noetic
@@ -23,6 +23,19 @@ RUN echo "source /opt/ros/$ROS_DISTRO/setup.bash" >> /root/.bashrc
 RUN mkdir -p /catkin_ws/src
 WORKDIR /catkin_ws/src
 RUN git clone https://github.com/leggedrobotics/radiance_field_ros
+
+
+# 安装 tiny-cuda-nn、catkin_pkg 和 radiance_field_ros
+RUN python3 -m pip install --upgrade pip \
+    && pip install ninja \
+    && pip install git+https://github.com/NVlabs/tiny-cuda-nn/#subdirectory=bindings/torch \
+    && pip install catkin_pkg \
+    && pip install -e /catkin_ws/src/radiance_field_ros
+
+# 构建 Catkin 工作空间
+WORKDIR /catkin_ws
+RUN /bin/bash -c "source /opt/ros/$ROS_DISTRO/setup.bash && catkin build"
+
 
 # 安装 Python 和编译依赖
 RUN apt-get update && apt-get install -y python3-pip python3-dev build-essential cmake git ninja-build \
