@@ -72,12 +72,12 @@ RUN git clone https://github.com/libuvc/libuvc /tmp/libuvc \
     && ldconfig && rm -rf /tmp/libuvc
 
 
-RUN apt-get update && apt-get install -y --no-install-recommends \  
-    build-essential cmake gcc-9 g++-9 libopenblas-dev \
+RUN apt-get update && apt-get install -y --no-install-recommends \
+    gcc-9 g++-9 build-essential cmake libopenblas-dev \
     && update-alternatives --install /usr/bin/gcc gcc /usr/bin/gcc-9 900 \
-    && update-alternatives --install /usr/bin/g++ g++ /usr/bin/g++-9 900
+    && update-alternatives --install /usr/bin/g++ g++ /usr/bin/g++-9 900 \
     && rm -rf /var/lib/apt/lists/*
-
+    
 ENV TCNN_CUDA_ARCHITECTURES="61;75;80;86"
 RUN pip install ninja \
     && CUDA_HOME=/usr/local/cuda \
