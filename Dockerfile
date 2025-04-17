@@ -32,8 +32,10 @@ RUN apt-get update && apt-get install -y --no-install-recommends \
         nano \
     && rm -rf /var/lib/apt/lists/*
 
-# ROS 依赖初始化
-RUN rosdep init && rosdep fix-permissions && rosdep update
+RUN rosdep init \
+    && rosdep fix-permissions \
+    && chmod -R a+rwx /etc/ros/rosdep/sources.list.d \
+    && sudo -u root rosdep update
 
 # 阶段二：Miniconda 环境配置
 # --------------------------------
