@@ -12,6 +12,7 @@ ENV DEBIAN_FRONTEND=noninteractive \
 
 RUN apt-get update && apt-get install -y --no-install-recommends \
     cuda-nvcc-11-8 \
+    nano \
     cuda-cudart-dev-11-8 \
     libcublas-dev-11-8
 # 阶段一：基础环境配置
@@ -27,6 +28,9 @@ RUN apt-get update && apt-get install -y --no-install-recommends \
         python3-rosdep \
         python3-vcstool \
         python3-catkin-tools \
+        python3-rosinstall-generator \
+        python3-catkin-pkg \
+        python3-rospkg \
         git ninja-build qtbase5-dev \
         ros-noetic-std-msgs \
         ros-noetic-message-generation \
@@ -35,7 +39,7 @@ RUN apt-get update && apt-get install -y --no-install-recommends \
         ros-noetic-actionlib-msgs \
         ros-noetic-rviz \
         ros-noetic-jsk-rviz-plugins \
-        nano \
+
     && rm -rf /var/lib/apt/lists/*
 
 RUN rosdep init \
