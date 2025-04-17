@@ -74,6 +74,8 @@ RUN git clone https://github.com/libuvc/libuvc /tmp/libuvc \
 
 RUN apt-get update && apt-get install -y --no-install-recommends \  
     build-essential cmake gcc-9 g++-9 libopenblas-dev \
+    && update-alternatives --install /usr/bin/gcc gcc /usr/bin/gcc-9 900 \
+    && update-alternatives --install /usr/bin/g++ g++ /usr/bin/g++-9 900
     && rm -rf /var/lib/apt/lists/*
 
 ENV TCNN_CUDA_ARCHITECTURES="61;75;80;86"
