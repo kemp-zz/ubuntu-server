@@ -1,60 +1,74 @@
-FROM pytorch/pytorch:2.1.0-cuda11.8-cudnn8-devel 
+# 使用 CUDA 11.8 开发镜像（含编译工具链）
+FROM nvidia/cuda:11.8.0-base-ubuntu20.04
 
-ENV DEBIAN_FRONTEND=noninteractive
-ENV ROS_DISTRO=noetic
-ENV TCNN_CUDA_ARCHITECTURES="61"
+# 环境变量设置
+ENV DEBIAN_FRONTEND=noninteractive \
+    ROS_DISTRO=noetic \
+    TCNN_CUDA_ARCHITECTURES="61" \
+    CONDA_DIR=/opt/conda \
+    PATH="/opt/conda/bin:$PATH"
 
-# 设置语言环境并安装 ROS Noetic 和依赖
-RUN apt-get update && apt-get install -y locales curl software-properties-common \
+# 阶段一：基础环境配置
+# --------------------------------
+# 安装 ROS Noetic 核心组件（合并 apt 操作减少层数）
+RUN apt-get update && apt-get install -y --no-install-recommends \
+    locales curl software-properties-common \
     && locale-gen en_US.UTF-8 && update-locale LC_ALL=en_US.UTF-8 LANG=en_US.UTF-8 \
     && curl -sSL https://raw.githubusercontent.com/ros/rosdistro/master/ros.key -o /usr/share/keyrings/ros-archive-keyring.gpg \
     && echo "deb [arch=$(dpkg --print-architecture) signed-by=/usr/share/keyrings/ros-archive-keyring.gpg] http://packages.ros.org/ros/ubuntu focal main" > /etc/apt/sources.list.d/ros-noetic.list \
-    && apt-get update && apt-get install -y ros-noetic-desktop-full python3-rosdep python3-vcstool python3-catkin-tools git ninja-build qtbase5-dev \
-       ros-noetic-std-msgs ros-noetic-message-generation ros-noetic-geometry-msgs ros-noetic-sensor-msgs ros-noetic-actionlib-msgs ros-noetic-rviz ros-noetic-jsk-rviz-plugins \
+    && apt-get update && apt-get install -y --no-install-recommends \
+        ros-noetic-desktop-full \
+        python3-rosdep \
+        python3-vcstool \
+        python3-catkin-tools \
+        git ninja-build qtbase5-dev \
+        ros-noetic-std-msgs \
+        ros-noetic-message-generation \
+        ros-noetic-geometry-msgs \
+        ros-noetic-sensor-msgs \
+        ros-noetic-actionlib-msgs \
+        ros-noetic-rviz \
+        ros-noetic-jsk-rviz-plugins \
     && rm -rf /var/lib/apt/lists/*
 
-# 初始化 rosdep
+# ROS 依赖初始化
 RUN rosdep init && rosdep fix-permissions && rosdep update
 
-# 设置 ROS 环境变量
-RUN echo "source /opt/ros/$ROS_DISTRO/setup.bash" >> /root/.bashrc
+# 阶段二：Miniconda 环境配置
+# --------------------------------
+# 安装 Miniconda 并配置清华源（加速下载）
+RUN wget https://mirrors.tuna.tsinghua.edu.cn/anaconda/miniconda/Miniconda3-py38_23.3.1-0-Linux-x86_64.sh -O miniconda.sh \
+    && bash miniconda.sh -b -p $CONDA_DIR \
+    && rm miniconda.sh \
+    && conda config --add channels https://mirrors.tuna.tsinghua.edu.cn/anaconda/pkgs/main/ \
+    && conda config --add channels https://mirrors.tuna.tsinghua.edu.cn/anaconda/pkgs/free/ \
+    && conda config --add channels https://mirrors.tuna.tsinghua.edu.cn/anaconda/cloud/pytorch/ \
+    && conda clean -y --all
 
-# 创建工作空间并克隆项目
-RUN mkdir -p /catkin_ws/src
-WORKDIR /catkin_ws/src
-RUN git clone https://github.com/leggedrobotics/radiance_field_ros
+# 创建 Conda 环境并安装 PyTorch（版本精确匹配 CUDA 11.8）
+RUN conda create --name nerfstudio python=3.8 -y \
+    && conda install -n nerfstudio \
+        pytorch==2.1.2 \
+        torchvision==0.16.2 \
+        pytorch-cuda=11.8 \
+        -c pytorch -c nvidia -y \
+    && conda install -n nerfstudio -c "nvidia/label/cuda-11.8.0" cuda-toolkit -y
 
+# 阶段三：工作空间与依赖编译
+# --------------------------------
+# 创建工作空间并克隆 ROS 项目
+RUN mkdir -p /catkin_ws/src \
+    && cd /catkin_ws/src \
+    && git clone https://github.com/leggedrobotics/radiance_field_ros \
+    && git clone https://github.com/orbbec/ros_astra_camera.git
 
-# 安装 tiny-cuda-nn、catkin_pkg 和 radiance_field_ros
-RUN python3 -m pip install --upgrade pip \
-    && pip install ninja \
-    && pip install git+https://github.com/NVlabs/tiny-cuda-nn/#subdirectory=bindings/torch \
-    && pip install catkin_pkg \
-    && pip install -e /catkin_ws/src/radiance_field_ros
-
-# 构建 Catkin 工作空间
-WORKDIR /catkin_ws
-RUN /bin/bash -c "source /opt/ros/$ROS_DISTRO/setup.bash && catkin build"
-
-
-# 安装 Python 和编译依赖
-RUN apt-get update && apt-get install -y python3-pip python3-dev build-essential cmake git ninja-build \
+# 安装通用编译依赖（合并 apt 操作）
+RUN apt-get update && apt-get install -y --no-install-recommends \
+    python3-pip python3-dev build-essential cmake \
     libgflags-dev libusb-1.0-0-dev libeigen3-dev libdw-dev \
-    ros-$ROS_DISTRO-image-geometry ros-$ROS_DISTRO-camera-info-manager ros-$ROS_DISTRO-image-transport ros-$ROS_DISTRO-image-publisher \
-    ros-$ROS_DISTRO-backward-ros \
-    && python3 -m pip install --upgrade pip setuptools==65.5.1 wheel ninja
+    && rm -rf /var/lib/apt/lists/*
 
-# 克隆 tiny-cuda-nn 并编译安装
-RUN git clone --recursive https://github.com/NVlabs/tiny-cuda-nn.git /tmp/tiny-cuda-nn \
-    && cd /tmp/tiny-cuda-nn/bindings/torch \
-    && export CUDA_HOME=/usr/local/cuda \
-    && export PATH=$CUDA_HOME/bin:$PATH \
-    && export LD_LIBRARY_PATH=$CUDA_HOME/lib64:$LD_LIBRARY_PATH \
-    && export TCNN_CUDA_ARCHITECTURES="61" \
-    && python3 setup.py install \
-    && rm -rf /tmp/tiny-cuda-nn
-
-# 编译安装 libuvc
+# 编译安装 libuvc（合并构建步骤）
 RUN git clone https://github.com/libuvc/libuvc.git /tmp/libuvc \
     && cd /tmp/libuvc \
     && mkdir build && cd build \
@@ -64,17 +78,22 @@ RUN git clone https://github.com/libuvc/libuvc.git /tmp/libuvc \
     && ldconfig \
     && rm -rf /tmp/libuvc
 
-# 克隆 Orbbec Astra 相机驱动
-WORKDIR /catkin_ws/src
-RUN git clone https://github.com/orbbec/ros_astra_camera.git
+# 阶段四：Python 依赖安装
+# --------------------------------
+# 激活 Conda 环境安装 NerfStudio 依赖（通过 conda run 跨层保持激活）
+RUN conda run -n nerfstudio pip install --upgrade pip setuptools==65.5.1 \
+    && conda run -n nerfstudio pip install ninja \
+    && conda run -n nerfstudio pip install git+https://github.com/NVlabs/tiny-cuda-nn/#subdirectory=bindings/torch \
+    && conda run -n nerfstudio pip install -e /catkin_ws/src/radiance_field_ros
 
-# 构建 Catkin 工作空间
+# 阶段五：Catkin 工作空间构建
+# --------------------------------
 WORKDIR /catkin_ws
 RUN /bin/bash -c "source /opt/ros/$ROS_DISTRO/setup.bash && catkin build"
 
-# 复制 udev 规则文件（需要在容器运行时执行，或者在宿主机执行）
-RUN cp /catkin_ws/src/ros_astra_camera/56-orbbec-usb.rules /etc/udev/rules.d/
+# 复制 udev 规则并重载
+RUN cp /catkin_ws/src/ros_astra_camera/56-orbbec-usb.rules /etc/udev/rules.d/ \
+    && udevadm control --reload-rules
 
-
-# 默认启动命令，激活 ROS 环境
-CMD ["/bin/bash", "-c", "source /opt/ros/$ROS_DISTRO/setup.bash && /bin/bash"]
+# 最终启动命令（同时激活 ROS 和 Conda 环境）
+CMD ["/bin/bash", "-c", "source /opt/ros/$ROS_DISTRO/setup.bash && conda activate nerfstudio && /bin/bash"]
