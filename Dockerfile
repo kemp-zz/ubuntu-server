@@ -72,19 +72,15 @@ RUN git clone https://github.com/libuvc/libuvc /tmp/libuvc \
     && ldconfig && rm -rf /tmp/libuvc
 
 
-RUN /bin/bash -c "source /opt/ros/$ROS_DISTRO/setup.bash \
-    && conda run -n nerfstudio pip install \
-        --no-build-isolation \
-        --upgrade pip setuptools==65.5.1 ninja"
+RUN apt-get update && apt-get install -y --no-install-recommends \
+    build-essential cmake ninja-build \
+    && rm -rf /var/lib/apt/lists/*
 
-# 分步安装 tiny-cuda-nn 和 ros-numpy
-RUN conda run -n nerfstudio --no-capture-output \
-    env TCNN_CUDA_ARCHITECTURES=$TCNN_CUDA_ARCHITECTURES \
-    pip install -v --no-cache-dir \
-    "git+https://github.com/NVlabs/tiny-cuda-nn/#subdirectory=bindings/torch" \
-    && conda run -n nerfstudio pip install \
-        --no-build-isolation \
-        "git+https://github.com/eric-wieser/ros_numpy@74879737c8648f48adb507a5bdf4e51c0d194124"
+ENV TCNN_CUDA_ARCHITECTURES="61;75;80;86"
+RUN pip install ninja \
+    && CUDA_HOME=/usr/local/cuda \
+    LD_LIBRARY_PATH=/usr/local/cuda/lib64:$LD_LIBRARY_PATH \
+    pip install "git+https://github.com/NVlabs/tiny-cuda-nn/#subdirectory=bindings/torch"
 
 # 安装主项目（修复 catkin_pkg 依赖）
 RUN /bin/bash -c "source /opt/ros/$ROS_DISTRO/setup.bash \
