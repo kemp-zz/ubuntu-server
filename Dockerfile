@@ -29,6 +29,7 @@ RUN apt-get update && apt-get install -y --no-install-recommends \
         ros-noetic-actionlib-msgs \
         ros-noetic-rviz \
         ros-noetic-jsk-rviz-plugins \
+        nano \
     && rm -rf /var/lib/apt/lists/*
 
 # ROS 依赖初始化
@@ -36,13 +37,10 @@ RUN rosdep init && rosdep fix-permissions && rosdep update
 
 # 阶段二：Miniconda 环境配置
 # --------------------------------
-# 安装 Miniconda 并配置清华源（加速下载）
-RUN wget https://mirrors.tuna.tsinghua.edu.cn/anaconda/miniconda/Miniconda3-py38_23.3.1-0-Linux-x86_64.sh -O miniconda.sh \
+# 安装 Miniconda（使用官方源）[6](@ref)
+RUN wget https://repo.anaconda.com/miniconda/Miniconda3-py38_23.3.1-0-Linux-x86_64.sh -O miniconda.sh \
     && bash miniconda.sh -b -p $CONDA_DIR \
     && rm miniconda.sh \
-    && conda config --add channels https://mirrors.tuna.tsinghua.edu.cn/anaconda/pkgs/main/ \
-    && conda config --add channels https://mirrors.tuna.tsinghua.edu.cn/anaconda/pkgs/free/ \
-    && conda config --add channels https://mirrors.tuna.tsinghua.edu.cn/anaconda/cloud/pytorch/ \
     && conda clean -y --all
 
 # 创建 Conda 环境并安装 PyTorch（版本精确匹配 CUDA 11.8）
@@ -80,7 +78,7 @@ RUN git clone https://github.com/libuvc/libuvc.git /tmp/libuvc \
 
 # 阶段四：Python 依赖安装
 # --------------------------------
-# 激活 Conda 环境安装 NerfStudio 依赖（通过 conda run 跨层保持激活）
+# 激活 Conda 环境安装 NerfStudio 依赖
 RUN conda run -n nerfstudio pip install --upgrade pip setuptools==65.5.1 \
     && conda run -n nerfstudio pip install ninja \
     && conda run -n nerfstudio pip install git+https://github.com/NVlabs/tiny-cuda-nn/#subdirectory=bindings/torch \
@@ -91,9 +89,9 @@ RUN conda run -n nerfstudio pip install --upgrade pip setuptools==65.5.1 \
 WORKDIR /catkin_ws
 RUN /bin/bash -c "source /opt/ros/$ROS_DISTRO/setup.bash && catkin build"
 
-# 复制 udev 规则并重载
-RUN cp /catkin_ws/src/ros_astra_camera/56-orbbec-usb.rules /etc/udev/rules.d/ \
-    && udevadm control --reload-rules
+# 复制 udev 规则（删除重载命令）
+RUN cp /catkin_ws/src/ros_astra_camera/56-orbbec-usb.rules /etc/udev/rules.d/
 
 # 最终启动命令（同时激活 ROS 和 Conda 环境）
 CMD ["/bin/bash", "-c", "source /opt/ros/$ROS_DISTRO/setup.bash && conda activate nerfstudio && /bin/bash"]
+
