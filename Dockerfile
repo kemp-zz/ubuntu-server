@@ -14,7 +14,7 @@ ENV DEBIAN_FRONTEND=noninteractive \
 
 # 安装系统工具与语言环境
 RUN apt-get update && apt-get install -y --no-install-recommends \
-    locales curl software-properties-common nano git wget \
+    locales curl software-properties-common nano git wget \ 
     && locale-gen en_US.UTF-8 \
     && update-locale LC_ALL=en_US.UTF-8 LANG=en_US.UTF-8 \
     && rm -rf /var/lib/apt/lists/*
@@ -72,15 +72,16 @@ RUN git clone https://github.com/libuvc/libuvc /tmp/libuvc \
     && ldconfig && rm -rf /tmp/libuvc
 
 
-RUN apt-get update && apt-get install -y --no-install-recommends \
-    build-essential cmake ninja-build \
+RUN apt-get update && apt-get install -y --no-install-recommends \  
+    build-essential cmake gcc-9 g++-9 libopenblas-dev \
     && rm -rf /var/lib/apt/lists/*
 
 ENV TCNN_CUDA_ARCHITECTURES="61;75;80;86"
 RUN pip install ninja \
     && CUDA_HOME=/usr/local/cuda \
     LD_LIBRARY_PATH=/usr/local/cuda/lib64:$LD_LIBRARY_PATH \
-    pip install "git+https://github.com/NVlabs/tiny-cuda-nn/#subdirectory=bindings/torch"
+    TORCH_CUDA_ARCH_LIST="$TCNN_CUDA_ARCHITECTURES" \
+    pip install -v --no-cache-dir "git+https://github.com/NVlabs/tiny-cuda-nn/#subdirectory=bindings/torch"
 
 # 安装主项目（修复 catkin_pkg 依赖）
 RUN /bin/bash -c "source /opt/ros/$ROS_DISTRO/setup.bash \
