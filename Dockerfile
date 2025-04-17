@@ -9,6 +9,7 @@ ENV DEBIAN_FRONTEND=noninteractive \
     CONDA_DIR=/opt/conda \
     PATH="/opt/conda/bin:$PATH" \
     CUDA_HOME=/usr/local/cuda \
+    TCNN_CUDA_ARCHITECTURES="61;75;80;86" \
     LD_LIBRARY_PATH=/usr/local/cuda/lib64:$LD_LIBRARY_PATH
 
 # 安装系统工具与语言环境
@@ -77,7 +78,9 @@ RUN /bin/bash -c "source /opt/ros/$ROS_DISTRO/setup.bash \
         --upgrade pip setuptools==65.5.1 ninja"
 
 # 分步安装 tiny-cuda-nn 和 ros-numpy
-RUN conda run -n nerfstudio pip install \
+RUN conda run -n nerfstudio --no-capture-output \
+    env TCNN_CUDA_ARCHITECTURES=$TCNN_CUDA_ARCHITECTURES \
+    pip install -v --no-cache-dir \
     "git+https://github.com/NVlabs/tiny-cuda-nn/#subdirectory=bindings/torch" \
     && conda run -n nerfstudio pip install \
         --no-build-isolation \
