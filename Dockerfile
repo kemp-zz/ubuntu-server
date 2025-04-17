@@ -7,7 +7,13 @@ ENV DEBIAN_FRONTEND=noninteractive \
     TCNN_CUDA_ARCHITECTURES="61" \
     CONDA_DIR=/opt/conda \
     PATH="/opt/conda/bin:$PATH"
+    LD_LIBRARY_PATH=/usr/local/cuda/lib64:$LD_LIBRARY_PATH \
+    CUDA_HOME=/usr/local/cuda
 
+RUN apt-get update && apt-get install -y --no-install-recommends \
+    cuda-nvcc-11-8 \
+    cuda-cudart-dev-11-8 \
+    libcublas-dev-11-8
 # 阶段一：基础环境配置
 # --------------------------------
 # 安装 ROS Noetic 核心组件（合并 apt 操作减少层数）
