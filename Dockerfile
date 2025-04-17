@@ -38,7 +38,8 @@ RUN rosdep init && rosdep fix-permissions && rosdep update
 # 阶段二：Miniconda 环境配置
 # --------------------------------
 # 安装 Miniconda（使用官方源）[6](@ref)
-RUN wget https://repo.anaconda.com/miniconda/Miniconda3-py38_23.3.1-0-Linux-x86_64.sh -O miniconda.sh \
+RUN apt-get update && apt-get install -y --no-install-recommends wget nano \
+    && wget https://repo.anaconda.com/miniconda/Miniconda3-py38_23.3.1-0-Linux-x86_64.sh -O miniconda.sh \
     && bash miniconda.sh -b -p $CONDA_DIR \
     && rm miniconda.sh \
     && conda clean -y --all
