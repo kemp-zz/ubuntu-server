@@ -13,7 +13,7 @@ ENV DEBIAN_FRONTEND=noninteractive \
 
 # 安装系统工具与语言环境
 RUN apt-get update && apt-get install -y --no-install-recommends \
-    locales curl software-properties-common nano git \
+    locales curl software-properties-common nano git wget \
     && locale-gen en_US.UTF-8 \
     && update-locale LC_ALL=en_US.UTF-8 LANG=en_US.UTF-8 \
     && rm -rf /var/lib/apt/lists/*
@@ -26,7 +26,7 @@ RUN curl -sSL https://raw.githubusercontent.com/ros/rosdistro/master/ros.key -o 
         python3-rosdep python3-catkin-pkg python3-rospkg \
         python3-rosinstall-generator python3-vcstool \
         ros-noetic-rviz ros-noetic-jsk-rviz-plugins \
-        libgflags-dev libusb-1.0-0-dev libeigen3-dev libdw-dev \
+        libgflags-dev libusb-1.0-0-dev libeigen3-dev libdw-dev \       
     && rm -rf /var/lib/apt/lists/*
 
 # 初始化 rosdep（修复权限问题）[9](@ref)
