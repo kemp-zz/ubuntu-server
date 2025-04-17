@@ -84,7 +84,7 @@ RUN conda run -n nerfstudio --no-capture-output \
     "git+https://github.com/NVlabs/tiny-cuda-nn/#subdirectory=bindings/torch" \
     && conda run -n nerfstudio pip install \
         --no-build-isolation \
-        "git+https://github.com/eric-wieser/ros_numpy@74879737"
+        "git+https://github.com/eric-wieser/ros_numpy@74879737c8648f48adb507a5bdf4e51c0d194124"
 
 # 安装主项目（修复 catkin_pkg 依赖）
 RUN /bin/bash -c "source /opt/ros/$ROS_DISTRO/setup.bash \
