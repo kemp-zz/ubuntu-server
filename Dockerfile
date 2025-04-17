@@ -1,5 +1,5 @@
-# 使用 CUDA 11.8 开发镜像（含编译工具链）
-FROM nvidia/cuda:11.8.0-base-ubuntu20.04
+FROM nvidia/cuda:11.8.0-devel-ubuntu20.04
+
 
 # 环境变量设置
 ENV DEBIAN_FRONTEND=noninteractive \
