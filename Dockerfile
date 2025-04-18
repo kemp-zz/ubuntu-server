@@ -52,9 +52,16 @@ RUN apt-get update && apt-get install -y \
     && ldconfig
 
 # 安装Blender及依赖
-RUN apt-get update && apt-get install -y blender python3-pip \
-    && pip3 install flask \
-    && ln -s /usr/games/blender /usr/bin/blender
+# 安装Blender及Web依赖（带版本锁定）
+RUN apt-get update && apt-get install -y \
+    blender=3.3.0+dfsg-2 \  # Ubuntu 22.04官方源版本
+    python3-pip \
+    nginx \
+    && pip3 install flask==3.0.2 \
+    && { [ ! -f /usr/bin/blender ] || rm /usr/bin/blender; } \
+    && ln -sfv /usr/games/blender /usr/bin/blender \
+    && apt-get clean \
+    && rm -rf /var/lib/apt/lists/*
 
 # 创建工作空间
 RUN mkdir -p /ros2_ws/src
