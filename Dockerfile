@@ -54,7 +54,7 @@ RUN apt-get update && apt-get install -y \
 # 安装Blender及依赖
 # 安装Blender及Web依赖（带版本锁定）
 RUN apt-get update && apt-get install -y \
-    blender=3.3.0+dfsg-2 \  # Ubuntu 22.04官方源版本
+    blender=3.3.0+dfsg-2 \ 
     python3-pip \
     nginx \
     && pip3 install flask==3.0.2 \
