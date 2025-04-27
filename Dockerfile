@@ -2,17 +2,19 @@
 FROM nvidia/cuda:11.8.0-devel-ubuntu20.04
 
 # --------------------------------
-# 阶段一：基础环境配置
+# 环境变量配置
 # --------------------------------
 ENV DEBIAN_FRONTEND=noninteractive \
     ROS_DISTRO=noetic \
     CONDA_DIR=/opt/conda \
     PATH="$CONDA_DIR/bin:$PATH" \
     CUDA_HOME=/usr/local/cuda \
-    TCNN_CUDA_ARCHITECTURES="61" \ 
+    TCNN_CUDA_ARCHITECTURES="61" \
     LD_LIBRARY_PATH="$CUDA_HOME/lib64:$LD_LIBRARY_PATH"
 
-# 安装系统工具与语言环境（优化版）
+# --------------------------------
+# 阶段一：基础环境配置
+# --------------------------------
 RUN apt-get update && apt-get install -y --no-install-recommends \
     locales curl software-properties-common git wget \
     build-essential cmake ninja-build python3.9 python3.9-dev python3.9-venv \
@@ -36,14 +38,17 @@ RUN curl -sSL https://raw.githubusercontent.com/ros/rosdistro/master/ros.key | g
 RUN rosdep init && rosdep update --rosdistro=$ROS_DISTRO
 
 # --------------------------------
-# 阶段二：Conda 环境配置
+# 阶段二：Conda 环境配置（关键修复）
 # --------------------------------
+# 安装 Miniconda 并配置环境变量
 RUN wget https://repo.anaconda.com/miniconda/Miniconda3-py39_24.1.2-0-Linux-x86_64.sh -O miniconda.sh \
     && bash miniconda.sh -b -p $CONDA_DIR \
     && rm miniconda.sh \
+    && echo "export PATH=\"$CONDA_DIR/bin:\$PATH\"" >> ~/.bashrc \
+    && echo "source $CONDA_DIR/etc/profile.d/conda.sh" >> ~/.bashrc \
     && conda clean -y --all
 
-# 创建 Python 3.9 Conda 环境并安装 PyTorch
+# 创建并激活 Python 3.9 Conda 环境
 RUN conda create --name ros2_env python=3.9 -y \
     && conda install -n ros2_env \
         pytorch torchvision torchaudio pytorch-cuda=11.8 -c pytorch -c nvidia -y
@@ -55,7 +60,7 @@ RUN apt-get update && apt-get install -y --no-install-recommends \
     cuda-nvcc-11-8 cuda-cudart-dev-11-8 libcublas-dev-11-8 \
     && rm -rf /var/lib/apt/lists/*
 
-# 安装 Tiny CUDA NN（优化版）
+# 安装 Tiny CUDA NN（优化 CUDA 架构参数）
 RUN pip install ninja \
     && pip install git+https://github.com/NVlabs/tiny-cuda-nn/#subdirectory=bindings/torch \
     && TCNN_CUDA_ARCHITECTURES=$TCNN_CUDA_ARCHITECTURES pip install git+https://github.com/NVlabs/tiny-cuda-nn/#subdirectory=bindings/torch
