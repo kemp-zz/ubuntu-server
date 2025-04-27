@@ -22,10 +22,11 @@ RUN apt-get update && apt-get install -y --no-install-recommends \
 # --------------------------------
 # 阶段三：Miniconda 环境配置
 # --------------------------------
-RUN wget https://repo.anaconda.com/miniconda/Miniconda3-py38_23.3.1-0-Linux-x86_64.sh -O miniconda.sh \
+RUN wget --no-check-certificate --retry-connrefused --waitretry=1 --read-timeout=20 --timeout=15 https://repo.anaconda.com/miniconda/Miniconda3-py38_23.3.1-0-Linux-x86_64.sh -O miniconda.sh \
     && bash miniconda.sh -b -p $CONDA_DIR \
     && rm miniconda.sh \
-    && conda clean -y --all
+    && conda clean -y --all || echo "Miniconda download or install failed" && exit 1
+
 
 RUN conda create --name nerfstudio python=3.8 -y \
     && conda install -n nerfstudio \
