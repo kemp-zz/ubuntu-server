@@ -9,7 +9,7 @@ ENV DEBIAN_FRONTEND=noninteractive \
     CONDA_DIR=/opt/conda \
     PATH="$CONDA_DIR/bin:$PATH" \
     CUDA_HOME=/usr/local/cuda \
-    TCNN_CUDA_ARCHITECTURES="61" \  # 根据 P104 8G 显卡调整
+    TCNN_CUDA_ARCHITECTURES="61" \ 
     LD_LIBRARY_PATH="$CUDA_HOME/lib64:$LD_LIBRARY_PATH"
 
 # 安装系统工具与语言环境（优化版）
