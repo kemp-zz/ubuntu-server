@@ -13,7 +13,7 @@ ENV DEBIAN_FRONTEND=noninteractive \
 # 系统依赖安装（关键修复）
 RUN apt-get update && apt-get install -y --no-install-recommends \
     build-essential cmake ninja-build libusb-1.0-0-dev \
-    libpthread-stubs0-dev libgl1-mesa-dev && \
+    libpthread-stubs0-dev libgl1-mesa-dev wget curl  && \
     rm -rf /var/lib/apt/lists/*
 
 # Miniconda 安装
