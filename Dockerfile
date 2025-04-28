@@ -10,10 +10,10 @@ ENV DEBIAN_FRONTEND=noninteractive \
     TCNN_CUDA_ARCHITECTURES="61;75;80;86" \
     LD_LIBRARY_PATH=/usr/local/cuda/lib64:$LD_LIBRARY_PATH
 
-# 安装系统依赖和wget
+# 安装系统依赖
 RUN apt-get update && apt-get install -y --no-install-recommends \
     wget git build-essential cmake ninja-build libusb-1.0-0-dev \
-    libpthread-stubs0-dev libgl1-mesa-dev gcc-9 g++-9 && \
+    libpthread-stubs0-dev libgl1-mesa-dev gcc-9 g++-9 libc6-dev && \
     update-alternatives --install /usr/bin/gcc gcc /usr/bin/gcc-9 900 && \
     update-alternatives --install /usr/bin/g++ g++ /usr/bin/g++-9 900 && \
     rm -rf /var/lib/apt/lists/*
