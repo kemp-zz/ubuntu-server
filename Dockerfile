@@ -16,16 +16,21 @@ RUN apt-get update && apt-get install -y --no-install-recommends \
     libpthread-stubs0-dev libgl1-mesa-dev wget curl  && \
     rm -rf /var/lib/apt/lists/*
 
-RUN rm -rf $CONDA_DIR 2>/dev/null || true && \
+# 强制清理现有 Conda 目录（关键修复）
+RUN rm -rf /opt/conda* 2>/dev/null || true && \
+    rm -rf $CONDA_DIR 2>/dev/null || true && \
     mkdir -p $CONDA_DIR && \
-    wget --no-check-certificate \
+    chmod 755 $CONDA_DIR
+
+# Miniconda 安装（修复版）
+RUN wget --no-check-certificate \
          --retry-connrefused \
          --waitretry=5 \
          --read-timeout=30 \
          --timeout=20 \
          https://repo.anaconda.com/miniconda/Miniconda3-latest-Linux-x86_64.sh -O $CONDA_DIR/miniconca.sh && \
     chmod +x $CONDA_DIR/miniconca.sh && \
-    bash $CONDA_DIR/miniconca.sh -b -p $CONDA_DIR && \
+    $CONDA_DIR/miniconca.sh -b -p $CONDA_DIR && \
     rm -f $CONDA_DIR/miniconca.sh && \
     conda clean -y --all
 
