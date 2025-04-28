@@ -12,7 +12,7 @@ ENV DEBIAN_FRONTEND=noninteractive \
 
 # 安装系统依赖和wget
 RUN apt-get update && apt-get install -y --no-install-recommends \
-    wget build-essential cmake ninja-build libusb-1.0-0-dev \
+    wget git build-essential cmake ninja-build libusb-1.0-0-dev \
     libpthread-stubs0-dev libgl1-mesa-dev gcc-9 g++-9 && \
     update-alternatives --install /usr/bin/gcc gcc /usr/bin/gcc-9 900 && \
     update-alternatives --install /usr/bin/g++ g++ /usr/bin/g++-9 900 && \
