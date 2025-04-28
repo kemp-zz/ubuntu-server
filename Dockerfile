@@ -50,11 +50,16 @@ RUN mkdir -p /catkin_ws/src && \
     git clone https://github.com/orbbec/ros_astra_camera
 
 # 编译 libuvc 依赖
+# 编译 libuvc 依赖（修复路径和编译流程）
 RUN git clone https://github.com/libuvc/libuvc /tmp/libuvc && \
-    cd /tmp/libuvc/build && \
-    cmake .. && make -j$(nproc) && make install && ldconfig && \
+    cd /tmp/libuvc && \
+    mkdir build && \
+    cd build && \
+    cmake .. -DCMAKE_INSTALL_PREFIX=/usr/local && \
+    make -j$(nproc) && \
+    make install && \
+    ldconfig && \
     rm -rf /tmp/libuvc
-
 # 系统编译工具配置
 RUN apt-get update && apt-get install -y --no-install-recommends \
     gcc-9 g++-9 build-essential cmake libopenblas-dev \
