@@ -17,13 +17,15 @@ RUN apt-get update && apt-get install -y --no-install-recommends \
     rm -rf /var/lib/apt/lists/*
 
 # Miniconda 安装
+# 使用最新稳定版 Miniconda（关键修复）
 RUN rm -rf /opt/conda* 2>/dev/null || true && \
     wget --no-check-certificate \
          --retry-connrefused \
          --waitretry=1 \
          --read-timeout=20 \
          --timeout=15 \
-         https://repo.anaconda.com/miniconda/Miniconda3-py38_23.3.1-0-Linux-x86_64.sh -O miniconca.sh && \
+         https://repo.anaconda.com/miniconda/Miniconda3-latest-Linux-x86_64.sh -O miniconda.sh && \
+    chmod +x miniconca.sh && \
     bash miniconda.sh -b -p $CONDA_DIR && \
     rm miniconda.sh && \
     conda clean -y --all
