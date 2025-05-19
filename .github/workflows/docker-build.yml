@@ -4,7 +4,7 @@ on: [push, workflow_dispatch]
 
 env:
   REGISTRY: docker.io
-  IMAGE_NAME: ${{ secrets.DOCKERHUB_USERNAME }}/nerfstudio-ros
+  IMAGE_NAME: ${{ secrets.DOCKERHUB_USERNAME }}/faster-whisper
 
 jobs:
   build:
@@ -15,19 +15,11 @@ jobs:
     steps:
     - name: Checkout
       uses: actions/checkout@v4
-            # 新增磁盘空间深度清理步骤 [4,5](@ref)
-    - name: Free Disk Space
-      uses: jlumbroso/free-disk-space@main
-      with:
-          swap-storage: true  # 释放交换空间
-          docker-images: ${{ github.event_name != 'schedule' }}  # 非定期任务清理镜像
-          dotnet: true       # 已手动清理 .NET SDK
-          tool-cache: true  # 保留 /opt/hostedtoolcache 基础工具链
-    - name: 磁盘使用情况
-      run: |
-          echo "▂▂▂▂▂▂▂▂ 磁盘使用情况 ▂▂▂▂▂▂▂▂"
-          df -h /
 
+
+
+    - name: 磁盘使用情况
+      run: df -h /
 
     - name: Setup Docker
       run: |
@@ -39,7 +31,16 @@ jobs:
         docker system prune -a --volumes --force
         docker system df -v
 
-    # Docker Hub认证登录[3,5](@ref)
+    # 新增：安装 QEMU 支持多架构模拟
+    - name: Set up QEMU
+      uses: docker/setup-qemu-action@v3
+      with:
+        platforms: all
+
+    # 新增：设置 Docker Buildx 构建器
+    - name: Set up Docker Buildx
+      uses: docker/setup-buildx-action@v3
+
     - name: Login to Docker Hub
       uses: docker/login-action@v3
       with:
@@ -47,12 +48,11 @@ jobs:
         username: ${{ secrets.DOCKERHUB_USERNAME }}
         password: ${{ secrets.DOCKERHUB_TOKEN }}
 
-    # 构建并推送镜像[1,7](@ref)
     - name: Build and Push
       uses: docker/build-push-action@v5
       with:
         context: .
-        platforms: linux/amd64
+        platforms: linux/arm64
         push: ${{ github.event_name != 'pull_request' }}
         tags: |
           ${{ env.IMAGE_NAME }}:latest
