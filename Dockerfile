@@ -40,8 +40,7 @@ RUN \
 # 这里假设你已经把模型文件放在 root/config/rhasspy/tiny-int8/ 下，直接复制到镜像 /config 目录
 COPY root/config/ /config/
 
-# 复制启动脚本和服务配置
-COPY root/ /
+
 
 VOLUME /config
 
