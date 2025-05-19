@@ -1,93 +1,60 @@
-# 基础镜像
-FROM pytorch/pytorch:2.1.2-cuda11.8-cudnn8-devel
+# syntax=docker/dockerfile:1
 
-# 环境变量
-ENV DEBIAN_FRONTEND=noninteractive \
-    ROS_DISTRO=noetic \
-    CONDA_DIR=/opt/conda \
-    PATH="$CONDA_DIR/bin:$PATH" \
-    CUDA_HOME=/usr/local/cuda \
-    TCNN_CUDA_ARCHITECTURES="61;75;80;86" \
-    LD_LIBRARY_PATH=/usr/local/cuda/lib64:$LD_LIBRARY_PATH
+FROM ghcr.io/linuxserver/baseimage-ubuntu:arm64v8-noble
 
-# 系统依赖安装（关键修复）
-RUN apt-get update && apt-get install -y --no-install-recommends \
-    build-essential cmake ninja-build libusb-1.0-0-dev \
-    libpthread-stubs0-dev libgl1-mesa-dev wget curl  && \
-    rm -rf /var/lib/apt/lists/*
+# 新增：设置Hugging Face镜像源（国内加速）
+ENV     MODEL_NAME=tiny-int8
 
-# 强制清理现有 Conda 目录（关键修复）
-RUN rm -rf /opt/conda* 2>/dev/null || true && \
-    rm -rf $CONDA_DIR 2>/dev/null || true && \
-    mkdir -p $CONDA_DIR && \
-    chmod 755 $CONDA_DIR
+# 原有配置保持不变
+ARG BUILD_DATE
+ARG VERSION
+ARG WHISPER_VERSION
+LABEL build_version="Linuxserver.io version:- ${VERSION} Build-date:- ${BUILD_DATE}"
+LABEL maintainer="thespad"
 
-# Miniconda 安装（修复版）
-RUN wget --no-check-certificate \
-         --retry-connrefused \
-         --waitretry=5 \
-         --read-timeout=30 \
-         --timeout=20 \
-         https://repo.anaconda.com/miniconda/Miniconda3-latest-Linux-x86_64.sh -O $CONDA_DIR/miniconca.sh && \
-    chmod +x $CONDA_DIR/miniconca.sh && \
-    $CONDA_DIR/miniconca.sh -b -p $CONDA_DIR && \
-    rm -f $CONDA_DIR/miniconca.sh && \
-    conda clean -y --all
+ENV HOME=/config \
+    DEBIAN_FRONTEND="noninteractive" \
+    TMPDIR="/run/whisper-temp"
 
-# Conda 环境配置
-RUN conda create --name nerfstudio python=3.8 -y && \
-    conda install -n nerfstudio \
-        pytorch==2.1.2 torchvision==0.16.2 pytorch-cuda=11.8 \
-        cudatoolkit=11.8 -c pytorch -c nvidia -y
 
-# ROS 工作空间
-RUN mkdir -p /catkin_ws/src && \
-    cd /catkin_ws/src && \
-    git clone https://github.com/leggedrobotics/radiance_field_ros && \
-    git clone https://github.com/orbbec/ros_astra_camera
+RUN \
 
-# 编译 libuvc（修复版）
-RUN git clone https://github.com/libuvc/libuvc /tmp/libuvc && \
-    cd /tmp/libuvc && \
-    mkdir build && \
-    cd build && \
-    cmake .. -DCMAKE_INSTALL_PREFIX=/usr/local \
-             -DCMAKE_BUILD_TYPE=Release \
-             -DENABLE_PTHREAD=ON && \
-    make -j$(nproc) && \
-    make install && \
-    ldconfig && \
-    rm -rf /tmp/libuvc
+    echo "**** install packages ****" && \
+    echo "**** install packages ****" && \
+    apt-get update && \
+    apt-get install -y --no-install-recommends \
+        build-essential \
+        git \
+        git-lfs \
+        python3-dev \
+        python3-venv \
+        && \
+    if [ -z ${WHISPER_VERSION+x} ]; then \
+        WHISPER_VERSION=$(curl -sX GET "https://api.github.com/repos/rhasspy/wyoming-faster-whisper/releases/latest" \
+        | awk '/tag_name/{print $4;exit}' FS='[""]'); \
+    fi && \
+    python3 -m venv /lsiopy && \
+    pip install -U --no-cache-dir \
+        pip \
+        wheel && \
+    pip install -U --no-cache-dir --find-links https://wheel-index.linuxserver.io/ubuntu/ \
+        git+https://github.com/rhasspy/wyoming-faster-whisper@${WHISPER_VERSION} && \
+    # 新增：下载tiny-int8模型到/config目录
+    huggingface-cli download --resume-download --local-dir /config/rhasspy/${MODEL_NAME} \
+        rhasspy/faster-whisper-${MODEL_NAME} && \
+    printf "Linuxserver.io version: ${VERSION}\nBuild-date: ${BUILD_DATE}" > /build_version && \
+    echo "**** cleanup ****" && \
+    apt-get purge -y --auto-remove \
+        build-essential \
+        git \
+        git-lfs \
+        python3-dev && \
+    rm -rf \
+        /var/lib/apt/lists/* \
+        /tmp/*
 
-# 系统编译工具配置
-RUN apt-get update && apt-get install -y --no-install-recommends \
-    gcc-9 g++-9 && \
-    update-alternatives --install /usr/bin/gcc gcc /usr/bin/gcc-9 900 && \
-    update-alternatives --install /usr/bin/g++ g++ /usr/bin/g++-9 900 && \
-    rm -rf /var/lib/apt/lists/*
+# 显式声明端口（已存在则无需修改）
+EXPOSE 10300
 
-# Tiny-CUDA-NN 安装
-ENV TCNN_CUDA_ARCHITECTURES="61;75;80;86"
-RUN pip install ninja && \
-    pip install -v --no-cache-dir \
-    "git+https://github.com/NVlabs/tiny-cuda-nn/#subdirectory=bindings/torch"
-
-# ROS 依赖安装
-RUN /bin/bash -c "source /opt/ros/$ROS_DISTRO/setup.bash && \
-    conda run -n nerfstudio pip install \
-    --no-build-isolation \
-    -e /catkin_ws/src/radiance_field_ros"
-
-# Catkin 编译
-WORKDIR /catkin_ws
-RUN /bin/bash -c "source /opt/ros/$ROS_DISTRO/setup.bash && \
-    catkin build -j$(nproc) --cmake-args -DCMAKE_BUILD_TYPE=Release"
-
-# udev 规则复制
-RUN cp /catkin_ws/src/ros_astra_camera/56-orbbec-usb.rules /etc/udev/rules.d/
-
-# 最终环境
-SHELL ["/bin/bash", "-c"]
-CMD ["/bin/bash", "-c", "source /opt/ros/$ROS_DISTRO/setup.bash && \
-    conda activate nerfstudio && \
-    exec bash"] 
+COPY root/ /
+VOLUME /config
