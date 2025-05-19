@@ -14,21 +14,28 @@ ENV HOME=/config \
     DEBIAN_FRONTEND="noninteractive" \
     TMPDIR="/run/whisper-temp"
 
-RUN \
-    echo "**** install packages ****" && \
+# 安装必要依赖
+RUN echo "**** install packages ****" && \
     apt-get update && \
     apt-get install -y --no-install-recommends \
         python3-pip \
         python3-venv \
-        curl && \
-    python3 -m venv /lsiopy && \
-    /lsiopy/bin/pip install --upgrade pip wheel huggingface_hub && \
-    echo "**** download tiny-int8 model ****" && \
-    /lsiopy/bin/python3 -c "\
-import huggingface_hub as hf; \
-hf.snapshot_download(repo_id='rhasspy/faster-whisper-tiny-int8', local_dir='/config/rhasspy/tiny-int8')" && \
-    echo "**** cleanup ****" && \
-    apt-get clean && rm -rf /var/lib/apt/lists/* /tmp/* /var/tmp/*
+        curl
+
+# 创建 Python 虚拟环境
+RUN python3 -m venv /lsiopy
+
+# 升级 pip、wheel 并安装 huggingface_hub
+RUN /lsiopy/bin/pip install --upgrade pip wheel huggingface_hub
+
+# 下载 tiny-int8 模型
+RUN echo "**** download tiny-int8 model ****" && \
+    /lsiopy/bin/python3 -c "import huggingface_hub as hf; hf.snapshot_download(repo_id='rhasspy/faster-whisper-tiny-int8', local_dir='/config/rhasspy/tiny-int8')"
+
+# 清理缓存，减小镜像体积
+RUN echo "**** cleanup ****" && \
+    apt-get clean && \
+    rm -rf /var/lib/apt/lists/* /tmp/* /var/tmp/*
 
 VOLUME /config
 
