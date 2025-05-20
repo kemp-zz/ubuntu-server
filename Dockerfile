@@ -24,4 +24,5 @@ EXPOSE 10300
 HEALTHCHECK --interval=30s --timeout=5s --start-period=5s --retries=3 \
   CMD curl -f http://localhost:10300/health || exit 1
 
-CMD ["python3", "-m", "wyoming_faster_whisper", "--model", "tiny-int8", "--device", "cpu", "--compute_type", "int8", "--uri", "tcp://0.0.0.0:10300"]
+
+CMD ["python3", "-m", "wyoming_faster_whisper", "--model", "tiny-int8", "--device", "cpu", "--compute_type", "int8", "--uri", "tcp://0.0.0.0:10300", "--data-dir", "/data"]
