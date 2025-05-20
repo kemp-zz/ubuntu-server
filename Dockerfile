@@ -2,7 +2,7 @@
 
 FROM ghcr.io/linuxserver/baseimage-ubuntu:arm64v8-noble
 
-ENV MODEL_NAME=tiny-int8
+ENV MODEL_NAME=tiny
 
 ARG BUILD_DATE
 ARG VERSION
@@ -28,9 +28,9 @@ RUN python3 -m venv /lsiopy
 # 升级 pip、wheel 并安装 huggingface_hub
 RUN /lsiopy/bin/pip install --upgrade pip wheel huggingface_hub
 
-# 下载 tiny-int8 模型
-RUN echo "**** download tiny-int8 model ****" && \
-    /lsiopy/bin/python3 -c "import huggingface_hub as hf; hf.snapshot_download(repo_id='rhasspy/faster-whisper-tiny-int8', local_dir='/config/rhasspy/tiny-int8')"
+# （可选）提前下载 whisper tiny 模型，通常不需要，whisper 库会自动下载
+RUN echo "**** download whisper tiny model (optional) ****" && \
+    /lsiopy/bin/python3 -c "import whisper; whisper.load_model('tiny')"
 
 # 清理缓存，减小镜像体积
 RUN echo "**** cleanup ****" && \
