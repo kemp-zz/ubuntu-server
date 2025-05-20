@@ -14,7 +14,7 @@ ENV HOME=/config \
     DEBIAN_FRONTEND="noninteractive" \
     TMPDIR="/run/whisper-temp"
 
-# 安装必要依赖
+# 安装必要依赖（官方源）
 RUN echo "**** install packages ****" && \
     apt-get update && \
     apt-get install -y --no-install-recommends \
