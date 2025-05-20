@@ -1,5 +1,4 @@
-# syntax=docker/dockerfile:1
-
+# 使用基础镜像
 FROM ghcr.io/linuxserver/baseimage-ubuntu:arm64v8-noble
 
 ENV MODEL_NAME=tiny
@@ -14,7 +13,7 @@ ENV HOME=/config \
     DEBIAN_FRONTEND="noninteractive" \
     TMPDIR="/run/whisper-temp"
 
-# 安装必要依赖（官方源）
+# 安装必要依赖
 RUN echo "**** install packages ****" && \
     apt-get update && \
     apt-get install -y --no-install-recommends \
@@ -25,10 +24,10 @@ RUN echo "**** install packages ****" && \
 # 创建 Python 虚拟环境
 RUN python3 -m venv /lsiopy
 
-# 升级 pip、wheel 并安装 huggingface_hub
-RUN /lsiopy/bin/pip install --upgrade pip wheel huggingface_hub
+# 升级 pip、wheel 并安装 huggingface_hub 和 openai-whisper
+RUN /lsiopy/bin/pip install --upgrade pip wheel huggingface_hub openai-whisper
 
-# （可选）提前下载 whisper tiny 模型，通常不需要，whisper 库会自动下载
+# （可选）提前下载 whisper tiny 模型
 RUN echo "**** download whisper tiny model (optional) ****" && \
     /lsiopy/bin/python3 -c "import whisper; whisper.load_model('tiny')"
 
