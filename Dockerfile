@@ -2,8 +2,7 @@ FROM python:3.11-slim-bullseye
 
 ENV DEBIAN_FRONTEND=noninteractive
 ENV TMPDIR=/run/whisper-temp
-ENV HF_HOME=/data/huggingface 
-ENV HF_HUB_OFFLINE=1         
+ENV HF_HOME=/data/huggingface  # huggingface 缓存目录
 
 RUN apt-get update && apt-get install -y --no-install-recommends \
     build-essential \
@@ -14,7 +13,7 @@ RUN apt-get update && apt-get install -y --no-install-recommends \
 RUN pip install --no-cache-dir --upgrade pip wheel
 RUN pip install --no-cache-dir faster-whisper wyoming-faster-whisper huggingface_hub
 
-# 构建时下载模型到 /data/tiny 目录
+# 构建时下载模型（此时允许联网）
 RUN python3 -c "\
 from huggingface_hub import snapshot_download; \
 snapshot_download('Systran/faster-whisper-tiny', local_dir='/data/tiny', local_files_only=False)"
@@ -26,6 +25,9 @@ EXPOSE 10300
 
 HEALTHCHECK --interval=30s --timeout=5s --start-period=5s --retries=3 \
   CMD curl -f http://localhost:10300/health || exit 1
+
+# 运行时设置离线环境变量，防止联网
+ENV HF_HUB_OFFLINE=1
 
 CMD ["python3", "-m", "wyoming_faster_whisper", \
      "--model", "/data/tiny", \
