@@ -1,11 +1,14 @@
 # 选择基础镜像（Debian Bookworm ARM64）
 FROM debian:bookworm-slim
 
+ARG HF_TOKEN
+
 ENV LANG=C.UTF-8 \
     DEBIAN_FRONTEND=noninteractive \
     PIP_BREAK_SYSTEM_PACKAGES=1 \
     WYOMING_PIPER_VERSION=1.5.4 \
-    BINARY_PIPER_VERSION=1.2.0
+    BINARY_PIPER_VERSION=1.2.0 \
+    HF_TOKEN=${HF_TOKEN}
 
 WORKDIR /usr/src
 
@@ -22,17 +25,20 @@ RUN pip3 install --no-cache-dir huggingface_hub && \
 # 创建模型存放目录
 RUN mkdir -p /data/zh_CN-huayan-medium
 
-ENV HF_TOKEN=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
-
-# 使用 Python 脚本调用 huggingface_hub 下载模型
+# 使用 Python 脚本调用 huggingface_hub 下载模型，确保使用令牌
 RUN python3 -c "\
+import os; \
 from huggingface_hub import snapshot_download; \
+os.environ['HF_TOKEN'] = '${HF_TOKEN}'; \
 snapshot_download(repo_id='rhasspy/huayan', cache_dir='/data/zh_CN-huayan-medium', local_dir_use_symlinks=False)"
+
+# 创建 /usr/share 目录，防止解压失败
+RUN mkdir -p /usr/share
 
 # 下载并解压 piper 二进制（固定 arch 为 arm64）
 RUN curl -L -s "https://github.com/rhasspy/piper/releases/download/v${BINARY_PIPER_VERSION}/piper_arm64.tar.gz" | tar -zxvf - -C /usr/share
+
 EXPOSE 10200
-ENV HF_HUB_OFFLINE=1
 
 WORKDIR /
 
