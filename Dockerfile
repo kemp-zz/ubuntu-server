@@ -21,9 +21,9 @@ RUN apt-get update && \
 
 # 模型与二进制下载（使用GitHub镜像源）
 RUN mkdir -p /data/zh_CN-huayan-medium && \
-    curl -L -sS "https://mirror.ghproxy.com/https://github.com/rhasspy/piper/releases/download/v${MODEL_VERSION}/voice-zh_CN-huayan-medium.tar.gz" | \
+    curl -L -sS "https://github.com/rhasspy/piper/releases/download/v${MODEL_VERSION}/voice-zh_CN-huayan-medium.tar.gz" | \
         tar -zxvf - -C /data/zh_CN-huayan-medium --strip-components=1 && \
-    curl -L -sS "https://mirror.ghproxy.com/https://github.com/rhasspy/piper/releases/download/v${BINARY_PIPER_VERSION}/piper_arm64.tar.gz" | \
+    curl -L -sS "https://github.com/rhasspy/piper/releases/download/v${BINARY_PIPER_VERSION}/piper_arm64.tar.gz" | \
         tar -zxvf - -C /usr/share
 
 EXPOSE 10200
