@@ -12,10 +12,10 @@ RUN apt-get update && apt-get install -y --no-install-recommends \
 RUN pip install --no-cache-dir --upgrade pip wheel
 RUN pip install --no-cache-dir faster-whisper wyoming-faster-whisper
 
-# 构建时下载并缓存 tiny-int8 模型
+# 构建时下载并缓存 large-v3 模型
 RUN python3 -c "\
 from faster_whisper import WhisperModel; \
-model = WhisperModel('tiny-int8', device='cpu'); \
+model = WhisperModel('large-v3', device='cpu'); \
 print('模型下载并缓存完成')"
 
 VOLUME /config
@@ -26,4 +26,4 @@ EXPOSE 10300
 HEALTHCHECK --interval=30s --timeout=5s --start-period=5s --retries=3 \
   CMD curl -f http://localhost:10300/health || exit 1
 
-CMD ["python3", "-m", "wyoming_faster_whisper", "--model", "tiny-int8", "--device", "cpu", "--uri", "tcp://0.0.0.0:10300", "--data-dir", "/data"]
+CMD ["python3", "-m", "wyoming_faster_whisper", "--model", "large-v3", "--device", "cpu", "--language", "zh", "--uri", "tcp://0.0.0.0:10300", "--data-dir", "/data"]
