@@ -22,7 +22,9 @@ RUN pip3 install --no-cache-dir huggingface_hub && \
 # 创建模型存放目录
 RUN mkdir -p /data/zh_CN-huayan-medium
 
-# 使用 Python 脚本调用 huggingface_hub 下载模型（示例用 snapshot_download 下载整个 repo）
+ENV HF_TOKEN=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
+
+# 使用 Python 脚本调用 huggingface_hub 下载模型
 RUN python3 -c "\
 from huggingface_hub import snapshot_download; \
 snapshot_download(repo_id='rhasspy/huayan', cache_dir='/data/zh_CN-huayan-medium', local_dir_use_symlinks=False)"
