@@ -2,7 +2,7 @@ FROM python:3.11-slim-bullseye
 
 ENV DEBIAN_FRONTEND=noninteractive
 ENV TMPDIR=/run/whisper-temp
-ENV HF_HOME=/data/huggingface  # huggingface 缓存目录
+ENV HF_HOME=/data/huggingface
 
 RUN apt-get update && apt-get install -y --no-install-recommends \
     build-essential \
