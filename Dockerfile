@@ -32,7 +32,7 @@ ENV HF_HUB_OFFLINE=1
 CMD ["python3", "-m", "wyoming_faster_whisper", \
      "--model", "/data/tiny", \
      "--device", "cpu", \
-     "--compute_type", "float32", \
      "--language", "zh", \
      "--uri", "tcp://0.0.0.0:10300", \
      "--data-dir", "/data"]
+
