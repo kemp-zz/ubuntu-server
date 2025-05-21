@@ -39,7 +39,7 @@ HEALTHCHECK --interval=30s --timeout=5s --start-period=5s --retries=3 \
 USER appuser 
 
 CMD ["python3", "-m", "wyoming_piper", \
-  "--piper", "/usr/share/piper", \
+  "--piper", "/usr/share/piper/piper", \
   "--voice", "zh_CN-huayan-medium", \
   "--data-dir", "/data/zh_CN-huayan-medium", \
   "--speaker", "0", \
@@ -48,7 +48,6 @@ CMD ["python3", "-m", "wyoming_piper", \
   "--noise-w", "0.333", \
   "--auto-punctuation", ".?!", \
   "--samples-per-chunk", "1024", \
-  "--max-piper-procs", "1", \
-  "--update-voices", \
+  "--max-piper-procs", "1", \  
   "--debug", \
   "--log-format", "%(levelname)s:%(name)s:%(message)s"]
