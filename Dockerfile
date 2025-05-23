@@ -1,5 +1,5 @@
 # 基础镜像
-FROM python:3.12-slim
+FROM python:3.12-slim AS base
 
 # 安装系统依赖
 RUN apt-get update && \
@@ -14,8 +14,9 @@ RUN curl -o- https://raw.githubusercontent.com/nvm-sh/nvm/v0.40.1/install.sh | b
     ln -s $NVM_DIR/versions/node/$(ls $NVM_DIR/versions/node)/bin/npm /usr/bin/npm && \
     ln -s $NVM_DIR/versions/node/$(ls $NVM_DIR/versions/node)/bin/yarn /usr/bin/yarn
 
-# 安装 uv（推荐用pipx）
-RUN pip install pipx && pipx ensurepath && pipx install uv
+# ---- 复制uv二进制 ----
+FROM base AS builder
+COPY --from=ghcr.io/astral-sh/uv:latest /uv /usr/local/bin/uv
 
 # 设置工作目录
 WORKDIR /app
