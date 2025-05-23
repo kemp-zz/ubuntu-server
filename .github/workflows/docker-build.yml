@@ -4,7 +4,7 @@ on: [push, workflow_dispatch]
 
 env:
   REGISTRY: docker.io
-  IMAGE_NAME: ${{ secrets.DOCKERHUB_USERNAME }}/wyoming-piper
+  IMAGE_NAME: ${{ secrets.DOCKERHUB_USERNAME }}/magentic-ui
 
 jobs:
   build:
@@ -52,7 +52,7 @@ jobs:
       uses: docker/build-push-action@v5
       with:
         context: .
-        platforms: linux/arm64
+        platforms: linux/amd64,linux/arm64 
         push: ${{ github.event_name != 'pull_request' }}
         tags: |
           ${{ env.IMAGE_NAME }}:latest
