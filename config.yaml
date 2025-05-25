@@ -91,17 +91,18 @@ dns:
     - beiyong.dynuddns.net
 
 proxy-groups:
-  - {name: 一键智能,   <<: *Select, include-all: true, icon: https://github.com/666OS/YYDS/raw/main/mihomo/image/mihomo.png}
-  - {name: AI平台,    <<: *Sel_US, include-all: true, filter: "🇺🇸|美|🇸🇬|新|🇯🇵|日|🇼🇸|🇹🇼|台",exclude-filter: "🇭🇰|港", icon: https://git.imee.me/https://github.com/Koolson/Qure/raw/master/IconSet/Color/AI.png}
-  - {name: 电报消息,   <<: *Sel_SG, icon: https://github.com/Koolson/Qure/raw/master/IconSet/Color/Telegram_X.png}
-  - {name: 国际媒体,   <<: *Sel_Smart, icon: https://github.com/Koolson/Qure/raw/master/IconSet/Color/DomesticMedia.png}
-  - {name: 香港智能,   <<: *Smart, filter: *FilterHK, icon: https://github.com/Koolson/Qure/raw/master/IconSet/Color/Hong_Kong.png}
-  - {name: 台湾智能,   <<: *Smart, filter: *FilterTW, icon: https://github.com/Koolson/Qure/raw/master/IconSet/Color/Taiwan.png}
-  - {name: 新加坡智能, <<: *Smart, filter: *FilterSG, icon: https://github.com/Koolson/Qure/raw/master/IconSet/Color/Singapore.png}
-  - {name: 日本智能,   <<: *Smart, filter: *FilterJP, icon: https://github.com/Koolson/Qure/raw/master/IconSet/Color/Japan.png}
-  - {name: 韩国智能,   <<: *Smart, filter: *FilterKR, icon: https://github.com/Koolson/Qure/raw/master/IconSet/Color/Korea.png}
-  - {name: 美国智能,   <<: *Smart, filter: *FilterUS, icon: https://github.com/Koolson/Qure/raw/master/IconSet/Color/United_States.png}
-  - {name: 欧洲智能,   <<: *Smart, filter: *FilterEU, icon: https://github.com/Koolson/Qure/raw/master/IconSet/Color/European_Union.png}
+  - {name: 一键智能,   <<: *Select, include-all: true, icon: /root/.config/mihomo/icons/mihomo.png}
+  - {name: AI平台,    <<: *Sel_US, include-all: true, filter: "🇺🇸|美|🇸🇬|新|🇯🇵|日|🇼🇸|🇹🇼|台", exclude-filter: "🇭🇰|港", icon: /root/.config/mihomo/icons/AI.png}
+  - {name: 电报消息,   <<: *Sel_SG, icon: /root/.config/mihomo/icons/Telegram_X.png}
+  - {name: 国际媒体,   <<: *Sel_Smart, icon: /root/.config/mihomo/icons/DomesticMedia.png}
+  - {name: 香港智能,   <<: *Smart, filter: *FilterHK, icon: /root/.config/mihomo/icons/Hong_Kong.png}
+  - {name: 台湾智能,   <<: *Smart, filter: *FilterTW, icon: /root/.config/mihomo/icons/Taiwan.png}
+  - {name: 新加坡智能, <<: *Smart, filter: *FilterSG, icon: /root/.config/mihomo/icons/Singapore.png}
+  - {name: 日本智能,   <<: *Smart, filter: *FilterJP, icon: /root/.config/mihomo/icons/Japan.png}
+  - {name: 韩国智能,   <<: *Smart, filter: *FilterKR, icon: /root/.config/mihomo/icons/Korea.png}
+  - {name: 美国智能,   <<: *Smart, filter: *FilterUS, icon: /root/.config/mihomo/icons/United_States.png}
+  - {name: 欧洲智能,   <<: *Smart, filter: *FilterEU, icon: /root/.config/mihomo/icons/European_Union.png}
+
 
 rule-providers: 
   download:           /root/.config/mihomo/rules//root/.config/mihomo/rules//root/.config/mihomo/rules//root/.config/mihomo/rules//root/.config/mihomo/rules//root/.config/mihomo/rules//root/.config/mihomo/rules//root/.config/mihomo/rules//root/.config/mihomo/rules//root/.config/mihomo/rules//root/.config/mihomo/rules//root/.config/mihomo/rules//root/.config/mihomo/rules//root/.config/mihomo/rules//root/.config/mihomo/rules//root/.config/mihomo/rules//root/.config/mihomo/rules/{type: http, interval: 86400, behavior: classical, format: yaml, url: https://github.com/666OS/YYDS/raw/main/mihomo/rules/download.yaml}
