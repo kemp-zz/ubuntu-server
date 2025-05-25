@@ -4,15 +4,14 @@ RUN apk add --no-cache wget grep sed awk tar
 
 WORKDIR /mihomo-config
 
-# 复制 config.yaml 到构建目录
-COPY docker/config.yaml ./config.yaml
+# 直接从远程下载 config.yaml
+RUN wget -O ./config.yaml https://raw.githubusercontent.com/kemp-zz/ubuntu-server/main/config.yaml
 
 # 1. 提取并下载 proxy-providers
 RUN mkdir -p providers && \
     grep -A 10 'proxy-providers:' config.yaml | grep 'url:' | awk '{print $2}' | sed "s/'//g" | while read url; do \
       fname=$(basename "$url"); \
       wget -O providers/"$fname" "$url"; \
-      # 替换 config.yaml 中的 url 为本地路径
       sed -i "s|$url|/root/.config/mihomo/providers/$fname|g" config.yaml; \
     done
 
