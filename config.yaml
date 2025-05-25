@@ -16,8 +16,17 @@ Sel_SG: &Sel_SG /root/.config/mihomo/rules//root/.config/mihomo/rules//root/.con
 
 # 填写订阅,名称不能重复
 proxy-providers:
-  机场A: /root/.config/mihomo/providers//root/.config/mihomo/providers/{<<: *PProviders, url: 'https://ghproxy.net/https://raw.githubusercontent.com/WeiGiegie/vpm/refs/heads/main/lq.snippet', override: {additional-prefix: '[A] '}}
-  机场B: /root/.config/mihomo/providers//root/.config/mihomo/providers/{<<: *PProviders, url: '机场订阅地址', override: {additional-prefix: '[B] '}}
+  机场A:
+    type: http
+    url: https://ghproxy.net/https://raw.githubusercontent.com/WeiGiegie/vpm/refs/heads/main/lq.snippet
+    override:
+      additional-prefix: '[A] '
+  机场B:
+    type: http
+    url: 机场订阅地址
+    override:
+      additional-prefix: '[B] '
+
 
 mode: rule
 port: 7890
@@ -43,7 +52,7 @@ skip-auth-prefixes:
   - 192.168.100.0/24
   - 127.0.0.1/8
   
-external-ui-url: https://github.com/Zephyruso/zashboard/releases/latest/download/dist.zip
+external-ui-url: /root/.config/mihomo/ui
 external-ui-name: zashboard
 external-ui: /root/.config/mihomo/ui
 external-controller: 0.0.0.0:9090
