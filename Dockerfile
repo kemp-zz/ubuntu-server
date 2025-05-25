@@ -38,9 +38,23 @@ RUN mkdir -p ui && \
     unzip ui/dist.zip -d ui && \
     rm ui/dist.zip
 
+# 5. 下载所有 icons 图标
+RUN mkdir -p icons && \
+    wget -O icons/mihomo.png https://github.com/666OS/YYDS/raw/main/mihomo/image/mihomo.png && \
+    wget -O icons/AI.png https://github.com/Koolson/Qure/raw/master/IconSet/Color/AI.png && \
+    wget -O icons/Telegram_X.png https://github.com/Koolson/Qure/raw/master/IconSet/Color/Telegram_X.png && \
+    wget -O icons/DomesticMedia.png https://github.com/Koolson/Qure/raw/master/IconSet/Color/DomesticMedia.png && \
+    wget -O icons/Hong_Kong.png https://github.com/Koolson/Qure/raw/master/IconSet/Color/Hong_Kong.png && \
+    wget -O icons/Taiwan.png https://github.com/Koolson/Qure/raw/master/IconSet/Color/Taiwan.png && \
+    wget -O icons/Singapore.png https://github.com/Koolson/Qure/raw/master/IconSet/Color/Singapore.png && \
+    wget -O icons/Japan.png https://github.com/Koolson/Qure/raw/master/IconSet/Color/Japan.png && \
+    wget -O icons/Korea.png https://github.com/Koolson/Qure/raw/master/IconSet/Color/Korea.png && \
+    wget -O icons/United_States.png https://github.com/Koolson/Qure/raw/master/IconSet/Color/United_States.png && \
+    wget -O icons/European_Union.png https://github.com/Koolson/Qure/raw/master/IconSet/Color/European_Union.png
+
 WORKDIR /mihomo
 
-# 5. 下载 mihomo 主程序
+# 6. 下载 mihomo 主程序
 RUN wget -O clash-linux-arm64.tar.gz https://github.com/vernesong/OpenClash/releases/download/mihomo/clash-linux-arm64.tar.gz && \
     tar -xzf clash-linux-arm64.tar.gz && \
     mv clash mihomo && \
@@ -60,6 +74,7 @@ COPY --from=builder /mihomo-config/geoip.metadb /root/.config/mihomo/geoip.metad
 COPY --from=builder /mihomo-config/geosite.dat /root/.config/mihomo/geosite.dat
 COPY --from=builder /mihomo-config/geoip.dat /root/.config/mihomo/geoip.dat
 COPY --from=builder /mihomo-config/ui/ /root/.config/mihomo/ui/
+COPY --from=builder /mihomo-config/icons/ /root/.config/mihomo/icons/
 COPY --from=builder /mihomo/mihomo /mihomo
 
 ENTRYPOINT [ "/mihomo" ]
