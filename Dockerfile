@@ -1,43 +1,30 @@
-# 基础镜像
-FROM python:3.12-slim AS base
+FROM alpine:latest as builder
 
-# 安装系统依赖
-RUN apt-get update && \
-    apt-get install -y curl git build-essential && \
-    rm -rf /var/lib/apt/lists/*
+RUN apk add --no-cache gzip wget tar
 
-# 安装 Node.js (使用 nvm)
-ENV NVM_DIR /root/.nvm
-RUN curl -o- https://raw.githubusercontent.com/nvm-sh/nvm/v0.40.1/install.sh | bash && \
-    . "$NVM_DIR/nvm.sh" && nvm install node && nvm use node && \
-    ln -s $NVM_DIR/versions/node/$(ls $NVM_DIR/versions/node)/bin/node /usr/bin/node && \
-    ln -s $NVM_DIR/versions/node/$(ls $NVM_DIR/versions/node)/bin/npm /usr/bin/npm && \
-    ln -s $NVM_DIR/versions/node/$(ls $NVM_DIR/versions/node)/bin/yarn /usr/bin/yarn
+# 下载配置文件
+RUN mkdir /mihomo-config && \
+    wget -O /mihomo-config/geoip.metadb https://fastly.jsdelivr.net/gh/MetaCubeX/meta-rules-dat@release/geoip.metadb && \
+    wget -O /mihomo-config/geosite.dat https://fastly.jsdelivr.net/gh/MetaCubeX/meta-rules-dat@release/geosite.dat && \
+    wget -O /mihomo-config/geoip.dat https://fastly.jsdelivr.net/gh/MetaCubeX/meta-rules-dat@release/geoip.dat
 
-# ---- 复制uv二进制 ----
-FROM base AS builder
-COPY --from=ghcr.io/astral-sh/uv:latest /uv /usr/local/bin/uv
+WORKDIR /mihomo
 
-# 设置工作目录
-WORKDIR /app
+# 直接下载 clash-linux-arm64.tar.gz 并解压
+RUN wget -O clash-linux-arm64.tar.gz https://github.com/vernesong/OpenClash/releases/download/mihomo/clash-linux-arm64.tar.gz && \
+    tar -xzf clash-linux-arm64.tar.gz && \
+    # 假设解压后生成的可执行文件名为 clash，重命名为 mihomo
+    mv clash mihomo && \
+    chmod +x mihomo
 
-# 复制代码
-COPY . .
+FROM alpine:latest
+LABEL org.opencontainers.image.source="https://github.com/vernesong/OpenClash/releases/download/mihomo/clash-linux-arm64.tar.gz"
 
-# 创建虚拟环境并安装Python依赖
-RUN uv venv --python=3.12 .venv && \
-    . .venv/bin/activate && \
-    uv sync --all-extras
+RUN apk add --no-cache ca-certificates tzdata iptables
 
-# 构建前端
-WORKDIR /app/frontend
-RUN npm install -g gatsby-cli && \
-    npm install --global yarn && \
-    yarn install && \
-    yarn build
+VOLUME ["/root/.config/mihomo/"]
 
-# 切回主目录
-WORKDIR /app
+COPY --from=builder /mihomo-config/ /root/.config/mihomo/
+COPY --from=builder /mihomo/mihomo /mihomo
 
-# 启动命令
-CMD [".venv/bin/python", "-m", "magentic", "ui", "--port", "8081"]
+ENTRYPOINT [ "/mihomo" ]
