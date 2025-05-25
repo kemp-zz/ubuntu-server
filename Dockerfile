@@ -1,6 +1,6 @@
 FROM alpine:latest as builder
 
-RUN apk add --no-cache wget grep sed awk tar
+RUN apk add --no-cache wget grep sed curl tar 
 
 WORKDIR /mihomo-config
 
