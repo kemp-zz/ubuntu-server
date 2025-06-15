@@ -1,7 +1,7 @@
 FROM alpine:latest as builder
 ARG TARGETPLATFORM
-ARG MIHOMO_VERSION="mihomo-linux-arm64-alpha-0a05fb2"
 
+ARG MIHOMO_VERSION="mihomo-linux-arm64-alpha-smart-fa31ade"
 RUN echo "I'm building for $TARGETPLATFORM"
 
 RUN apk add --no-cache gzip wget && \
@@ -15,7 +15,7 @@ RUN mkdir -p /mihomo && \
     wget -O /mihomo/mihomo.gz https://github.com/vernesong/mihomo/releases/download/Prerelease-Alpha/${MIHOMO_VERSION}.gz
 
 # 下载 Model.bin 文件
-RUN wget -O /mihomo-config/Model.bin https://github.com/vernesong/mihomo/releases/download/LightGBM-Model/Model.bin
+RUN wget -O /mihomo-config/Model.bin https://github.com/vernesong/mihomo/releases/download/LightGBM-Model/Model-large.bin
 
 WORKDIR /mihomo
 
