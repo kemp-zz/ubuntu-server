@@ -1,35 +1,62 @@
-FROM alpine:latest as builder
-ARG TARGETPLATFORM
+# === 构建阶段 ===
+FROM rust:1.77 as builder
 
-ARG MIHOMO_VERSION="mihomo-linux-arm64-alpha-smart-fa31ade"
-RUN echo "I'm building for $TARGETPLATFORM"
+RUN apt-get update && apt-get install -y clang pkg-config libssl-dev
 
-RUN apk add --no-cache gzip wget && \
-    mkdir /mihomo-config && \
-    wget -O /mihomo-config/geoip.metadb https://fastly.jsdelivr.net/gh/MetaCubeX/meta-rules-dat@release/geoip.metadb && \
-    wget -O /mihomo-config/geosite.dat https://fastly.jsdelivr.net/gh/MetaCubeX/meta-rules-dat@release/geosite.dat && \
-    wget -O /mihomo-config/geoip.dat https://fastly.jsdelivr.net/gh/MetaCubeX/meta-rules-dat@release/geoip.dat
+WORKDIR /build
+RUN git clone --depth 1 https://gitlab.torproject.org/tpo/core/arti.git
+WORKDIR /build/arti
+RUN cargo build --release --bin arti
 
-# 创建目录后下载二进制文件
-RUN mkdir -p /mihomo && \
-    wget -O /mihomo/mihomo.gz https://github.com/vernesong/mihomo/releases/download/Prerelease-Alpha/${MIHOMO_VERSION}.gz
+# === 运行阶段 ===
+FROM debian:bookworm-slim
 
-# 下载 Model.bin 文件
-RUN wget -O /mihomo-config/Model.bin https://github.com/vernesong/mihomo/releases/download/LightGBM-Model/Model-large.bin
+RUN apt-get update && apt-get install -y ca-certificates && rm -rf /var/lib/apt/lists/*
 
-WORKDIR /mihomo
+RUN useradd -m -u 1000 arti
+WORKDIR /home/arti
 
-RUN gzip -d mihomo.gz && \
-    chmod +x mihomo && \
-    echo "${MIHOMO_VERSION}" > /mihomo-config/test
+COPY --from=builder /build/arti/target/release/arti /usr/local/bin/arti
 
-FROM alpine:latest
-LABEL org.opencontainers.image.source="https://github.com/MetaCubeX/mihomo"
+RUN mkdir -p /home/arti/.config/arti
 
-RUN apk add --no-cache ca-certificates tzdata iptables
+# 写入完整的 bridges 配置（包含 obfs4proxy、snowflake、webtunnel 示例）
+RUN cat <<'EOF' > /home/arti/.config/arti/arti.toml
+[bridges]
+enabled = true
 
-VOLUME ["/root/.config/mihomo/"]
+# For example:
+bridges = '''
+192.0.2.83:80 $0bac39417268b96b9f514ef763fa6fba1a788956
+[2001:db8::3150]:8080 $0bac39417268b96b9f514e7f63fa6fb1aa788957
+obfs4 bridge.example.net:80 $0bac39417268b69b9f514e7f63fa6fba1a788958 ed25519:dGhpcyBpcyBbpmNyZWRpYmx5IHNpbGx5ISEhISEhISA iat-mode=1
+snowflake 192.0.2.3:80 2B280B23E1107BB62ABFC40DDCC8824814F80A72 fingerprint=2B280B23E1107BB62ABFC40DDCC8824814F80A72 url=https://snowflake-broker.torproject.net.global.prod.fastly.net/ fronts=foursquare.com,github.githubassets.com ice=stun:stun.l.google.com:19302,stun:stun.antisip.com:3478,stun:stun.bluesip.net:3478,stun:stun.dus.net:3478,stun:stun.epygi.com:3478,stun:stun.sonetel.com:3478,stun:stun.uls.co.za:3478,stun:stun.voipgate.com:3478,stun:stun.voys.nl:3478 utls-imitate=hellorandomizedalpn
+webtunnel 192.0.2.3:1 url=https://akbwadp9lc5fyyz0cj4d76z643pxgbfh6oyc-167-71-71-157.sslip.io/5m9yq0j4ghkz0fz7qmuw58cvbjon0ebnrsp0
+'''
 
-COPY --from=builder /mihomo-config/ /root/.config/mihomo/
-COPY --from=builder /mihomo/mihomo /mihomo
-ENTRYPOINT [ "/mihomo" ]
+[[bridges.transports]]
+protocols = ["obfs4"]
+path = "/usr/bin/obfs4proxy"
+#arguments = ["-enableLogging", "-logLevel", "DEBUG"]
+arguments = []
+run_on_startup = false
+
+[[bridges.transports]]
+protocols = ["snowflake"]
+path = "/usr/bin/snowflake-client"
+#arguments = ["-log-to-state-dir", "-log", "snowflake.log"]
+arguments = []
+run_on_startup = false
+
+[[bridges.transports]]
+protocols = ["webtunnel"]
+path = "/usr/bin/webtunnel-client"
+arguments = []
+run_on_startup = false
+EOF
+
+RUN chown -R arti:arti /home/arti/.config/arti
+
+USER arti
+
+CMD ["arti", "-c", "/home/arti/.config/arti/arti.toml"]
