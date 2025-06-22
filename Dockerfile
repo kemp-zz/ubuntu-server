@@ -19,18 +19,18 @@ FROM golang:1.22-alpine AS go_builder
 
 RUN apk add --no-cache git
 
-# Clone snowflake repo (contains both snowflake-client and obfs4proxy)
-RUN git clone --depth 1 https://gitlab.torproject.org/tpo/anti-censorship/pluggable-transports/snowflake.git /src/snowflake
+# 用旧版 snowflake 仓库（含 obfs4proxy 源码）
+RUN git clone --branch v2.7.0 https://gitlab.torproject.org/tpo/anti-censorship/pluggable-transports/snowflake.git /src/snowflake
 
-# Build obfs4proxy from snowflake repo
+# Build obfs4proxy
 WORKDIR /src/snowflake/client/obfs4proxy
 RUN go build -o /go/bin/obfs4proxy
 
-# Build snowflake-client from snowflake repo
+# Build snowflake-client
 WORKDIR /src/snowflake/client
 RUN go build -o /go/bin/snowflake-client
 
-# Build webtunnel-client
+# Build webtunnel-client（最新主分支）
 RUN git clone --depth 1 https://gitlab.torproject.org/tpo/anti-censorship/pluggable-transports/webtunnel.git /src/webtunnel
 WORKDIR /src/webtunnel/client
 RUN go build -o /go/bin/webtunnel-client
@@ -45,12 +45,12 @@ RUN apk --no-cache --no-progress update && \
     libgcc \
     tini
 
-# Copy Go tools
+# 复制 go 工具
 COPY --from=go_builder /go/bin/obfs4proxy /usr/bin/obfs4proxy
 COPY --from=go_builder /go/bin/snowflake-client /usr/bin/snowflake-client
 COPY --from=go_builder /go/bin/webtunnel-client /usr/bin/webtunnel-client
 
-# Create user and necessary directories
+# 创建用户和目录
 RUN adduser \
     --disabled-password \
     --home "/home/arti/" \
@@ -60,18 +60,18 @@ RUN adduser \
 
 WORKDIR /home/arti
 
-# Copy arti binary
+# 复制编译好的 arti
 COPY --from=builder /build/target/release/arti /usr/bin/arti
 
-# Create config and data directories
+# 创建配置和数据目录
 RUN mkdir -p /home/arti/.config/arti/arti.d/ \
     /home/arti/.cache/arti/ \
     /home/arti/.local/share/arti/
 
-# If you have a config file, uncomment the next line and ensure it exists in the build context
+# 如果你有配置文件需要复制，取消下一行注释并确保构建上下文有 arti.toml
 # COPY --chmod=644 arti.toml /home/arti/.config/arti/arti.d/
 
-# Set directory owner
+# 设置目录权限
 RUN chown -R arti:arti /home/arti/
 
 USER arti
