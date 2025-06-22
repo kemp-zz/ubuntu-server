@@ -1,86 +1,63 @@
-# === Build Stage for arti ===
-FROM rust:1.87.0-alpine AS builder
+FROM rust:1.87.0-alpine AS rust_builder
 
-RUN apk --no-cache --no-progress update && \
-    apk --no-cache --no-progress add \
-    musl-dev \
-    openssl-dev \
-    sqlite-dev \
-    git
+RUN apk --no-cache --no-progress update
+RUN apk --no-cache --no-progress add musl-dev openssl-dev sqlite-dev git
 
 ENV RUSTFLAGS="-Ctarget-feature=-crt-static"
 
-WORKDIR /build
-RUN git clone --depth 1 https://gitlab.torproject.org/tpo/core/arti.git . && \
-    cargo build --release --bin arti
+WORKDIR /usr/src/arti
 
-# === Build Stage for Go Tools ===
-FROM golang:1.22-alpine AS go_builder
+ARG ARTI_VERSION=main
+RUN git clone -b $ARTI_VERSION --single-branch --depth 1 https://gitlab.torproject.org/tpo/core/arti.git .
 
-RUN apk add --no-cache git
+RUN cargo build -p arti --release
 
-# 用旧版 snowflake 仓库（含 obfs4proxy 源码）
-RUN git clone --branch v2.7.0 https://gitlab.torproject.org/tpo/anti-censorship/pluggable-transports/snowflake.git /src/snowflake
+FROM golang:1.24.4-alpine AS go_builder
 
-# Build obfs4proxy
-WORKDIR /src/snowflake/client/obfs4proxy
-RUN go build -o /go/bin/obfs4proxy
+RUN apk --no-cache --no-progress update
+RUN apk --no-cache --no-progress add git
 
-# Build snowflake-client
-WORKDIR /src/snowflake/client
-RUN go build -o /go/bin/snowflake-client
+# Install obfs4proxy, snowflake and webtunnel
+ARG OBFS4_VERSION=latest
+ARG SNOWFLAKE_VERSION=latest
+ARG WEBTUNNEL_VERSION=latest
 
-# Build webtunnel-client（最新主分支）
-RUN git clone --depth 1 https://gitlab.torproject.org/tpo/anti-censorship/pluggable-transports/webtunnel.git /src/webtunnel
-WORKDIR /src/webtunnel/client
-RUN go build -o /go/bin/webtunnel-client
+RUN go install gitlab.com/yawning/obfs4.git/obfs4proxy@$OBFS4_VERSION
 
-# === Runtime Stage ===
+RUN go install gitlab.torproject.org/tpo/anti-censorship/pluggable-transports/snowflake/v2/client@$SNOWFLAKE_VERSION
+RUN mv /go/bin/client /go/bin/snowflake-client
+
+RUN go install gitlab.torproject.org/tpo/anti-censorship/pluggable-transports/webtunnel/main/client@$WEBTUNNEL_VERSION
+RUN mv /go/bin/client /go/bin/webtunnel-client
+
 FROM alpine:3.22.0
 
-RUN apk --no-cache --no-progress update && \
-    apk --no-cache --no-progress add \
-    curl \
-    sqlite-libs \
-    libgcc \
-    tini
+RUN apk --no-cache --no-progress update
+RUN apk --no-cache --no-progress add curl sqlite-libs libgcc tini
 
-# 复制 go 工具
+COPY --chmod=644 arti.proxy.toml /home/arti/.config/arti/arti.d/
+
 COPY --from=go_builder /go/bin/obfs4proxy /usr/bin/obfs4proxy
 COPY --from=go_builder /go/bin/snowflake-client /usr/bin/snowflake-client
 COPY --from=go_builder /go/bin/webtunnel-client /usr/bin/webtunnel-client
+COPY --from=rust_builder /usr/src/arti/target/release/arti /usr/bin/arti
 
-# 创建用户和目录
 RUN adduser \
-    --disabled-password \
-    --home "/home/arti/" \
-    --gecos "" \
-    --shell "/sbin/nologin" \
-    arti
-
-WORKDIR /home/arti
-
-# 复制编译好的 arti
-COPY --from=builder /build/target/release/arti /usr/bin/arti
-
-# 创建配置和数据目录
-RUN mkdir -p /home/arti/.config/arti/arti.d/ \
-    /home/arti/.cache/arti/ \
-    /home/arti/.local/share/arti/
-
-# 如果你有配置文件需要复制，取消下一行注释并确保构建上下文有 arti.toml
-# COPY --chmod=644 arti.toml /home/arti/.config/arti/arti.d/
-
-# 设置目录权限
-RUN chown -R arti:arti /home/arti/
-
+  --disabled-password \
+  --home "/home/arti/" \
+  --gecos "" \
+  --shell "/sbin/nologin" \
+  arti
 USER arti
 
 HEALTHCHECK --interval=5m --timeout=15s --start-period=20s \
   CMD curl -s --socks5-hostname localhost:9150 'https://check.torproject.org/' | \
   grep -qm1 Congratulations
 
+# Cache information and persistent state
+RUN mkdir -p /home/arti/.cache/arti/ /home/arti/.local/share/arti/
 VOLUME [ "/home/arti/.cache/arti/", "/home/arti/.local/share/arti/" ]
+
 EXPOSE 9150
 
 ENTRYPOINT ["/sbin/tini", "--", "arti" ]
