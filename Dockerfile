@@ -1,7 +1,7 @@
 # === 构建阶段 ===
 FROM rust:1.77 as builder
 
-RUN apt-get update && apt-get install -y clang pkg-config libssl-dev
+RUN apt-get update && apt-get install -y clang pkg-config libssl-dev git
 
 WORKDIR /build
 RUN git clone --depth 1 https://gitlab.torproject.org/tpo/core/arti.git
@@ -11,7 +11,17 @@ RUN cargo build --release --bin arti
 # === 运行阶段 ===
 FROM debian:bookworm-slim
 
-RUN apt-get update && apt-get install -y ca-certificates && rm -rf /var/lib/apt/lists/*
+RUN apt-get update && \
+    apt-get install -y ca-certificates obfs4proxy wget && \
+    rm -rf /var/lib/apt/lists/*
+
+# 安装 snowflake-client
+RUN wget -O /usr/bin/snowflake-client https://gitlab.torproject.org/tpo/anti-censorship/pluggable-transports/snowflake/-/releases/permalink/latest/download/snowflake-client-linux-amd64 && \
+    chmod +x /usr/bin/snowflake-client
+
+# 安装 webtunnel-client（如有官方二进制则下载，否则可跳过或改成你自己的下载方式）
+RUN wget -O /usr/bin/webtunnel-client https://gitlab.torproject.org/tpo/anti-censorship/pluggable-transports/webtunnel/-/releases/permalink/latest/download/webtunnel-client-linux-amd64 && \
+    chmod +x /usr/bin/webtunnel-client || echo "webtunnel-client not installed (no release found)"
 
 RUN useradd -m -u 1000 arti
 WORKDIR /home/arti
