@@ -53,7 +53,7 @@ RUN mkdir -p /home/arti/.config/arti/arti.d/ \
     /home/arti/.local/share/arti/
 
 # Copy and set up config
-COPY --chmod=644 arti.toml /home/arti/.config/arti/arti.d/
+#COPY --chmod=644 arti.toml /home/arti/.config/arti/arti.d/
 
 # Set proper ownership
 RUN chown -R arti:arti /home/arti/
