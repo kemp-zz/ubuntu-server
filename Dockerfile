@@ -35,7 +35,7 @@ FROM alpine:3.22.0
 RUN apk --no-cache --no-progress update
 RUN apk --no-cache --no-progress add curl sqlite-libs libgcc tini
 
-COPY --chmod=644 arti.proxy.toml /home/arti/.config/arti/arti.d/
+#COPY --chmod=644 arti.proxy.toml /home/arti/.config/arti/arti.d/
 
 COPY --from=go_builder /go/bin/obfs4proxy /usr/bin/obfs4proxy
 COPY --from=go_builder /go/bin/snowflake-client /usr/bin/snowflake-client
