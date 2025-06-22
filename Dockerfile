@@ -19,13 +19,14 @@ FROM golang:1.22-alpine AS go_builder
 
 RUN apk add --no-cache git
 
-# Build obfs4proxy
-RUN git clone --depth 1 https://gitlab.torproject.org/tpo/anti-censorship/pluggable-transports/obfs4.git /src/obfs4
-WORKDIR /src/obfs4
+# Clone snowflake repo (contains both snowflake-client and obfs4proxy)
+RUN git clone --depth 1 https://gitlab.torproject.org/tpo/anti-censorship/pluggable-transports/snowflake.git /src/snowflake
+
+# Build obfs4proxy from snowflake repo
+WORKDIR /src/snowflake/client/obfs4proxy
 RUN go build -o /go/bin/obfs4proxy
 
-# Build snowflake-client
-RUN git clone --depth 1 https://gitlab.torproject.org/tpo/anti-censorship/pluggable-transports/snowflake.git /src/snowflake
+# Build snowflake-client from snowflake repo
 WORKDIR /src/snowflake/client
 RUN go build -o /go/bin/snowflake-client
 
