@@ -33,7 +33,7 @@ RUN mv /go/bin/client /go/bin/webtunnel-client
 FROM alpine:3.22.0
 
 RUN apk --no-cache --no-progress update
-RUN apk --no-cache --no-progress add curl sqlite-libs libgcc tini
+RUN apk --no-cache --no-progress add curl sqlite-libs libgcc tini torsocks
 
 #COPY --chmod=644 arti.proxy.toml /home/arti/.config/arti/arti.d/
 
